@@ -9,6 +9,7 @@ import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import Journal from './pages/Journal'
+import Goals from './pages/Goals'
 
 // Placeholder pages — gebaut in späteren Schritten
 function PlaceholderPage({ title }: { title: string }) {
@@ -32,7 +33,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/journal" element={<Journal />} />
-        <Route path="/goals" element={<PlaceholderPage title="Ziele" />} />
+        <Route path="/goals" element={<Goals />} />
         <Route path="/coach" element={<PlaceholderPage title="Coach" />} />
         <Route path="/review" element={<PlaceholderPage title="Wochen-Review" />} />
         <Route path="*" element={<Navigate to="/" replace />} />

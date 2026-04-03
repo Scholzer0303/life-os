@@ -186,3 +186,34 @@ Antworte auf Deutsch. Sei präzise, nicht pathetisch.`,
   if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
   return block.text
 }
+
+export async function checkGoalAlignment(
+  goal: Goal,
+  parentGoal: Goal | null,
+  profile: Profile,
+  recentEntries: JournalEntry[],
+  allGoals: Goal[]
+): Promise<string> {
+  checkRateLimit()
+  const client = getClient()
+  const systemPrompt = buildSystemPrompt(profile, recentEntries, allGoals)
+  const context = [
+    `Ziel: "${goal.title}"`,
+    goal.description && `Beschreibung: ${goal.description}`,
+    `Typ: ${goal.type} | Fortschritt: ${goal.progress}% | Status: ${goal.status}`,
+    parentGoal && `Übergeordnetes Ziel: "${parentGoal.title}"`,
+  ].filter(Boolean).join('\n')
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    system: systemPrompt,
+    messages: [{
+      role: 'user',
+      content: `Bitte bewerte dieses Ziel:\n\n${context}\n\nFragen: Ist das Ziel noch auf Kurs? Stimmt es mit meinem Nordstern überein? Was beobachtest du?`,
+    }],
+  })
+  const resultBlock = response.content[0]
+  if (resultBlock.type !== 'text') throw new Error('Unexpected response type from Claude')
+  return resultBlock.text
+}
