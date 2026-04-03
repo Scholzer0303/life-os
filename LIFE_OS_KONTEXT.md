@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md
 # Wird nach jedem Schritt aktualisiert — immer die neueste Version ins Claude Project hochladen
 
-Zuletzt aktualisiert: Nach Schritt 13
+Zuletzt aktualisiert: Nach Schritt 14 (Live deployed)
 
 ---
 
@@ -206,7 +206,27 @@ Gespeichert in Supabase, zurück zum Dashboard nach Speichern
 - "Diese Woche: X/7" Anzeige neben dem Streak-Badge
 - Beides im Heatmap-Header angezeigt
 
-### ⏳ Schritt 14 — Vercel Deployment
+### ✅ Schritt 14 — Vercel Deployment (live)
+- `vercel.json` erstellt: SPA-Rewrites, build/output/install/framework-Konfiguration
+- `.env.example` erstellt: alle 3 Keys dokumentiert (Supabase URL, Anon Key, Anthropic API Key)
+- `.npmrc` mit `legacy-peer-deps=true` für vite-plugin-pwa + vite@8 Kompatibilität
+- Deployment via `npx vercel --prod` (Vercel CLI, nicht Dashboard)
+- Supabase Site URL auf die Vercel-URL aktualisiert
+- Build erfolgreich: 2267 Module, 14 PWA-Precache-Einträge, 964ms Buildzeit
+
+---
+
+## Deployment Info
+
+| | |
+|---|---|
+| **Production URL** | https://life-os-henna-xi.vercel.app |
+| **GitHub Repo** | https://github.com/Scholzer0303/life-os |
+| **Vercel Projekt** | scholzer0303s-projects/life-os |
+| **Deployment ID** | dpl_25iiiULAVmdVkzaxHDKSAy8X8ECR |
+| **Deployed am** | 2026-04-03 |
+
+Auto-Deploy: Jeder Push auf `master` → Vercel baut und deployed automatisch.
 
 ---
 
