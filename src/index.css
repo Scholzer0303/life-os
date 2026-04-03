@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #FAFAF8;
+  --bg-secondary: #F2F0EB;
+  --bg-card: #FFFFFF;
+  --accent: #2D5BE3;
+  --accent-warm: #E8593C;
+  --accent-green: #1D9E75;
+  --text-primary: #1A1A18;
+  --text-secondary: #6B6B62;
+  --text-muted: #9E9E94;
+  --border: #E5E3DC;
+  --streak: #F2A623;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'DM Sans', sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Lora', serif;
+}
+
+code, pre {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+#root {
+  min-height: 100svh;
+}
