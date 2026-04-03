@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
-import { getActiveGoals } from './lib/db'
+import { getActiveGoals, getRecentEntries } from './lib/db'
 import { useStore } from './store/useStore'
 import AuthGuard from './components/AuthGuard'
 import AppLayout from './components/layout/AppLayout'
@@ -42,7 +42,7 @@ function AppRoutes() {
 }
 
 export default function App() {
-  const { setUser, setSession, setLoading, setProfile, setGoals } = useStore()
+  const { setUser, setSession, setLoading, setProfile, setGoals, setRecentEntries } = useStore()
 
   useEffect(() => {
     setLoading(true)
@@ -73,12 +73,14 @@ export default function App() {
   async function loadProfile(userId: string) {
     setLoading(true)
     try {
-      const [profileData, goalsData] = await Promise.all([
+      const [profileData, goalsData, recentData] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
         getActiveGoals(userId),
+        getRecentEntries(userId, 7),
       ])
       setProfile(profileData.data)
       setGoals(goalsData)
+      setRecentEntries(recentData)
     } catch (err) {
       console.error('Profile load error:', err)
       setProfile(null)
