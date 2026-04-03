@@ -16,9 +16,11 @@ interface Props {
 }
 
 const TYPE_OPTIONS: { value: GoalType; label: string; hint: string }[] = [
-  { value: 'quarterly', label: 'Quartalsziel', hint: '3 Monate — großes Bild' },
-  { value: 'monthly',   label: 'Monatsziel',   hint: 'Ein Monat — konkreter Schritt' },
-  { value: 'weekly',    label: 'Wochenziel',   hint: 'Diese Woche — klar und machbar' },
+  { value: 'three_year', label: '3-Jahres-Ziel', hint: '3 Jahre — große Vision' },
+  { value: 'year',       label: 'Jahresziel',    hint: '12 Monate — wichtigster Schritt' },
+  { value: 'quarterly',  label: 'Quartalsziel',  hint: '3 Monate — konkretes Vorhaben' },
+  { value: 'monthly',    label: 'Monatsziel',    hint: 'Ein Monat — klarer Fokus' },
+  { value: 'weekly',     label: 'Wochenziel',    hint: 'Diese Woche — klar und machbar' },
 ]
 
 const STATUS_OPTIONS = [
@@ -71,6 +73,7 @@ export default function GoalSheet({ open, onClose, onSave, userId, defaultType =
           quarter: type === 'quarterly' ? quarter : null,
           month:   type === 'monthly'   ? month   : null,
           week:    type === 'weekly'     ? week    : null,
+          // three_year and year have no sub-period fields
         } as GoalInsert)
 
     try {
@@ -84,8 +87,10 @@ export default function GoalSheet({ open, onClose, onSave, userId, defaultType =
   }
 
   const validParents = parentGoals.filter((g) => {
-    if (type === 'monthly')  return g.type === 'quarterly'
-    if (type === 'weekly')   return g.type === 'monthly'
+    if (type === 'year')      return g.type === 'three_year'
+    if (type === 'quarterly') return g.type === 'year' || g.type === 'quarterly'
+    if (type === 'monthly')   return g.type === 'quarterly'
+    if (type === 'weekly')    return g.type === 'monthly'
     return false
   })
 
@@ -137,7 +142,13 @@ export default function GoalSheet({ open, onClose, onSave, userId, defaultType =
             <div style={{ marginBottom: '1rem' }}>
               <Label>Titel *</Label>
               <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus
-                placeholder={type === 'quarterly' ? 'Was willst du in diesem Quartal erreichen?' : type === 'monthly' ? 'Was ist der Fokus dieses Monats?' : 'Was erledigst du diese Woche?'}
+                placeholder={
+                  type === 'three_year' ? 'Wo stehst du in 3 Jahren?' :
+                  type === 'year'       ? 'Was muss in 12 Monaten passieren?' :
+                  type === 'quarterly'  ? 'Was willst du in diesem Quartal erreichen?' :
+                  type === 'monthly'    ? 'Was ist der Fokus dieses Monats?' :
+                  'Was erledigst du diese Woche?'
+                }
                 style={inputStyle}
                 onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
                 onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}

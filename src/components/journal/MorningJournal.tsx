@@ -18,12 +18,13 @@ interface MorningData {
   feelingText: string
   mainGoal: string
   linkedGoalId: string | null
+  identityAction: string
   blockers: string
   timeblocks: TimeBlock[]
 }
 
 export default function MorningJournal() {
-  const { user, goals } = useStore()
+  const { user, goals, profile } = useStore()
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
   const [data, setData] = useState<MorningData>({
@@ -31,6 +32,7 @@ export default function MorningJournal() {
     feelingText: '',
     mainGoal: '',
     linkedGoalId: null,
+    identityAction: '',
     blockers: '',
     timeblocks: [],
   })
@@ -58,6 +60,7 @@ export default function MorningJournal() {
         feeling_score: data.feelingScore,
         free_text: data.feelingText || null,
         main_goal_today: data.mainGoal,
+        identity_action: data.identityAction || null,
         potential_blockers: data.blockers || null,
         timeblocks: data.timeblocks as unknown as Json,
         linked_goal_ids: data.linkedGoalId ? [data.linkedGoalId] : [],
@@ -113,7 +116,9 @@ export default function MorningJournal() {
             key="ms2"
             initialGoal={data.mainGoal}
             initialLinkedGoalId={data.linkedGoalId}
-            onNext={(goal, linkedGoalId) => next({ mainGoal: goal, linkedGoalId })}
+            initialIdentityAction={data.identityAction}
+            identityStatement={profile?.identity_statement ?? null}
+            onNext={(goal, linkedGoalId, identityAction) => next({ mainGoal: goal, linkedGoalId, identityAction })}
             onBack={back}
           />
         )}

@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Search, X, Sun, Moon, PenLine, MessageCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, X, Sun, Moon, PenLine, MessageCircle, ChevronRight as ChevronRightSm } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { getJournalEntries, searchJournalEntries } from '../../lib/db'
 import { formatDateShort } from '../../lib/utils'
 import AIFeedbackCard from './AIFeedbackCard'
-import type { JournalEntryRow } from '../../types/database'
+import type { JournalEntryRow, GoalRow } from '../../types/database'
 
 // ── Day dot colors ────────────────────────────────────────────────────────────
 function getDayDots(entries: JournalEntryRow[]): { color: string; label: string }[] {
@@ -21,9 +21,45 @@ function getDayDots(entries: JournalEntryRow[]): { color: string; label: string 
   return dots
 }
 
+// ── Goal Breadcrumb ───────────────────────────────────────────────────────────
+function GoalBreadcrumb({ goalId, allGoals }: { goalId: string; allGoals: GoalRow[] }) {
+  const goal = allGoals.find((g) => g.id === goalId)
+  if (!goal) return null
+
+  const chain: GoalRow[] = [goal]
+  let current = goal
+  while (current.parent_id) {
+    const parent = allGoals.find((g) => g.id === current.parent_id)
+    if (!parent) break
+    chain.unshift(parent)
+    current = parent
+  }
+
+  if (chain.length === 0) return null
+
+  return (
+    <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.75rem', background: 'rgba(134,59,255,0.07)', borderRadius: '8px' }}>
+      <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '0.35rem' }}>
+        Ziel-Kontext
+      </span>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.2rem' }}>
+        {chain.map((g, i) => (
+          <span key={g.id} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+            <span style={{ fontSize: '0.8rem', color: i === chain.length - 1 ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: i === chain.length - 1 ? 600 : 400 }}>
+              {g.title}
+            </span>
+            {i < chain.length - 1 && <ChevronRightSm size={11} color="var(--text-muted)" />}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Entry Detail Modal ────────────────────────────────────────────────────────
 function EntryDetail({ entries, onClose }: { entries: JournalEntryRow[]; onClose: () => void }) {
   const [localEntries, setLocalEntries] = useState(entries)
+  const { goals: storeGoals } = useStore()
 
   function handleFeedbackSaved(entryId: string, feedback: string) {
     setLocalEntries((prev) => prev.map((e) => e.id === entryId ? { ...e, ai_feedback: feedback } : e))
@@ -116,6 +152,11 @@ function EntryDetail({ entries, onClose }: { entries: JournalEntryRow[]; onClose
                 </div>
               )}
             </div>
+
+            {/* Ziel-Breadcrumb */}
+            {entry.linked_goal_ids && entry.linked_goal_ids.length > 0 && (
+              <GoalBreadcrumb goalId={entry.linked_goal_ids[0]} allGoals={storeGoals} />
+            )}
           </div>
         ))}
       </motion.div>

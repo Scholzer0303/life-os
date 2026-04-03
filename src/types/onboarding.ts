@@ -42,6 +42,14 @@ export interface FiveWhysEntry {
   answer: string
 }
 
+export interface IkigaiData {
+  loves: string
+  good_at: string
+  paid_for: string
+  world_needs: string
+  synthesis: string
+}
+
 export interface OnboardingData {
   name: string
   lebensrad: LebensradScores
@@ -49,6 +57,10 @@ export interface OnboardingData {
   fiveWhys: FiveWhysEntry[]
   northStar: string
   stopList: string[]
+  identityStatement: string
+  ikigai: IkigaiData
+  threeYearGoalTitle: string
+  yearGoalTitle: string
   firstGoalTitle: string
   firstGoalDescription: string
 }
@@ -69,6 +81,10 @@ export const DEFAULT_ONBOARDING_DATA: OnboardingData = {
   fiveWhys: [],
   northStar: '',
   stopList: [],
+  identityStatement: '',
+  ikigai: { loves: '', good_at: '', paid_for: '', world_needs: '', synthesis: '' },
+  threeYearGoalTitle: '',
+  yearGoalTitle: '',
   firstGoalTitle: '',
   firstGoalDescription: '',
 }

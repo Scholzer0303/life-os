@@ -336,3 +336,99 @@ export async function getLastJournalDate(userId: string): Promise<string | null>
   if (error) throw error
   return data?.entry_date ?? null
 }
+
+// ─── Goal Hierarchy ───────────────────────────────────────────────────────────
+
+export interface ActiveGoalHierarchy {
+  week: GoalRow | null
+  month: GoalRow | null
+  quarter: GoalRow | null
+  year: GoalRow | null
+  three_year: GoalRow | null
+}
+
+export async function getActiveGoalHierarchy(userId: string): Promise<ActiveGoalHierarchy> {
+  const { data, error } = await supabase
+    .from('goals')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+
+  const goals = (data ?? []) as GoalRow[]
+
+  function pick(type: string): GoalRow | null {
+    return goals.find((g) => g.type === type) ?? null
+  }
+
+  return {
+    week: pick('weekly'),
+    month: pick('monthly'),
+    quarter: pick('quarterly'),
+    year: pick('year'),
+    three_year: pick('three_year'),
+  }
+}
+
+// ─── Data Management ──────────────────────────────────────────────────────────
+
+export async function countJournalEntries(userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('journal_entries')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+  if (error) throw error
+  return count ?? 0
+}
+
+export async function countGoals(userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from('goals')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+  if (error) throw error
+  return count ?? 0
+}
+
+export async function deleteAllJournalEntries(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('journal_entries')
+    .delete()
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+export async function deleteAllGoals(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('goals')
+    .delete()
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+export async function deleteAllUserData(userId: string): Promise<void> {
+  const deleteEntries = supabase.from('journal_entries').delete().eq('user_id', userId)
+  const deleteGoals = supabase.from('goals').delete().eq('user_id', userId)
+  const deleteSessions = supabase.from('coach_sessions').delete().eq('user_id', userId)
+  const deleteEvents = supabase.from('pattern_events').delete().eq('user_id', userId)
+
+  const results = await Promise.all([deleteEntries, deleteGoals, deleteSessions, deleteEvents])
+  for (const { error } of results) {
+    if (error) throw error
+  }
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({
+      onboarding_completed: false,
+      north_star: null,
+      values: [],
+      stop_list: [],
+      ai_profile: {},
+      ikigai: {},
+      identity_statement: '',
+    })
+    .eq('id', userId)
+  if (profileError) throw profileError
+}

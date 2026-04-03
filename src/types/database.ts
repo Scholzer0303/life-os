@@ -17,6 +17,8 @@ export interface Database {
           stop_list: string[]
           energy_pattern: Json
           onboarding_completed: boolean
+          ai_profile: Json
+          identity_statement: string | null
         }
         Insert: {
           id: string
@@ -29,6 +31,8 @@ export interface Database {
           stop_list?: string[]
           energy_pattern?: Json
           onboarding_completed?: boolean
+          ai_profile?: Json
+          identity_statement?: string | null
         }
         Update: {
           name?: string | null
@@ -39,6 +43,8 @@ export interface Database {
           energy_pattern?: Json
           onboarding_completed?: boolean
           updated_at?: string
+          ai_profile?: Json
+          identity_statement?: string | null
         }
         Relationships: []
       }
@@ -50,7 +56,7 @@ export interface Database {
           updated_at: string
           title: string
           description: string | null
-          type: 'quarterly' | 'monthly' | 'weekly'
+          type: 'three_year' | 'year' | 'quarterly' | 'monthly' | 'weekly'
           status: 'active' | 'completed' | 'paused'
           parent_id: string | null
           quarter: number | null
@@ -66,7 +72,7 @@ export interface Database {
           updated_at?: string
           title: string
           description?: string | null
-          type: 'quarterly' | 'monthly' | 'weekly'
+          type: 'three_year' | 'year' | 'quarterly' | 'monthly' | 'weekly'
           status?: 'active' | 'completed' | 'paused'
           parent_id?: string | null
           quarter?: number | null
@@ -78,7 +84,7 @@ export interface Database {
         Update: {
           title?: string
           description?: string | null
-          type?: 'quarterly' | 'monthly' | 'weekly'
+          type?: 'three_year' | 'year' | 'quarterly' | 'monthly' | 'weekly'
           status?: 'active' | 'completed' | 'paused'
           parent_id?: string | null
           quarter?: number | null
@@ -109,6 +115,7 @@ export interface Database {
           ai_feedback: string | null
           ai_feedback_requested_at: string | null
           linked_goal_ids: string[]
+          identity_action: string | null
         }
         Insert: {
           id?: string
@@ -128,6 +135,7 @@ export interface Database {
           ai_feedback?: string | null
           ai_feedback_requested_at?: string | null
           linked_goal_ids?: string[]
+          identity_action?: string | null
         }
         Update: {
           entry_date?: string
@@ -144,6 +152,7 @@ export interface Database {
           ai_feedback_requested_at?: string | null
           linked_goal_ids?: string[]
           updated_at?: string
+          identity_action?: string | null
         }
         Relationships: []
       }

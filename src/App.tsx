@@ -13,6 +13,7 @@ import Goals from './pages/Goals'
 import Coach from './pages/Coach'
 import Review from './pages/Review'
 import PatternInterrupt from './pages/PatternInterrupt'
+import Settings from './pages/Settings'
 
 
 function AppRoutes() {
@@ -31,6 +32,7 @@ function AppRoutes() {
         <Route path="/coach" element={<Coach />} />
         <Route path="/review" element={<Review />} />
         <Route path="/pattern-interrupt" element={<PatternInterrupt />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppLayout>

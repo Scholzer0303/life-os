@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
-import { createJournalEntry } from '../../lib/db'
+import { createJournalEntry, getTodayEntries } from '../../lib/db'
 import { todayISO } from '../../lib/utils'
 import ProgressBar from '../onboarding/ProgressBar'
 import AIFeedbackCard from './AIFeedbackCard'
@@ -91,6 +91,15 @@ export default function EveningJournal() {
   const [savedEntry, setSavedEntry] = useState<JournalEntryRow | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [morningGoal, setMorningGoal] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!user) return
+    getTodayEntries(user.id).then((entries) => {
+      const morning = entries.find((e) => e.type === 'morning')
+      setMorningGoal(morning?.main_goal_today ?? null)
+    }).catch(() => {})
+  }, [user])
 
   function patch(updates: Partial<EveningData>) { setData((p) => ({ ...p, ...updates })) }
   function next() { setStep((s) => s + 1) }
@@ -121,6 +130,25 @@ export default function EveningJournal() {
         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Abend-Journal</span>
       </div>
       {step < 5 && <ProgressBar current={step} total={4} />}
+
+      {/* Morgen-Ziel-Referenz */}
+      {morningGoal && step < 5 && (
+        <div
+          style={{
+            padding: '0.55rem 0.875rem',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            marginBottom: '1rem',
+            fontSize: '0.8rem',
+            color: 'var(--text-muted)',
+            lineHeight: 1.4,
+          }}
+        >
+          Dein heutiges Ziel war:{' '}
+          <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>„{morningGoal}"</span>
+        </div>
+      )}
 
       {saveError && (
         <div style={{ padding: '0.75rem 1rem', background: '#FFF0EE', border: '1px solid var(--accent-warm)', borderRadius: '8px', color: 'var(--accent-warm)', fontSize: '0.875rem', marginBottom: '1rem' }}>{saveError}</div>

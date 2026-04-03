@@ -15,7 +15,7 @@ export type {
 } from './database'
 
 // UI-only Types
-export type GoalType = 'quarterly' | 'monthly' | 'weekly'
+export type GoalType = 'three_year' | 'year' | 'quarterly' | 'monthly' | 'weekly'
 export type GoalStatus = 'active' | 'completed' | 'paused'
 export type JournalEntryType = 'morning' | 'evening' | 'freeform'
 export type CoachMode = 'stuck' | 'on_track' | 'clarity' | 'chat'

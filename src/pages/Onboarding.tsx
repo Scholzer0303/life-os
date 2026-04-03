@@ -8,15 +8,17 @@ import { getCurrentQuarter } from '../lib/utils'
 import ProgressBar from '../components/onboarding/ProgressBar'
 import Step1Welcome from '../components/onboarding/Step1Welcome'
 import Step2Lebensrad from '../components/onboarding/Step2Lebensrad'
+import Step3_Ikigai from '../components/onboarding/Step3_Ikigai'
 import Step3Werte from '../components/onboarding/Step3Werte'
 import Step4FiveWhys from '../components/onboarding/Step4FiveWhys'
 import Step5Nordstern from '../components/onboarding/Step5Nordstern'
+import Step6_Identity from '../components/onboarding/Step6_Identity'
 import Step6StoppListe from '../components/onboarding/Step6StoppListe'
 import Step7QuartalZiel from '../components/onboarding/Step7QuartalZiel'
 import type { OnboardingData } from '../types/onboarding'
 import { DEFAULT_ONBOARDING_DATA } from '../types/onboarding'
 
-const TOTAL_STEPS = 7
+const TOTAL_STEPS = 9
 
 export default function Onboarding() {
   const { user, setProfile } = useStore()
@@ -48,18 +50,48 @@ export default function Onboarding() {
         name: final.name,
         north_star: final.northStar,
         values: final.selectedValues,
-        ikigai: final.lebensrad as unknown as import('../types/database').Json,
+        ikigai: final.ikigai as unknown as import('../types/database').Json,
         stop_list: final.stopList,
+        identity_statement: final.identityStatement || null,
         energy_pattern: {
           five_whys: final.fiveWhys,
         } as unknown as import('../types/database').Json,
         onboarding_completed: true,
       })
 
-      // Save first quarterly goal
+      // Save goal hierarchy from onboarding
+      const year = new Date().getFullYear()
+      const quarter = getCurrentQuarter()
+
+      let threeYearGoalId: string | null = null
+      let yearGoalId: string | null = null
+
+      if (final.threeYearGoalTitle) {
+        const g = await createGoal({
+          user_id: user.id,
+          title: final.threeYearGoalTitle,
+          type: 'three_year',
+          year,
+          status: 'active',
+          progress: 0,
+        })
+        threeYearGoalId = g.id
+      }
+
+      if (final.yearGoalTitle) {
+        const g = await createGoal({
+          user_id: user.id,
+          title: final.yearGoalTitle,
+          type: 'year',
+          year,
+          parent_id: threeYearGoalId,
+          status: 'active',
+          progress: 0,
+        })
+        yearGoalId = g.id
+      }
+
       if (final.firstGoalTitle) {
-        const quarter = getCurrentQuarter()
-        const year = new Date().getFullYear()
         await createGoal({
           user_id: user.id,
           title: final.firstGoalTitle,
@@ -67,6 +99,7 @@ export default function Onboarding() {
           type: 'quarterly',
           quarter,
           year,
+          parent_id: yearGoalId,
           status: 'active',
           progress: 0,
         })
@@ -131,18 +164,24 @@ export default function Onboarding() {
             <Step2Lebensrad key="step2" data={data} onNext={handleNext} onBack={handleBack} />
           )}
           {step === 3 && (
-            <Step3Werte key="step3" data={data} onNext={handleNext} onBack={handleBack} />
+            <Step3_Ikigai key="step3ikigai" data={data} onNext={handleNext} onBack={handleBack} />
           )}
           {step === 4 && (
-            <Step4FiveWhys key="step4" data={data} onNext={handleNext} onBack={handleBack} />
+            <Step3Werte key="step3" data={data} onNext={handleNext} onBack={handleBack} />
           )}
           {step === 5 && (
-            <Step5Nordstern key="step5" data={data} onNext={handleNext} onBack={handleBack} />
+            <Step4FiveWhys key="step4" data={data} onNext={handleNext} onBack={handleBack} />
           )}
           {step === 6 && (
-            <Step6StoppListe key="step6" data={data} onNext={handleNext} onBack={handleBack} />
+            <Step5Nordstern key="step5" data={data} onNext={handleNext} onBack={handleBack} />
           )}
           {step === 7 && (
+            <Step6_Identity key="step6identity" data={data} onNext={handleNext} onBack={handleBack} />
+          )}
+          {step === 8 && (
+            <Step6StoppListe key="step6" data={data} onNext={handleNext} onBack={handleBack} />
+          )}
+          {step === 9 && (
             <Step7QuartalZiel
               key="step7"
               data={data}

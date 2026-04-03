@@ -8,18 +8,22 @@ import GoalDetailCard from '../components/goals/GoalDetailCard'
 import type { GoalRow, GoalInsert, GoalUpdate } from '../types/database'
 import type { GoalType } from '../types'
 
-const TABS: { value: 'all' | GoalType; label: string }[] = [
-  { value: 'all',       label: 'Alle' },
-  { value: 'quarterly', label: 'Quartal' },
-  { value: 'monthly',   label: 'Monat' },
-  { value: 'weekly',    label: 'Woche' },
+type TabValue = 'all' | GoalType
+
+const TABS: { value: TabValue; label: string }[] = [
+  { value: 'three_year', label: '3 Jahre' },
+  { value: 'year',       label: 'Jahr' },
+  { value: 'quarterly',  label: 'Quartal' },
+  { value: 'monthly',    label: 'Monat' },
+  { value: 'weekly',     label: 'Woche' },
+  { value: 'all',        label: 'Alle' },
 ]
 
 export default function Goals() {
   const { user, profile } = useStore()
   const [allGoals, setAllGoals] = useState<GoalRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [tab, setTab] = useState<'all' | GoalType>('all')
+  const [tab, setTab] = useState<TabValue>('all')
 
   // Sheet state
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -77,7 +81,7 @@ export default function Goals() {
     setSheetOpen(true)
   }
 
-  // ── Build tree structure ───────────────────────────────────────────────────
+  // ── Goal sets by type ──────────────────────────────────────────────────────
 
   const now = new Date()
   const curYear    = now.getFullYear()
@@ -85,40 +89,52 @@ export default function Goals() {
   const curMonth   = now.getMonth() + 1
   const curWeek    = getCurrentWeek()
 
-  // Filter to current period goals + parent links
-  const quarterly = allGoals.filter((g) => g.type === 'quarterly' && g.year === curYear && g.quarter === curQuarter)
-  const monthly   = allGoals.filter((g) => g.type === 'monthly'   && g.year === curYear && g.month === curMonth)
-  const weekly    = allGoals.filter((g) => g.type === 'weekly'    && g.year === curYear && g.week  === curWeek)
+  const threeYearGoals = allGoals.filter((g) => g.type === 'three_year')
+  const yearGoals      = allGoals.filter((g) => g.type === 'year')
+  const quarterly      = allGoals.filter((g) => g.type === 'quarterly' && g.year === curYear && g.quarter === curQuarter)
+  const monthly        = allGoals.filter((g) => g.type === 'monthly'   && g.year === curYear && g.month === curMonth)
+  const weekly         = allGoals.filter((g) => g.type === 'weekly'    && g.year === curYear && g.week  === curWeek)
 
-  function getChildren(parentId: string, type: 'monthly' | 'weekly'): GoalRow[] {
-    return (type === 'monthly' ? monthly : weekly).filter((g) => g.parent_id === parentId)
-  }
-
-  function getLinkedEntryCount(_goalId: string): number {
-    return 0 // will be populated in a later iteration with DB query
+  const maxReached: Record<string, boolean> = {
+    three_year: threeYearGoals.length >= 3,
+    year:       yearGoals.length >= 3,
+    quarterly:  quarterly.length >= 3,
+    monthly:    monthly.length >= 3,
+    weekly:     weekly.length >= 3,
   }
 
   // Displayed goals depending on tab
   const displayGoals: GoalRow[] =
-    tab === 'all'       ? [...quarterly, ...monthly, ...weekly] :
-    tab === 'quarterly' ? quarterly :
-    tab === 'monthly'   ? monthly :
+    tab === 'all'        ? [...threeYearGoals, ...yearGoals, ...quarterly, ...monthly, ...weekly] :
+    tab === 'three_year' ? threeYearGoals :
+    tab === 'year'       ? yearGoals :
+    tab === 'quarterly'  ? quarterly :
+    tab === 'monthly'    ? monthly :
     weekly
 
-  const maxReached: Record<string, boolean> = {
-    quarterly: quarterly.length >= 3,
-    monthly:   monthly.length >= 3,
-    weekly:    weekly.length >= 3,
+  const periodLabel = `Q${curQuarter} ${curYear} · ${now.toLocaleString('de-DE', { month: 'long' })} · KW ${curWeek}`
+
+  function getDefaultCreateType(): GoalType {
+    if (tab === 'all') return 'weekly'
+    return tab
   }
 
-  const periodLabel = `Q${curQuarter} ${curYear} · ${now.toLocaleString('de-DE', { month: 'long' })} · KW ${curWeek}`
+  function getChildType(parentType: GoalType): GoalType | null {
+    const map: Partial<Record<GoalType, GoalType>> = {
+      three_year: 'year',
+      year: 'quarterly',
+      quarterly: 'monthly',
+      monthly: 'weekly',
+    }
+    return map[parentType] ?? null
+  }
 
   return (
     <div>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
         <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.5rem', fontWeight: 600, margin: 0 }}>Ziele</h2>
-        <button onClick={() => openCreate(tab === 'all' ? 'weekly' : tab)}
+        <button onClick={() => openCreate(getDefaultCreateType())}
           style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.5rem 0.85rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, fontSize: '0.875rem' }}>
           <Plus size={15} /> Neu
         </button>
@@ -134,10 +150,10 @@ export default function Goals() {
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1.25rem' }}>
+      <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '1.25rem', overflowX: 'auto', paddingBottom: '2px' }}>
         {TABS.map((t) => (
           <button key={t.value} onClick={() => setTab(t.value)}
-            style={{ padding: '0.4rem 0.85rem', background: tab === t.value ? 'var(--accent)' : 'var(--bg-card)', color: tab === t.value ? '#fff' : 'var(--text-secondary)', border: `1.5px solid ${tab === t.value ? 'var(--accent)' : 'var(--border)'}`, borderRadius: '999px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: '0.8rem', fontWeight: tab === t.value ? 600 : 400, transition: 'all 0.12s' }}>
+            style={{ padding: '0.4rem 0.75rem', background: tab === t.value ? 'var(--accent)' : 'var(--bg-card)', color: tab === t.value ? '#fff' : 'var(--text-secondary)', border: `1.5px solid ${tab === t.value ? 'var(--accent)' : 'var(--border)'}`, borderRadius: '999px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: '0.78rem', fontWeight: tab === t.value ? 600 : 400, transition: 'all 0.12s', whiteSpace: 'nowrap', flexShrink: 0 }}>
             {t.label}
           </button>
         ))}
@@ -151,39 +167,62 @@ export default function Goals() {
           {/* Tree view for "All" tab */}
           {tab === 'all' && (
             <div>
-              {quarterly.length === 0 && monthly.length === 0 && weekly.length === 0 ? (
-                <EmptyState type="quarterly" onAdd={() => openCreate('quarterly')} />
+              {threeYearGoals.length === 0 && yearGoals.length === 0 && quarterly.length === 0 && monthly.length === 0 && weekly.length === 0 ? (
+                <EmptyState type="three_year" onAdd={() => openCreate('three_year')} />
               ) : (
                 <>
+                  {threeYearGoals.length > 0 && (
+                    <>
+                      <SectionHeader type="three_year" count={threeYearGoals.length} max={3} onAdd={() => openCreate('three_year')} disabled={maxReached.three_year} />
+                      {threeYearGoals.map((g) => (
+                        <GoalDetailCard key={g.id} goal={g}
+                          linkedEntryCount={0}
+                          onEdit={openEdit} onDelete={handleDelete} onUpdateProgress={handleProgressUpdate}
+                          onAddChild={(pid) => openCreate('year', pid)}
+                        />
+                      ))}
+                    </>
+                  )}
+
+                  {(yearGoals.length > 0 || threeYearGoals.length > 0) && (
+                    <>
+                      <SectionHeader type="year" count={yearGoals.length} max={3} onAdd={() => openCreate('year')} disabled={maxReached.year} />
+                      {yearGoals.map((g) => (
+                        <GoalDetailCard key={g.id} goal={g}
+                          parentGoal={allGoals.find((p) => p.id === g.parent_id)}
+                          linkedEntryCount={0}
+                          onEdit={openEdit} onDelete={handleDelete} onUpdateProgress={handleProgressUpdate}
+                          onAddChild={(pid) => openCreate('quarterly', pid)}
+                        />
+                      ))}
+                    </>
+                  )}
+
                   <SectionHeader type="quarterly" count={quarterly.length} max={3} onAdd={() => openCreate('quarterly')} disabled={maxReached.quarterly} />
-                  {quarterly.map((qGoal) => (
-                    <GoalDetailCard key={qGoal.id} goal={qGoal}
-                      children={getChildren(qGoal.id, 'monthly').map((mGoal) => ({
-                        ...mGoal,
-                        // attach weekly children inline handled by recursive card
-                      }))}
-                      linkedEntryCount={getLinkedEntryCount(qGoal.id)}
+                  {quarterly.map((g) => (
+                    <GoalDetailCard key={g.id} goal={g}
+                      parentGoal={allGoals.find((p) => p.id === g.parent_id)}
+                      linkedEntryCount={0}
                       onEdit={openEdit} onDelete={handleDelete} onUpdateProgress={handleProgressUpdate}
-                      onAddChild={(parentId) => openCreate('monthly', parentId)}
+                      onAddChild={(pid) => openCreate('monthly', pid)}
                     />
                   ))}
 
                   <SectionHeader type="monthly" count={monthly.length} max={3} onAdd={() => openCreate('monthly')} disabled={maxReached.monthly} />
-                  {monthly.map((mGoal) => (
-                    <GoalDetailCard key={mGoal.id} goal={mGoal}
-                      parentGoal={allGoals.find((g) => g.id === mGoal.parent_id)}
-                      children={getChildren(mGoal.id, 'weekly')}
-                      linkedEntryCount={getLinkedEntryCount(mGoal.id)}
+                  {monthly.map((g) => (
+                    <GoalDetailCard key={g.id} goal={g}
+                      parentGoal={allGoals.find((p) => p.id === g.parent_id)}
+                      linkedEntryCount={0}
                       onEdit={openEdit} onDelete={handleDelete} onUpdateProgress={handleProgressUpdate}
-                      onAddChild={(parentId) => openCreate('weekly', parentId)}
+                      onAddChild={(pid) => openCreate('weekly', pid)}
                     />
                   ))}
 
                   <SectionHeader type="weekly" count={weekly.length} max={3} onAdd={() => openCreate('weekly')} disabled={maxReached.weekly} />
-                  {weekly.map((wGoal) => (
-                    <GoalDetailCard key={wGoal.id} goal={wGoal}
-                      parentGoal={allGoals.find((g) => g.id === wGoal.parent_id)}
-                      linkedEntryCount={getLinkedEntryCount(wGoal.id)}
+                  {weekly.map((g) => (
+                    <GoalDetailCard key={g.id} goal={g}
+                      parentGoal={allGoals.find((p) => p.id === g.parent_id)}
+                      linkedEntryCount={0}
                       onEdit={openEdit} onDelete={handleDelete} onUpdateProgress={handleProgressUpdate}
                     />
                   ))}
@@ -199,14 +238,17 @@ export default function Goals() {
                 <EmptyState type={tab} onAdd={() => openCreate(tab)} />
               ) : (
                 <>
-                  {displayGoals.map((goal) => (
-                    <GoalDetailCard key={goal.id} goal={goal}
-                      parentGoal={allGoals.find((g) => g.id === goal.parent_id)}
-                      linkedEntryCount={getLinkedEntryCount(goal.id)}
-                      onEdit={openEdit} onDelete={handleDelete} onUpdateProgress={handleProgressUpdate}
-                      onAddChild={goal.type !== 'weekly' ? (parentId) => openCreate(goal.type === 'quarterly' ? 'monthly' : 'weekly', parentId) : undefined}
-                    />
-                  ))}
+                  {displayGoals.map((goal) => {
+                    const childType = getChildType(goal.type)
+                    return (
+                      <GoalDetailCard key={goal.id} goal={goal}
+                        parentGoal={allGoals.find((g) => g.id === goal.parent_id)}
+                        linkedEntryCount={0}
+                        onEdit={openEdit} onDelete={handleDelete} onUpdateProgress={handleProgressUpdate}
+                        onAddChild={childType ? (pid) => openCreate(childType, pid) : undefined}
+                      />
+                    )
+                  })}
                   {!maxReached[tab] && (
                     <button onClick={() => openCreate(tab)}
                       style={{ width: '100%', padding: '0.75rem', background: 'none', border: '1.5px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
@@ -234,12 +276,19 @@ export default function Goals() {
   )
 }
 
+const TYPE_LABELS: Record<GoalType, string> = {
+  three_year: '3-Jahres-Ziele',
+  year:       'Jahresziele',
+  quarterly:  'Quartalsziele',
+  monthly:    'Monatsziele',
+  weekly:     'Wochenziele',
+}
+
 function SectionHeader({ type, count, max, onAdd, disabled }: { type: GoalType; count: number; max: number; onAdd: () => void; disabled: boolean }) {
-  const labels: Record<GoalType, string> = { quarterly: 'Quartalsziele', monthly: 'Monatsziele', weekly: 'Wochenziele' }
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '1rem 0 0.6rem' }}>
       <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        {labels[type]} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({count}/{max})</span>
+        {TYPE_LABELS[type]} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>({count}/{max})</span>
       </span>
       {!disabled && (
         <button onClick={onAdd} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontFamily: 'DM Sans, sans-serif', fontSize: '0.78rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.2rem', padding: 0 }}>
@@ -250,15 +299,18 @@ function SectionHeader({ type, count, max, onAdd, disabled }: { type: GoalType; 
   )
 }
 
+const EMPTY_MSGS: Record<GoalType, string> = {
+  three_year: 'Noch kein 3-Jahres-Ziel. Wo stehst du in 3 Jahren?',
+  year:       'Noch kein Jahresziel. Was muss in 12 Monaten passieren?',
+  quarterly:  'Noch kein Quartalsziel. Was willst du in den nächsten 3 Monaten erreichen?',
+  monthly:    'Noch kein Monatsziel. Was ist dein Fokus diesen Monat?',
+  weekly:     'Noch kein Wochenziel. Was erledigst du diese Woche?',
+}
+
 function EmptyState({ type, onAdd }: { type: GoalType; onAdd: () => void }) {
-  const msgs: Record<GoalType, string> = {
-    quarterly: 'Noch kein Quartalsziel. Was willst du in den nächsten 3 Monaten erreichen?',
-    monthly:   'Noch kein Monatsziel. Was ist dein Fokus diesen Monat?',
-    weekly:    'Noch kein Wochenziel. Was erledigst du diese Woche?',
-  }
   return (
     <div style={{ padding: '1.75rem', background: 'var(--bg-card)', border: '1px dashed var(--border)', borderRadius: '12px', textAlign: 'center' }}>
-      <p style={{ color: 'var(--text-muted)', margin: '0 0 0.85rem', fontSize: '0.9rem', lineHeight: 1.5 }}>{msgs[type]}</p>
+      <p style={{ color: 'var(--text-muted)', margin: '0 0 0.85rem', fontSize: '0.9rem', lineHeight: 1.5 }}>{EMPTY_MSGS[type]}</p>
       <button onClick={onAdd} style={{ padding: '0.55rem 1.25rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem', fontWeight: 500 }}>
         Ziel erstellen →
       </button>

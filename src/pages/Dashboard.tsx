@@ -38,12 +38,26 @@ export default function Dashboard() {
   const [weekActiveDays, setWeekActiveDays] = useState(0)
   const [heatmapData, setHeatmapData] = useState<{ entry_date: string; type: string }[]>([])
   const [showPatternInterrupt, setShowPatternInterrupt] = useState(false)
+  const [morningGoalToday, setMorningGoalToday] = useState<string | null>(null)
+  const [showIdentityReminder, setShowIdentityReminder] = useState(false)
+  const [identityModalOpen, setIdentityModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     if (!user) return
     loadDashboardData(user.id)
   }, [user])
+
+  useEffect(() => {
+    if (!profile?.identity_statement) return
+    const dismissed = localStorage.getItem('identity_reminder_dismissed')
+    if (!dismissed) {
+      setShowIdentityReminder(true)
+      return
+    }
+    const daysSinceDismiss = Math.floor((Date.now() - Number(dismissed)) / 86400000)
+    if (daysSinceDismiss >= 3) setShowIdentityReminder(true)
+  }, [profile?.identity_statement])
 
   async function loadDashboardData(userId: string) {
     setIsLoading(true)
@@ -57,8 +71,10 @@ export default function Dashboard() {
         getLastJournalDate(userId),
       ])
 
-      setHasMorningEntry(todayEntries.some((e) => e.type === 'morning'))
+      const morningEntry = todayEntries.find((e) => e.type === 'morning')
+      setHasMorningEntry(!!morningEntry)
       setHasEveningEntry(todayEntries.some((e) => e.type === 'evening'))
+      setMorningGoalToday(morningEntry?.main_goal_today ?? null)
       setWeeklyGoals(goals.slice(0, 3))
       setStreak(streakCount)
       setBestStreak(best)
@@ -223,6 +239,70 @@ export default function Dashboard() {
         </p>
       </div>
 
+      {/* ── Fokus-Banner ─────────────────────────────────────────── */}
+      {morningGoalToday ? (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          style={{
+            padding: '0.75rem 1rem',
+            background: 'rgba(134,59,255,0.1)',
+            border: '1px solid rgba(134,59,255,0.25)',
+            borderRadius: '10px',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.5rem',
+          }}
+        >
+          <span style={{ fontSize: '1rem', lineHeight: 1 }}>🎯</span>
+          <div>
+            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Dein Fokus heute
+            </span>
+            <p style={{ margin: '0.15rem 0 0', fontSize: '0.875rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>
+              {morningGoalToday}
+            </p>
+          </div>
+        </motion.div>
+      ) : !hasMorningEntry && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          style={{
+            padding: '0.75rem 1rem',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: '10px',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Starte deinen Tag — Ziel setzen
+          </span>
+          <button
+            onClick={() => navigate('/journal?type=morning')}
+            style={{
+              padding: '0.4rem 0.75rem',
+              background: 'var(--accent)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Starten →
+          </button>
+        </motion.div>
+      )}
+
       {/* ── Nordstern ────────────────────────────────────────────── */}
       {profile?.north_star && (
         <div
@@ -268,6 +348,83 @@ export default function Dashboard() {
           </p>
         </div>
       )}
+
+      {/* ── Identitäts-Reminder ──────────────────────────────────── */}
+      <AnimatePresence>
+        {showIdentityReminder && profile?.identity_statement && (
+          <motion.div
+            key="identity-reminder"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25 }}
+            style={{
+              padding: '0.75rem 1rem',
+              background: 'rgba(134,59,255,0.08)',
+              border: '1px solid rgba(134,59,255,0.2)',
+              borderRadius: '10px',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.5rem',
+            }}
+          >
+            <span style={{ fontSize: '1rem', lineHeight: 1.4, flexShrink: 0 }}>💫</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                {profile.identity_statement.length > 60
+                  ? profile.identity_statement.slice(0, 60) + '…'
+                  : profile.identity_statement}
+              </p>
+              <button
+                onClick={() => setIdentityModalOpen(true)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '0.8rem', padding: '0.25rem 0 0', fontFamily: 'DM Sans, sans-serif' }}
+              >
+                Vollständig lesen
+              </button>
+            </div>
+            <button
+              onClick={() => {
+                localStorage.setItem('identity_reminder_dismissed', String(Date.now()))
+                setShowIdentityReminder(false)
+              }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', flexShrink: 0, display: 'flex' }}
+              aria-label="Schließen"
+            >
+              <X size={15} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Identitäts-Modal */}
+      <AnimatePresence>
+        {identityModalOpen && profile?.identity_statement && (
+          <motion.div
+            key="identity-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+            onClick={() => setIdentityModalOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 60, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ background: 'var(--bg-card)', borderRadius: '16px 16px 0 0', padding: '1.5rem 1.25rem 2rem', width: '100%', maxWidth: '520px' }}
+            >
+              <div style={{ width: '36px', height: '4px', background: 'var(--border)', borderRadius: '2px', margin: '0 auto 1.25rem' }} />
+              <h3 style={{ fontFamily: 'Lora, serif', fontSize: '1.1rem', fontWeight: 600, marginBottom: '1rem' }}>💫 Dein zukünftiges Ich</h3>
+              <p style={{ fontSize: '0.95rem', color: 'var(--text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                {profile.identity_statement}
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Heutiger Status ──────────────────────────────────────── */}
       <section style={{ marginBottom: '1.75rem' }}>

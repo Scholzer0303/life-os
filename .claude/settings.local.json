@@ -6,7 +6,9 @@
       "Bash(curl -s http://localhost:5173)",
       "Bash(git add:*)",
       "Bash(git commit -m ':*)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(node scripts/generate-icons.mjs)",
+      "Bash(node -e ':*)"
     ]
   }
 }

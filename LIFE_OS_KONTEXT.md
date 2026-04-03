@@ -216,6 +216,129 @@ Gespeichert in Supabase, zurück zum Dashboard nach Speichern
 
 ---
 
+## Phase 2 — Fertige Schritte
+
+### ✅ Schritt 15 — Einstellungen-Tab + Profil bearbeiten + Daten löschen
+
+**Neue DB-Funktionen (db.ts):**
+- `countJournalEntries`, `countGoals` — Anzahl per HEAD-Query
+- `deleteAllJournalEntries`, `deleteAllGoals` — selektives Löschen
+- `deleteAllUserData` — löscht journal_entries, goals, coach_sessions, pattern_events; setzt Profil zurück (name bleibt)
+
+**Settings-Seite (`src/pages/Settings.tsx`):**
+- Sektion 1 — Profil: Name, E-Mail (read-only), Nordstern, Werte-Tags (entfernbar + hinzufügbar), Stopp-Liste, Speichern-Button
+- Sektion 2 — Ikigai: editierbare Felder (Platzhalter, in Schritt 19 befüllt)
+- Sektion 3 — KI-Profil: Platzhalter (in Schritt 20 befüllt)
+- Sektion 4 — Onboarding neu starten (1-stufig bestätigt, name bleibt)
+- Sektion 5 — Gefahrenzone: Journal löschen (2-stufig), Ziele löschen (2-stufig), Alle Daten löschen (3-stufig mit "LÖSCHEN"-Texteingabe)
+- Sektion 6 — Abmelden
+
+**Navigation:**
+- Settings-Tab in Tab-Bar ergänzt (Icon: Settings, Route: /settings)
+- Route /settings in App.tsx eingetragen
+
+**Typen (`database.ts`):**
+- `profiles`: `ai_profile: Json`, `identity_statement: string | null` hinzugefügt
+- `journal_entries`: `identity_action: string | null` hinzugefügt
+
+### ✅ Schritt 16 — Ziel-Kaskade sichtbar machen
+
+**Neue DB-Funktion:**
+- `getActiveGoalHierarchy(userId)` → gibt `{ week, month, quarter, year, three_year }` zurück (jeweils aktives Ziel oder null)
+
+**MorningStep2Goal.tsx:**
+- Kontext-Banner oberhalb des Tages-Ziel-Felds: Quartal → Monat → Woche, collapsible mit Chevron
+- Falls kein Wochenziel: Link zu /goals
+
+**EveningJournal.tsx:**
+- Lädt heute's Morgen-Eintrag → zeigt `„Dein heutiges Ziel war: …"` dezent oben (alle Steps außer Feedback-Step)
+
+**Dashboard.tsx:**
+- Fokus-Card mit 🎯 wenn morning_goal vorhanden
+- CTA-Banner "Starte deinen Tag — Ziel setzen" wenn noch kein Morgen-Journal
+
+**JournalOverview.tsx:**
+- `GoalBreadcrumb`-Komponente im Entry-Detail-Sheet: zeigt Ziel-Kette (via `linked_goal_ids[0]`) aus Store-Goals
+
+### ✅ Schritt 17 — 3-Jahres-Horizont in der Ziel-Hierarchie
+
+**Typen:**
+- `GoalType` erweitert: `'three_year' | 'year' | 'quarterly' | 'monthly' | 'weekly'`
+- `database.ts`: goals.type um neue Werte ergänzt
+
+**Goals.tsx:**
+- Tab-Bar: `3 Jahre | Jahr | Quartal | Monat | Woche | Alle`
+- Tree-View zeigt vollständige Hierarchie: three_year → year → quarterly → monthly → weekly
+- SectionHeader und EmptyState für alle 5 Typen
+
+**GoalSheet.tsx:**
+- 5 Typ-Optionen, Placeholder-Texte je Typ
+- validParents-Logik: year→three_year, quarterly→year, monthly→quarterly, weekly→monthly
+
+**Step7QuartalZiel.tsx:**
+- 3 interne Sub-Steps mit Fortschrittsbalken (1/3, 2/3, 3/3)
+- Sub-Step 1: 3-Jahres-Ziel (Pflichtfeld)
+- Sub-Step 2: Jahres-Ziel (überspringbar)
+- Sub-Step 3: Quartalsziel + Nordstern-Kontext
+
+**OnboardingData:** `threeYearGoalTitle`, `yearGoalTitle` hinzugefügt
+
+**Onboarding.tsx:** speichert alle 3 Ziele mit korrekter parent_id-Verkettung
+
+### ✅ Schritt 18 — Identitäts-Modul
+
+**Neuer Onboarding-Schritt (`Step6_Identity.tsx`):**
+- Position: zwischen Step5 (Nordstern) und Step6 (Stopp-Liste) → TOTAL_STEPS = 8
+- Textarea: "Stell dir vor, es ist [Jahr+3]. Du hast alles erreicht. Wer bist du jetzt?"
+- Button "KI hilft mir formulieren" → `reformulateIdentity()` in claude.ts
+- "Überspringen"-Link
+- Speichert `profiles.identity_statement`
+
+**MorningStep2Goal.tsx:**
+- Identitäts-Anker-Feld nach dem Tages-Ziel (nur wenn `identity_statement` gesetzt)
+- Label: "Welche Handlung heute beweist wer du bist?" (optional)
+- Speichert als `journal_entries.identity_action`
+
+**Dashboard.tsx:**
+- Identitäts-Reminder-Card: erste 60 Zeichen + "Vollständig lesen" (Modal) + ✕ dismiss
+- Dismiss setzt `localStorage('identity_reminder_dismissed')` mit Timestamp
+- Erscheint erneut nach 3+ Tagen
+
+**claude.ts:** `reformulateIdentity()` hinzugefügt
+
+### ✅ Schritt 19 — Ikigai als Onboarding-Schritt
+
+**Neuer Onboarding-Schritt (`Step3_Ikigai.tsx`):**
+- Position: nach Step2 (Lebensrad), vor Step3 (Werte-Radar) → TOTAL_STEPS = 9
+- 4 Fragen einzeln mit Fortschrittsbalken (1/4–4/4)
+- "Meinen Ikigai-Kern finden" → `generateIkigaiSynthesis()` → editierbare lila Card
+- "Manuell eingeben" als Fallback, "Schritt überspringen" verfügbar
+- Speichert `profiles.ikigai = { loves, good_at, paid_for, world_needs, synthesis }`
+
+**Settings.tsx Sektion 2:**
+- Alle 4 Ikigai-Felder + Synthesis als editierbare Textareas
+- Eigener Speichern-Button → `updateProfile({ ikigai: {...} })`
+
+**claude.ts:**
+- `generateIkigaiSynthesis()` hinzugefügt
+- `buildSystemPrompt()` bindet `ikigai.synthesis` als Kontext ein
+
+**OnboardingData:** `ikigai: IkigaiData` hinzugefügt; `Onboarding.tsx` speichert ikigai bei Finish
+
+---
+
+## Ausstehend (Phase 2)
+
+### ⏳ Schritt 20 — KI Muster-Erkennung
+- PatternAnalysis-Interface in types/index.ts
+- `generatePatternAnalysis()` in claude.ts
+- Dashboard: Auto-Analyse ab 14 Einträgen, alle 14 Tage
+- Coach.tsx: Muster-Anzeige mit "Mit Coach besprechen"-Button
+- Review.tsx: sabotagePatterns + coachQuestion in Wochen-Zusammenfassung
+- Settings.tsx Sektion 3: KI-Profil vollständig mit Muster-Feldern
+
+---
+
 ## Deployment Info
 
 | | |

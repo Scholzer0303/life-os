@@ -42,6 +42,7 @@ function buildSystemPrompt(profile: Profile, recentEntries: JournalEntry[], goal
 - Nordstern-Vision: "${profile.north_star ?? 'noch nicht definiert'}"
 - Wichtigste Werte: ${(profile.values ?? []).slice(0, 5).join(', ') || 'noch nicht definiert'}
 - Stopp-Liste (was er/sie explizit nicht mehr tut): ${(profile.stop_list ?? []).join(', ') || 'noch nicht definiert'}
+${(profile.ikigai as Record<string, string> | null)?.synthesis ? `- IKIGAI-KERN: ${(profile.ikigai as Record<string, string>).synthesis}` : ''}
 
 AKTUELLE ZIELE:
 ${activeGoals.length ? activeGoals.map((g) => `- [${g.type}] ${g.title} (${g.progress}%)`).join('\n') : 'Keine aktiven Ziele.'}
@@ -275,6 +276,47 @@ export async function generateWeeklyFeedback(
     ],
   })
 
+  const block = response.content[0]
+  if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
+  return block.text
+}
+
+export async function generateIkigaiSynthesis(
+  loves: string,
+  goodAt: string,
+  paidFor: string,
+  worldNeeds: string
+): Promise<string> {
+  checkRateLimit()
+  const client = getClient()
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 200,
+    messages: [
+      {
+        role: 'user',
+        content: `Basierend auf: Liebe=${loves}, Können=${goodAt}, Bezahlung=${paidFor}, Weltbedarf=${worldNeeds} — formuliere den Ikigai-Kern in 1-2 prägnanten Sätzen auf Deutsch. Direkt und kraftvoll, keine Floskeln.`,
+      },
+    ],
+  })
+  const block = response.content[0]
+  if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
+  return block.text
+}
+
+export async function reformulateIdentity(userText: string): Promise<string> {
+  checkRateLimit()
+  const client = getClient()
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 300,
+    messages: [
+      {
+        role: 'user',
+        content: `Der User beschreibt sein zukünftiges Ich: ${userText}. Forme es um in kraftvolle Gegenwartsform ('Ich bin...', 'Ich habe...', 'Ich lebe...'). Max. 4 Sätze. Deutsch. Nah am Original.`,
+      },
+    ],
+  })
   const block = response.content[0]
   if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
   return block.text

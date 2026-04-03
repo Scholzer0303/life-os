@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, BookOpen, Target, MessageCircle, RotateCcw } from 'lucide-react'
+import { LayoutDashboard, BookOpen, Target, MessageCircle, RotateCcw, Settings } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 const NAV_ITEMS: { to: string; icon: LucideIcon; label: string; end?: boolean }[] = [
@@ -8,6 +8,7 @@ const NAV_ITEMS: { to: string; icon: LucideIcon; label: string; end?: boolean }[
   { to: '/goals', icon: Target, label: 'Ziele' },
   { to: '/coach', icon: MessageCircle, label: 'Coach' },
   { to: '/review', icon: RotateCcw, label: 'Review' },
+  { to: '/settings', icon: Settings, label: 'Einstellungen' },
 ]
 
 function NavItem({ to, icon: Icon, label, end }: (typeof NAV_ITEMS)[0]) {
