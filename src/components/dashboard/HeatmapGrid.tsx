@@ -5,6 +5,7 @@ interface HeatmapDay {
   date: string
   hasMorning: boolean
   hasEvening: boolean
+  hasFreeform: boolean
 }
 
 interface Props {
@@ -12,35 +13,47 @@ interface Props {
   days?: number
 }
 
+const CELL = 13
+const GAP = 3
+const TODAY = new Date().toISOString().split('T')[0]
+
+const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
+
 function getDayColor(day: HeatmapDay | undefined): string {
   if (!day) return 'var(--border)'
-  if (day.hasMorning && day.hasEvening) return '#6B4FBB'  // both — purple
-  if (day.hasMorning) return 'var(--accent)'               // morning — blue
-  if (day.hasEvening) return 'var(--accent-green)'         // evening — green
+  if (day.hasMorning && day.hasEvening) return '#7c3aed'   // both → deep purple
+  if (day.hasMorning) return 'var(--accent)'               // morning → blue
+  if (day.hasEvening) return '#16a34a'                     // evening → green
+  if (day.hasFreeform) return '#ca8a04'                    // freeform only → amber
   return 'var(--border)'
 }
 
-function getDayLabel(day: HeatmapDay | undefined): string {
-  if (!day) return 'Kein Eintrag'
-  const parts: string[] = []
+function getDayLabel(day: HeatmapDay | undefined, date: string): string {
+  const parts: string[] = [formatDateShort(date)]
+  if (!day) return `${parts[0]}: Kein Eintrag`
   if (day.hasMorning) parts.push('Morgen')
   if (day.hasEvening) parts.push('Abend')
-  return parts.join(' + ') || 'Eintrag'
+  if (day.hasFreeform) parts.push('Freeform')
+  return parts.join(' · ')
 }
 
 export default function HeatmapGrid({ data, days = 60 }: Props) {
   const { grid, weeks } = useMemo(() => {
-    // Build a lookup by date
     const byDate: Record<string, HeatmapDay> = {}
     for (const entry of data) {
       if (!byDate[entry.entry_date]) {
-        byDate[entry.entry_date] = { date: entry.entry_date, hasMorning: false, hasEvening: false }
+        byDate[entry.entry_date] = {
+          date: entry.entry_date,
+          hasMorning: false,
+          hasEvening: false,
+          hasFreeform: false,
+        }
       }
-      if (entry.type === 'morning') byDate[entry.entry_date].hasMorning = true
-      if (entry.type === 'evening') byDate[entry.entry_date].hasEvening = true
+      if (entry.type === 'morning')  byDate[entry.entry_date].hasMorning = true
+      if (entry.type === 'evening')  byDate[entry.entry_date].hasEvening = true
+      if (entry.type === 'freeform') byDate[entry.entry_date].hasFreeform = true
     }
 
-    // Build array of last `days` days, padded to full weeks
     const today = new Date()
     const allDays: (string | null)[] = []
     for (let i = days - 1; i >= 0; i--) {
@@ -54,7 +67,6 @@ export default function HeatmapGrid({ data, days = 60 }: Props) {
     const dayOfWeek = (firstDate.getDay() + 6) % 7 // 0=Mon
     for (let i = 0; i < dayOfWeek; i++) allDays.unshift(null)
 
-    // Group into weeks (columns of 7)
     const weeks: (string | null)[][] = []
     for (let i = 0; i < allDays.length; i += 7) {
       weeks.push(allDays.slice(i, i + 7))
@@ -63,7 +75,22 @@ export default function HeatmapGrid({ data, days = 60 }: Props) {
     return { grid: byDate, weeks }
   }, [data, days])
 
-  const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+  // Build month labels: for each week-column, check if the first non-null date starts a new month
+  const monthLabels: (string | null)[] = useMemo(() => {
+    let lastMonth = -1
+    return weeks.map((week) => {
+      const firstDay = week.find((d) => d !== null)
+      if (!firstDay) return null
+      const m = new Date(firstDay).getMonth()
+      if (m !== lastMonth) {
+        lastMonth = m
+        return MONTHS[m]
+      }
+      return null
+    })
+  }, [weeks])
+
+  const DAY_LABELS = ['Mo', '', 'Mi', '', 'Fr', '', 'So']
 
   return (
     <div>
@@ -71,46 +98,47 @@ export default function HeatmapGrid({ data, days = 60 }: Props) {
       <div
         style={{
           display: 'flex',
-          gap: '1rem',
+          gap: '0.75rem',
           flexWrap: 'wrap',
-          marginBottom: '0.75rem',
-          fontSize: '0.7rem',
+          marginBottom: '0.6rem',
+          fontSize: '0.68rem',
           color: 'var(--text-muted)',
         }}
       >
         {[
           { color: 'var(--accent)', label: 'Morgen' },
-          { color: 'var(--accent-green)', label: 'Abend' },
-          { color: '#6B4FBB', label: 'Beide' },
+          { color: '#16a34a',       label: 'Abend' },
+          { color: '#7c3aed',       label: 'Beide' },
+          { color: '#ca8a04',       label: 'Freeform' },
         ].map(({ color, label }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-            <div style={{ width: 10, height: 10, borderRadius: 2, background: color }} />
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <div style={{ width: 9, height: 9, borderRadius: 2, background: color, flexShrink: 0 }} />
             {label}
           </div>
         ))}
       </div>
 
-      {/* Grid */}
-      <div style={{ display: 'flex', gap: '3px', alignItems: 'flex-start' }}>
-        {/* Day labels */}
+      <div style={{ display: 'flex', gap: `${GAP}px`, alignItems: 'flex-start' }}>
+        {/* Day-of-week labels */}
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '3px',
-            paddingTop: '0px',
+            gap: `${GAP}px`,
+            paddingTop: `${CELL + GAP}px`, // offset for month row
             marginRight: '2px',
+            flexShrink: 0,
           }}
         >
-          {DAY_LABELS.map((d) => (
+          {DAY_LABELS.map((d, i) => (
             <div
-              key={d}
+              key={i}
               style={{
-                height: '11px',
-                fontSize: '0.6rem',
+                height: `${CELL}px`,
+                fontSize: '0.58rem',
                 color: 'var(--text-muted)',
-                lineHeight: '11px',
-                width: '14px',
+                lineHeight: `${CELL}px`,
+                width: '13px',
                 textAlign: 'right',
               }}
             >
@@ -120,26 +148,45 @@ export default function HeatmapGrid({ data, days = 60 }: Props) {
         </div>
 
         {/* Weeks */}
-        <div style={{ display: 'flex', gap: '3px', flexWrap: 'nowrap', overflowX: 'auto' }}>
+        <div style={{ display: 'flex', gap: `${GAP}px`, flexWrap: 'nowrap', overflowX: 'auto' }}>
           {weeks.map((week, wi) => (
-            <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+            <div key={wi} style={{ display: 'flex', flexDirection: 'column', gap: `${GAP}px` }}>
+              {/* Month label row */}
+              <div
+                style={{
+                  height: `${CELL}px`,
+                  fontSize: '0.58rem',
+                  color: monthLabels[wi] ? 'var(--text-secondary)' : 'transparent',
+                  lineHeight: `${CELL}px`,
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                  userSelect: 'none',
+                }}
+              >
+                {monthLabels[wi] ?? '.'}
+              </div>
+
+              {/* Day cells */}
               {week.map((date, di) => {
                 const dayData = date ? grid[date] : undefined
+                const isToday = date === TODAY
                 const color = date ? getDayColor(dayData) : 'transparent'
-                const label = date
-                  ? `${formatDateShort(date)}: ${getDayLabel(dayData)}`
-                  : ''
+                const label = date ? getDayLabel(dayData, date) : ''
+
                 return (
                   <div
                     key={di}
                     title={label}
                     style={{
-                      width: '11px',
-                      height: '11px',
-                      borderRadius: '2px',
+                      width: `${CELL}px`,
+                      height: `${CELL}px`,
+                      borderRadius: '3px',
                       background: color,
-                      cursor: date ? 'default' : 'default',
                       flexShrink: 0,
+                      boxSizing: 'border-box',
+                      outline: isToday ? '2px solid var(--accent)' : 'none',
+                      outlineOffset: '1px',
+                      cursor: date ? 'default' : 'default',
                     }}
                   />
                 )

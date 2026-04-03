@@ -187,6 +187,99 @@ Antworte auf Deutsch. Sei präzise, nicht pathetisch.`,
   return block.text
 }
 
+export async function handlePatternInterrupt(
+  userText: string,
+  profile: Profile,
+  recentEntries: JournalEntry[],
+  _goals: Goal[]
+): Promise<string> {
+  checkRateLimit()
+  const client = getClient()
+  const name = profile.name ?? 'du'
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    system: `Du bist Life OS Coach. ${name} ist gerade aus dem Rhythmus — kein Eintrag seit mehreren Tagen oder Wochen.
+WICHTIG: Null Beschämung. Kein "Du hättest..." oder "Du solltest...".
+Reagiere mitfühlend und direkt. Erkenne was los ist. Schlage am Ende EINE einzige kleine Aufgabe für heute vor — nichts Großes, kein System neu aufsetzen.
+Antworte auf Deutsch. Maximal 150 Wörter.
+
+Kontext über ${name}:
+- Nordstern: "${profile.north_star ?? 'nicht definiert'}"
+- Letzte Journal-Einträge: ${summarizeEntries(recentEntries)}`,
+    messages: [
+      {
+        role: 'user',
+        content: userText,
+      },
+    ],
+  })
+
+  const block = response.content[0]
+  if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
+  return block.text
+}
+
+export async function generateWeeklySummary(
+  recentEntries: JournalEntry[],
+  weeklyGoals: Goal[],
+  profile: Profile
+): Promise<string> {
+  checkRateLimit()
+  const client = getClient()
+
+  const entrySummary = summarizeEntries(recentEntries)
+  const goalSummary = weeklyGoals.length
+    ? weeklyGoals.map((g) => `- ${g.title} (${g.progress}%)`).join('\n')
+    : 'Keine Wochenziele gesetzt.'
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    system: `Du bist Life OS Coach. Erstelle eine ehrliche, prägnante Wochen-Zusammenfassung für ${profile.name ?? 'den Nutzer'}.
+Analysiere Muster, Energie, Fortschritt und blinde Flecken. Maximal 120 Wörter. Kein Motivations-Bullshit. Antworte auf Deutsch.`,
+    messages: [
+      {
+        role: 'user',
+        content: `Wochenziele:\n${goalSummary}\n\nJournal-Einträge der Woche:\n${entrySummary}\n\nFasse die Woche zusammen.`,
+      },
+    ],
+  })
+
+  const block = response.content[0]
+  if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
+  return block.text
+}
+
+export async function generateWeeklyFeedback(
+  wentWell: string,
+  wouldChange: string,
+  recentEntries: JournalEntry[],
+  weeklyGoals: Goal[],
+  profile: Profile
+): Promise<string> {
+  checkRateLimit()
+  const client = getClient()
+  const systemPrompt = buildSystemPrompt(profile, recentEntries, weeklyGoals)
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    system: systemPrompt,
+    messages: [
+      {
+        role: 'user',
+        content: `Mein Wochen-Review:\n\nWas lief gut: ${wentWell}\n\nWas ich ändern würde: ${wouldChange}\n\nWas beobachtest du? Welche Micro-Aktion empfiehlst du für die nächste Woche?`,
+      },
+    ],
+  })
+
+  const block = response.content[0]
+  if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
+  return block.text
+}
+
 export async function checkGoalAlignment(
   goal: Goal,
   parentGoal: Goal | null,

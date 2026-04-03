@@ -232,6 +232,33 @@ export async function getStreak(userId: string): Promise<number> {
   return streak
 }
 
+// Best streak ever
+export async function getBestStreak(userId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .select('entry_date')
+    .eq('user_id', userId)
+    .order('entry_date', { ascending: true })
+  if (error) throw error
+  if (!data || data.length === 0) return 0
+
+  const uniqueDays = [...new Set(data.map((e) => e.entry_date))].sort()
+  let best = 1
+  let current = 1
+  for (let i = 1; i < uniqueDays.length; i++) {
+    const prev = new Date(uniqueDays[i - 1])
+    const curr = new Date(uniqueDays[i])
+    const diff = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24)
+    if (diff === 1) {
+      current++
+      if (current > best) best = current
+    } else {
+      current = 1
+    }
+  }
+  return best
+}
+
 // Heatmap-Daten der letzten N Tage
 export async function getHeatmapData(
   userId: string,

@@ -10,16 +10,10 @@ import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
 import Journal from './pages/Journal'
 import Goals from './pages/Goals'
+import Coach from './pages/Coach'
+import Review from './pages/Review'
+import PatternInterrupt from './pages/PatternInterrupt'
 
-// Placeholder pages — gebaut in späteren Schritten
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div style={{ paddingTop: '2rem', textAlign: 'center' }}>
-      <h2 style={{ fontFamily: 'Lora, serif', color: 'var(--text-primary)' }}>{title}</h2>
-      <p style={{ color: 'var(--text-muted)' }}>Kommt in einem der nächsten Schritte.</p>
-    </div>
-  )
-}
 
 function AppRoutes() {
   const { profile } = useStore()
@@ -34,8 +28,9 @@ function AppRoutes() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/journal" element={<Journal />} />
         <Route path="/goals" element={<Goals />} />
-        <Route path="/coach" element={<PlaceholderPage title="Coach" />} />
-        <Route path="/review" element={<PlaceholderPage title="Wochen-Review" />} />
+        <Route path="/coach" element={<Coach />} />
+        <Route path="/review" element={<Review />} />
+        <Route path="/pattern-interrupt" element={<PatternInterrupt />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppLayout>

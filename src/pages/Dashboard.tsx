@@ -7,10 +7,10 @@ import {
   getTodayEntries,
   getWeeklyGoals,
   getStreak,
+  getBestStreak,
   getHeatmapData,
   getLastJournalDate,
   updateGoal,
-  logPatternEvent,
 } from '../lib/db'
 import { formatDate, daysSince } from '../lib/utils'
 import HeatmapGrid from '../components/dashboard/HeatmapGrid'
@@ -34,6 +34,8 @@ export default function Dashboard() {
   const [hasEveningEntry, setHasEveningEntry] = useState(false)
   const [weeklyGoals, setWeeklyGoals] = useState<GoalRow[]>([])
   const [streak, setStreak] = useState(0)
+  const [bestStreak, setBestStreak] = useState(0)
+  const [weekActiveDays, setWeekActiveDays] = useState(0)
   const [heatmapData, setHeatmapData] = useState<{ entry_date: string; type: string }[]>([])
   const [showPatternInterrupt, setShowPatternInterrupt] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -46,10 +48,11 @@ export default function Dashboard() {
   async function loadDashboardData(userId: string) {
     setIsLoading(true)
     try {
-      const [todayEntries, goals, streakCount, heatmap, lastDate] = await Promise.all([
+      const [todayEntries, goals, streakCount, best, heatmap, lastDate] = await Promise.all([
         getTodayEntries(userId),
         getWeeklyGoals(userId),
         getStreak(userId),
+        getBestStreak(userId),
         getHeatmapData(userId, 60),
         getLastJournalDate(userId),
       ])
@@ -58,7 +61,19 @@ export default function Dashboard() {
       setHasEveningEntry(todayEntries.some((e) => e.type === 'evening'))
       setWeeklyGoals(goals.slice(0, 3))
       setStreak(streakCount)
+      setBestStreak(best)
       setHeatmapData(heatmap)
+
+      // Unique active days this week (Mon–today)
+      const monday = new Date()
+      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+      monday.setHours(0, 0, 0, 0)
+      const uniqueThisWeek = new Set(
+        heatmap
+          .filter((e) => new Date(e.entry_date) >= monday)
+          .map((e) => e.entry_date)
+      )
+      setWeekActiveDays(uniqueThisWeek.size)
 
       // Pattern interrupt: 3+ days without entry
       if (lastDate && daysSince(lastDate) >= 3) {
@@ -82,15 +97,8 @@ export default function Dashboard() {
     }
   }
 
-  async function handlePatternReset() {
-    if (!user) return
-    await logPatternEvent({
-      user_id: user.id,
-      event_type: 'reset_ritual',
-      context: { triggered_from: 'dashboard_banner' },
-    })
-    setShowPatternInterrupt(false)
-    navigate('/journal?type=freeform')
+  function handlePatternReset() {
+    navigate('/pattern-interrupt')
   }
 
   if (isLoading) {
@@ -458,7 +466,12 @@ export default function Dashboard() {
           >
             Letzte 60 Tage
           </h2>
-          {streak > 0 && <StreakBadge streak={streak} />}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Diese Woche: {weekActiveDays}/7
+            </span>
+            <StreakBadge streak={streak} bestStreak={bestStreak} />
+          </div>
         </div>
         <div
           style={{
@@ -472,6 +485,25 @@ export default function Dashboard() {
           <HeatmapGrid data={heatmapData} days={60} />
         </div>
       </section>
+
+      {/* ── Manual Pattern Interrupt ──────────────────────────────── */}
+      <div style={{ textAlign: 'center', paddingBottom: '1rem' }}>
+        <button
+          onClick={() => navigate('/pattern-interrupt')}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-muted)',
+            fontSize: '0.8rem',
+            cursor: 'pointer',
+            fontFamily: 'DM Sans, sans-serif',
+            textDecoration: 'underline',
+            padding: '0.25rem',
+          }}
+        >
+          Ich bin gerade raus aus dem Rhythmus
+        </button>
+      </div>
     </div>
   )
 }
