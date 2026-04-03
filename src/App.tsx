@@ -1,12 +1,14 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
+import { getActiveGoals } from './lib/db'
 import { useStore } from './store/useStore'
 import AuthGuard from './components/AuthGuard'
 import AppLayout from './components/layout/AppLayout'
 import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
 import Dashboard from './pages/Dashboard'
+import Journal from './pages/Journal'
 
 // Placeholder pages — gebaut in späteren Schritten
 function PlaceholderPage({ title }: { title: string }) {
@@ -29,7 +31,7 @@ function AppRoutes() {
     <AppLayout>
       <Routes>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/journal" element={<PlaceholderPage title="Journal" />} />
+        <Route path="/journal" element={<Journal />} />
         <Route path="/goals" element={<PlaceholderPage title="Ziele" />} />
         <Route path="/coach" element={<PlaceholderPage title="Coach" />} />
         <Route path="/review" element={<PlaceholderPage title="Wochen-Review" />} />
@@ -40,7 +42,7 @@ function AppRoutes() {
 }
 
 export default function App() {
-  const { setUser, setSession, setLoading, setProfile } = useStore()
+  const { setUser, setSession, setLoading, setProfile, setGoals } = useStore()
 
   useEffect(() => {
     setLoading(true)
@@ -71,12 +73,12 @@ export default function App() {
   async function loadProfile(userId: string) {
     setLoading(true)
     try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle()
-      setProfile(data)
+      const [profileData, goalsData] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+        getActiveGoals(userId),
+      ])
+      setProfile(profileData.data)
+      setGoals(goalsData)
     } catch (err) {
       console.error('Profile load error:', err)
       setProfile(null)
