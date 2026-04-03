@@ -3,77 +3,39 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { useStore } from './store/useStore'
 import AuthGuard from './components/AuthGuard'
+import AppLayout from './components/layout/AppLayout'
 import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
+import Dashboard from './pages/Dashboard'
 
-// Placeholder — wird in Schritt 5 gebaut
-function Dashboard() {
-  const { profile, session } = useStore()
-  const { doSignOut } = useAuthActions()
+// Placeholder pages — gebaut in späteren Schritten
+function PlaceholderPage({ title }: { title: string }) {
   return (
-    <div style={{ padding: '2rem', fontFamily: 'DM Sans, sans-serif', maxWidth: '600px', margin: '0 auto' }}>
-      <h1 style={{ fontFamily: 'Lora, serif' }}>Dashboard</h1>
-      <p style={{ color: 'var(--text-secondary)' }}>
-        Eingeloggt als: <strong>{session?.user.email}</strong>
-      </p>
-      {profile?.north_star && (
-        <div
-          style={{
-            padding: '1rem',
-            background: 'var(--bg-secondary)',
-            borderRadius: '10px',
-            borderLeft: '3px solid var(--accent)',
-            margin: '1rem 0',
-          }}
-        >
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 0.3rem' }}>NORDSTERN</p>
-          <p style={{ margin: 0, fontWeight: 500 }}>{profile.north_star}</p>
-        </div>
-      )}
-      <button
-        onClick={doSignOut}
-        style={{
-          marginTop: '1rem',
-          padding: '0.5rem 1rem',
-          background: 'var(--accent-warm)',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          fontFamily: 'DM Sans, sans-serif',
-        }}
-      >
-        Ausloggen
-      </button>
+    <div style={{ paddingTop: '2rem', textAlign: 'center' }}>
+      <h2 style={{ fontFamily: 'Lora, serif', color: 'var(--text-primary)' }}>{title}</h2>
+      <p style={{ color: 'var(--text-muted)' }}>Kommt in einem der nächsten Schritte.</p>
     </div>
   )
 }
 
-function useAuthActions() {
-  const { reset } = useStore()
-  return {
-    doSignOut: async () => {
-      await supabase.auth.signOut()
-      reset()
-    },
-  }
-}
-
-// Routes that require onboarding to be completed
 function AppRoutes() {
   const { profile } = useStore()
 
-  // If onboarding not done, always redirect to /onboarding
   if (profile !== null && !profile.onboarding_completed) {
     return <Navigate to="/onboarding" replace />
   }
-  // If profile is null but auth is valid, wait (loading state handled in AuthGuard)
-  // If profile exists and onboarding done, show normal app
+
   return (
-    <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <AppLayout>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/journal" element={<PlaceholderPage title="Journal" />} />
+        <Route path="/goals" element={<PlaceholderPage title="Ziele" />} />
+        <Route path="/coach" element={<PlaceholderPage title="Coach" />} />
+        <Route path="/review" element={<PlaceholderPage title="Wochen-Review" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AppLayout>
   )
 }
 
