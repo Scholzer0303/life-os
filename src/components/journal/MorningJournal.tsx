@@ -10,7 +10,7 @@ import MorningStep2Goal from './MorningStep2Goal'
 import MorningStep3Blockers from './MorningStep3Blockers'
 import MorningStep4Timeboxing from './MorningStep4Timeboxing'
 import MorningStep5Summary from './MorningStep5Summary'
-import type { TimeBlock } from '../../types'
+import type { TimeBlock, DailyTask } from '../../types'
 import type { Json } from '../../types/database'
 
 interface MorningData {
@@ -21,6 +21,7 @@ interface MorningData {
   identityAction: string
   blockers: string
   timeblocks: TimeBlock[]
+  dailyTasks: DailyTask[]
 }
 
 export default function MorningJournal() {
@@ -35,6 +36,7 @@ export default function MorningJournal() {
     identityAction: '',
     blockers: '',
     timeblocks: [],
+    dailyTasks: [],
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -55,6 +57,7 @@ export default function MorningJournal() {
             identityAction: existing.identity_action ?? '',
             blockers: existing.potential_blockers ?? '',
             timeblocks: parseTimeblocks(existing),
+            dailyTasks: Array.isArray(existing.daily_tasks) ? existing.daily_tasks as unknown as DailyTask[] : [],
           })
         }
       })
@@ -86,6 +89,7 @@ export default function MorningJournal() {
         identity_action: data.identityAction || null,
         potential_blockers: data.blockers || null,
         timeblocks: data.timeblocks as unknown as Json,
+        daily_tasks: data.dailyTasks as unknown as Json,
         linked_goal_ids: data.linkedGoalId ? [data.linkedGoalId] : [],
       })
       navigate('/', { replace: true })
@@ -148,8 +152,9 @@ export default function MorningJournal() {
             initialGoal={data.mainGoal}
             initialLinkedGoalId={data.linkedGoalId}
             initialIdentityAction={data.identityAction}
+            initialDailyTasks={data.dailyTasks}
             identityStatement={profile?.identity_statement ?? null}
-            onNext={(goal, linkedGoalId, identityAction) => next({ mainGoal: goal, linkedGoalId, identityAction })}
+            onNext={(goal, linkedGoalId, identityAction, dailyTasks) => next({ mainGoal: goal, linkedGoalId, identityAction, dailyTasks })}
             onBack={back}
           />
         )}

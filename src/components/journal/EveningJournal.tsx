@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
-import { createJournalEntry, getTodayEntries } from '../../lib/db'
+import { createJournalEntry, getTodayEntries, updateJournalEntry } from '../../lib/db'
+import type { DailyTask } from '../../types'
 import { todayISO } from '../../lib/utils'
 import ProgressBar from '../onboarding/ProgressBar'
 import AIFeedbackCard from './AIFeedbackCard'
@@ -92,14 +93,39 @@ export default function EveningJournal() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [morningGoal, setMorningGoal] = useState<string | null>(null)
+  const [morningEntryId, setMorningEntryId] = useState<string | null>(null)
+  const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([])
 
   useEffect(() => {
     if (!user) return
     getTodayEntries(user.id).then((entries) => {
       const morning = entries.find((e) => e.type === 'morning')
-      setMorningGoal(morning?.main_goal_today ?? null)
+      if (morning) {
+        setMorningGoal(morning.main_goal_today ?? null)
+        setMorningEntryId(morning.id)
+        const tasks = Array.isArray(morning.daily_tasks) ? morning.daily_tasks as unknown as DailyTask[] : []
+        setDailyTasks(tasks)
+        // accomplished mit erledigten Tasks vorausfüllen
+        const done = tasks.filter((t) => t.completed).map((t) => `- ${t.title}`)
+        if (done.length > 0 && !data.accomplished) {
+          patch({ accomplished: done.join('\n') })
+        }
+      }
     }).catch(() => {})
-  }, [user])
+  }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleToggleDailyTask(task: DailyTask) {
+    const updated = dailyTasks.map((t) => (t.id === task.id ? { ...t, completed: !t.completed } : t))
+    setDailyTasks(updated)
+    // accomplished-Feld bei jeder Änderung aktualisieren
+    const done = updated.filter((t) => t.completed).map((t) => `- ${t.title}`)
+    patch({ accomplished: done.join('\n') })
+    // In DB persistieren
+    if (morningEntryId) {
+      updateJournalEntry(morningEntryId, { daily_tasks: updated as unknown as import('../../types/database').Json })
+        .catch((err) => console.error('daily_tasks update:', err))
+    }
+  }
 
   function patch(updates: Partial<EveningData>) { setData((p) => ({ ...p, ...updates })) }
   function next() { setStep((s) => s + 1) }
@@ -156,14 +182,51 @@ export default function EveningJournal() {
 
       <AnimatePresence mode="wait">
         {step === 1 && (
-          <StepTextarea key="e1"
-            heading="Was hast du heute geschafft?"
-            hint="Groß oder klein — was hat stattgefunden?"
-            placeholder="Heute habe ich…"
-            value={data.accomplished}
-            onChange={(v) => patch({ accomplished: v })}
-            onNext={next} onBack={() => navigate(-1)}
-          />
+          <motion.div key="e1" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.25 }}>
+            <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.6rem', fontWeight: 600, margin: '0 0 0.4rem' }}>Was hast du heute geschafft?</h2>
+            <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.25rem', lineHeight: 1.5 }}>Groß oder klein — was hat stattgefunden?</p>
+
+            {/* Tages-Tasks mit Checkboxen */}
+            {dailyTasks.length > 0 && (
+              <div style={{ marginBottom: '1rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem 1rem' }}>
+                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.6rem' }}>
+                  Deine Aufgaben heute
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {dailyTasks.map((task) => (
+                    <button
+                      key={task.id}
+                      onClick={() => handleToggleDailyTask(task)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem 0', textAlign: 'left' }}
+                    >
+                      <span style={{ color: task.completed ? 'var(--accent-green)' : 'var(--text-muted)', flexShrink: 0, fontSize: '1.1rem' }}>
+                        {task.completed ? '☑' : '☐'}
+                      </span>
+                      <span style={{ fontSize: '0.9rem', color: task.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: task.completed ? 'line-through' : 'none', lineHeight: 1.4 }}>
+                        {task.title}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <textarea
+              value={data.accomplished}
+              onChange={(e) => patch({ accomplished: e.target.value })}
+              placeholder="Heute habe ich…"
+              rows={4} autoFocus
+              style={{ width: '100%', padding: '0.85rem 1rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5, marginBottom: '1.5rem' }}
+              onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+              onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+            />
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={() => navigate(-1)} style={BACK_BTN}>←</button>
+              <button onClick={next} style={{ flex: 1, padding: '0.9rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '1rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer' }}>
+                Weiter →
+              </button>
+            </div>
+          </motion.div>
         )}
 
         {step === 2 && (

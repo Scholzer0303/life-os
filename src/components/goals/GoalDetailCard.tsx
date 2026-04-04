@@ -1,19 +1,53 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Edit2, Trash2, ChevronDown, ChevronRight, MessageCircle, Plus } from 'lucide-react'
+import { Edit2, Trash2, ChevronDown, ChevronRight, MessageCircle, Plus, CheckSquare, Square, ArrowUp, ArrowDown, CheckCircle2 } from 'lucide-react'
 import { checkGoalAlignment } from '../../lib/claude'
 import { useStore } from '../../store/useStore'
-import type { GoalRow } from '../../types/database'
+import { getGoalTasks, createGoalTask, updateGoalTask, deleteGoalTask } from '../../lib/db'
+import type { GoalRow, GoalTaskRow } from '../../types/database'
+
+// ── Eigenständige Komponente damit lokaler State nicht das Parent neu rendert ──
+function NewTaskInput({ onAdd, typeColor }: { onAdd: (title: string) => void; typeColor: string }) {
+  const [value, setValue] = useState('')
+
+  function submit() {
+    if (!value.trim()) return
+    onAdd(value.trim())
+    setValue('')
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.25rem' }}>
+      <input
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
+        placeholder="Neuer Task…"
+        style={{ flex: 1, background: 'var(--bg-secondary)', border: '1px dashed var(--border)', borderRadius: '7px', padding: '0.35rem 0.6rem', fontSize: '0.82rem', color: 'var(--text-primary)', outline: 'none', fontFamily: 'DM Sans, sans-serif' }}
+      />
+      <button
+        onClick={submit}
+        disabled={!value.trim()}
+        style={{ background: value.trim() ? typeColor : 'var(--bg-secondary)', border: 'none', borderRadius: '7px', padding: '0.35rem 0.6rem', cursor: value.trim() ? 'pointer' : 'default', color: value.trim() ? '#fff' : 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+      >
+        <Plus size={14} />
+      </button>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface Props {
   goal: GoalRow
   parentGoal?: GoalRow
-  children?: GoalRow[]         // sub-goals
+  children?: GoalRow[]
   linkedEntryCount?: number
   onEdit: (goal: GoalRow) => void
   onDelete: (id: string) => void
   onUpdateProgress: (id: string, progress: number) => void
-  onAddChild?: (parentId: string) => void  // trigger add child goal
+  onAddChild?: (parentId: string) => void
   indentLevel?: number
 }
 
@@ -36,11 +70,112 @@ const STATUS_LABEL: Record<string, string> = { active: 'Aktiv', completed: 'Abge
 
 export default function GoalDetailCard({ goal, parentGoal, children = [], linkedEntryCount = 0, onEdit, onDelete, onUpdateProgress, onAddChild, indentLevel = 0 }: Props) {
   const { profile, recentEntries, goals } = useStore()
+  const user = useStore((s) => s.user)
+
   const [expanded, setExpanded] = useState(indentLevel < 1)
   const [aiCheck, setAiCheck] = useState<string | null>(null)
   const [isCheckLoading, setIsCheckLoading] = useState(false)
   const [checkError, setCheckError] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // Tasks
+  const [tasks, setTasks] = useState<GoalTaskRow[]>([])
+  const [tasksLoaded, setTasksLoaded] = useState(false)
+  const [showTasks, setShowTasks] = useState(false)
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [editingTaskTitle, setEditingTaskTitle] = useState('')
+
+  // Tasks beim Mount laden — brauchen wir um "Als erledigt"-Toggle korrekt anzuzeigen
+  useEffect(() => {
+    getGoalTasks(goal.id)
+      .then((data) => { setTasks(data); setTasksLoaded(true) })
+      .catch((err) => console.error('Fehler beim Laden der Tasks:', err))
+  }, [goal.id])
+
+  function calcProgressFromTasks(taskList: GoalTaskRow[]): number {
+    if (taskList.length === 0) return 0
+    return Math.round((taskList.filter((t) => t.completed).length / taskList.length) * 100)
+  }
+
+  async function handleToggleTask(task: GoalTaskRow) {
+    const updated = { ...task, completed: !task.completed }
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)))
+    try {
+      await updateGoalTask(task.id, { completed: updated.completed })
+      const newProgress = calcProgressFromTasks(tasks.map((t) => (t.id === task.id ? updated : t)))
+      onUpdateProgress(goal.id, newProgress)
+    } catch (err) {
+      console.error('Task-Toggle fehlgeschlagen:', err)
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
+    }
+  }
+
+  async function handleAddTask(title: string) {
+    if (!user) return
+    const maxOrder = tasks.length > 0 ? Math.max(...tasks.map((t) => t.sort_order)) : -1
+    try {
+      const created = await createGoalTask({
+        goal_id: goal.id,
+        user_id: user.id,
+        title,
+        sort_order: maxOrder + 1,
+      })
+      const newTasks = [...tasks, created]
+      setTasks(newTasks)
+      onUpdateProgress(goal.id, calcProgressFromTasks(newTasks))
+    } catch (err) {
+      console.error('Task-Erstellung fehlgeschlagen:', err)
+    }
+  }
+
+  async function handleDeleteTask(id: string) {
+    const prev = tasks
+    const newTasks = tasks.filter((t) => t.id !== id)
+    setTasks(newTasks)
+    try {
+      await deleteGoalTask(id)
+      onUpdateProgress(goal.id, calcProgressFromTasks(newTasks))
+    } catch (err) {
+      console.error('Task-Löschen fehlgeschlagen:', err)
+      setTasks(prev)
+    }
+  }
+
+  async function handleRenameTask(task: GoalTaskRow) {
+    if (!editingTaskTitle.trim() || editingTaskTitle === task.title) {
+      setEditingTaskId(null)
+      return
+    }
+    const newTitle = editingTaskTitle.trim()
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, title: newTitle } : t)))
+    setEditingTaskId(null)
+    try {
+      await updateGoalTask(task.id, { title: newTitle })
+    } catch (err) {
+      console.error('Task-Umbenennen fehlgeschlagen:', err)
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
+    }
+  }
+
+  async function handleMoveTask(index: number, direction: 'up' | 'down') {
+    const swapIndex = direction === 'up' ? index - 1 : index + 1
+    if (swapIndex < 0 || swapIndex >= tasks.length) return
+    const newTasks = [...tasks]
+    ;[newTasks[index], newTasks[swapIndex]] = [newTasks[swapIndex], newTasks[index]]
+    const reordered = newTasks.map((t, i) => ({ ...t, sort_order: i }))
+    setTasks(reordered)
+    try {
+      await Promise.all(reordered.map((t) => updateGoalTask(t.id, { sort_order: t.sort_order })))
+    } catch (err) {
+      console.error('Task-Sortierung fehlgeschlagen:', err)
+      setTasks(tasks)
+    }
+  }
+
+  async function handleMarkComplete() {
+    const newProgress = goal.progress >= 100 ? 0 : 100
+    onUpdateProgress(goal.id, newProgress)
+  }
 
   const typeColor = TYPE_COLOR[goal.type] ?? 'var(--text-muted)'
   const canHaveChildren = goal.type === 'quarterly' || goal.type === 'monthly'
@@ -66,7 +201,6 @@ export default function GoalDetailCard({ goal, parentGoal, children = [], linked
 
   return (
     <div style={{ marginLeft: indentLevel > 0 ? '1rem' : 0 }}>
-      {/* Connector line for children */}
       {indentLevel > 0 && (
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '0.85rem', flexShrink: 0 }}>
@@ -77,7 +211,6 @@ export default function GoalDetailCard({ goal, parentGoal, children = [], linked
       )}
       {indentLevel === 0 && <CardBody />}
 
-      {/* Children */}
       <AnimatePresence>
         {expanded && children.length > 0 && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
@@ -105,7 +238,6 @@ export default function GoalDetailCard({ goal, parentGoal, children = [], linked
         {/* Header row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, minWidth: 0 }}>
-            {/* Expand toggle for parents */}
             {canHaveChildren && (
               <button onClick={() => setExpanded((e) => !e)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', flexShrink: 0 }}>
                 {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -122,30 +254,96 @@ export default function GoalDetailCard({ goal, parentGoal, children = [], linked
           </div>
         </div>
 
-        {/* Parent breadcrumb */}
         {parentGoal && (
           <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '0 0 0.4rem' }}>↑ {parentGoal.title}</p>
         )}
-
-        {/* Description */}
         {goal.description && (
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 0.6rem', lineHeight: 1.4 }}>{goal.description}</p>
         )}
 
-        {/* Progress */}
-        <div style={{ marginBottom: '0.5rem' }}>
+        {/* Fortschrittsbalken — kein Slider */}
+        <div style={{ marginBottom: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.75rem' }}>
             <span style={{ color: 'var(--text-muted)' }}>Fortschritt</span>
             <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, color: goal.progress >= 100 ? 'var(--accent-green)' : typeColor }}>
               {goal.progress}%
             </span>
           </div>
-          <div style={{ height: '4px', background: 'var(--bg-secondary)', borderRadius: '2px', overflow: 'hidden', marginBottom: '0.3rem' }}>
+          <div style={{ height: '4px', background: 'var(--bg-secondary)', borderRadius: '2px', overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${goal.progress}%`, background: goal.progress >= 100 ? 'var(--accent-green)' : typeColor, borderRadius: '2px', transition: 'width 0.3s ease' }} />
           </div>
-          <input type="range" min={0} max={100} step={5} value={goal.progress} onChange={(e) => onUpdateProgress(goal.id, Number(e.target.value))}
-            style={{ width: '100%', accentColor: typeColor, cursor: 'pointer', height: '14px' }} aria-label={`Fortschritt ${goal.title}`} />
         </div>
+
+        {/* Tasks */}
+        <div style={{ marginBottom: '0.5rem' }}>
+          <button
+            onClick={() => setShowTasks((v) => !v)}
+            style={{ fontSize: '0.75rem', color: showTasks ? typeColor : 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.25rem', padding: 0 }}
+          >
+            <CheckSquare size={13} />
+            Tasks {tasksLoaded ? `(${tasks.length})` : ''}
+            {showTasks ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          </button>
+
+          <AnimatePresence>
+            {showTasks && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
+                <div style={{ marginTop: '0.6rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  {tasks.map((task, i) => (
+                    <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.35rem 0.5rem', background: 'var(--bg-secondary)', borderRadius: '7px' }}>
+                      <button onClick={() => handleToggleTask(task)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: task.completed ? typeColor : 'var(--text-muted)', padding: 0, flexShrink: 0, display: 'flex' }}>
+                        {task.completed ? <CheckSquare size={15} /> : <Square size={15} />}
+                      </button>
+
+                      {editingTaskId === task.id ? (
+                        <input
+                          autoFocus
+                          value={editingTaskTitle}
+                          onChange={(e) => setEditingTaskTitle(e.target.value)}
+                          onBlur={() => handleRenameTask(task)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleRenameTask(task); if (e.key === 'Escape') setEditingTaskId(null) }}
+                          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: '0.82rem', color: 'var(--text-primary)', fontFamily: 'DM Sans, sans-serif' }}
+                        />
+                      ) : (
+                        <span
+                          onClick={() => { setEditingTaskId(task.id); setEditingTaskTitle(task.title) }}
+                          style={{ flex: 1, fontSize: '0.82rem', color: task.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: task.completed ? 'line-through' : 'none', cursor: 'text', lineHeight: 1.4 }}
+                        >
+                          {task.title}
+                        </span>
+                      )}
+
+                      <div style={{ display: 'flex', gap: '0.1rem', flexShrink: 0 }}>
+                        <button onClick={() => handleMoveTask(i, 'up')} disabled={i === 0} style={{ background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? 'transparent' : 'var(--text-muted)', padding: '0.1rem', display: 'flex' }}>
+                          <ArrowUp size={11} />
+                        </button>
+                        <button onClick={() => handleMoveTask(i, 'down')} disabled={i === tasks.length - 1} style={{ background: 'none', border: 'none', cursor: i === tasks.length - 1 ? 'default' : 'pointer', color: i === tasks.length - 1 ? 'transparent' : 'var(--text-muted)', padding: '0.1rem', display: 'flex' }}>
+                          <ArrowDown size={11} />
+                        </button>
+                        <button onClick={() => handleDeleteTask(task.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', display: 'flex' }}>
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <NewTaskInput onAdd={handleAddTask} typeColor={typeColor} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* "Als erledigt markieren" — nur wenn keine Tasks vorhanden */}
+        {tasksLoaded && tasks.length === 0 && (
+          <button
+            onClick={handleMarkComplete}
+            style={{ fontSize: '0.78rem', color: goal.progress >= 100 ? 'var(--accent-green)' : 'var(--text-muted)', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '0.3rem 0.65rem', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.5rem' }}
+          >
+            <CheckCircle2 size={13} />
+            {goal.progress >= 100 ? 'Als offen markieren' : 'Als erledigt markieren'}
+          </button>
+        )}
 
         {/* Footer: status + linked entries + add child */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>

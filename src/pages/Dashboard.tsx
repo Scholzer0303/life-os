@@ -13,13 +13,17 @@ import {
   getRecentEntries,
   updateGoal,
   updateProfile,
+  getTasksForGoals,
+  updateGoalTask,
+  updateJournalEntry,
 } from '../lib/db'
 import { generatePatternAnalysis } from '../lib/claude'
 import { formatDate, daysSince } from '../lib/utils'
 import HeatmapGrid from '../components/dashboard/HeatmapGrid'
 import StreakBadge from '../components/dashboard/StreakBadge'
 import GoalCard from '../components/dashboard/GoalCard'
-import type { GoalRow } from '../types/database'
+import type { GoalRow, GoalTaskRow } from '../types/database'
+import type { DailyTask } from '../types'
 
 function getGreeting(name: string | null): string {
   const h = new Date().getHours()
@@ -36,6 +40,9 @@ export default function Dashboard() {
   const [hasMorningEntry, setHasMorningEntry] = useState(false)
   const [hasEveningEntry, setHasEveningEntry] = useState(false)
   const [weeklyGoals, setWeeklyGoals] = useState<GoalRow[]>([])
+  const [weeklyGoalTasks, setWeeklyGoalTasks] = useState<GoalTaskRow[]>([])
+  const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([])
+  const [morningEntryId, setMorningEntryId] = useState<string | null>(null)
   const [streak, setStreak] = useState(0)
   const [bestStreak, setBestStreak] = useState(0)
   const [weekActiveDays, setWeekActiveDays] = useState(0)
@@ -97,7 +104,17 @@ export default function Dashboard() {
       setHasMorningEntry(!!morningEntry)
       setHasEveningEntry(todayEntries.some((e) => e.type === 'evening'))
       setMorningGoalToday(morningEntry?.main_goal_today ?? null)
-      setWeeklyGoals(goals.slice(0, 3))
+      if (morningEntry) {
+        setMorningEntryId(morningEntry.id)
+        setDailyTasks(Array.isArray(morningEntry.daily_tasks) ? morningEntry.daily_tasks as unknown as DailyTask[] : [])
+      }
+      const topGoals = goals.slice(0, 3)
+      setWeeklyGoals(topGoals)
+      if (topGoals.length > 0) {
+        getTasksForGoals(userId, topGoals.map((g) => g.id))
+          .then(setWeeklyGoalTasks)
+          .catch((err) => console.error('Tasks laden fehlgeschlagen:', err))
+      }
       setRecentEntries(recent)
       setStreak(streakCount)
       setBestStreak(best)
@@ -138,6 +155,32 @@ export default function Dashboard() {
       setWeeklyGoals((prev) => prev.map((g) => (g.id === goalId ? updated : g)))
     } catch (err) {
       console.error('Progress update error:', err)
+    }
+  }
+
+  async function handleToggleDailyTask(task: DailyTask) {
+    if (!morningEntryId) return
+    const updated = dailyTasks.map((t) => (t.id === task.id ? { ...t, completed: !t.completed } : t))
+    setDailyTasks(updated)
+    updateJournalEntry(morningEntryId, { daily_tasks: updated as unknown as import('../types/database').Json })
+      .catch((err) => console.error('daily_tasks update:', err))
+  }
+
+  async function handleToggleTask(task: import('../types/database').GoalTaskRow) {
+    const updated = { ...task, completed: !task.completed }
+    setWeeklyGoalTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)))
+    try {
+      await updateGoalTask(task.id, { completed: updated.completed })
+      // Fortschritt neu berechnen
+      const allTasks = weeklyGoalTasks.map((t) => (t.id === task.id ? updated : t))
+      const goalTasks = allTasks.filter((t) => t.goal_id === task.goal_id)
+      if (goalTasks.length > 0) {
+        const progress = Math.round((goalTasks.filter((t) => t.completed).length / goalTasks.length) * 100)
+        handleProgressUpdate(task.goal_id, progress)
+      }
+    } catch (err) {
+      console.error('Task toggle error:', err)
+      setWeeklyGoalTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
     }
   }
 
@@ -598,6 +641,34 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {/* ── Heute zu erledigen ───────────────────────────────────── */}
+      {hasMorningEntry && dailyTasks.length > 0 && (
+        <section style={{ marginBottom: '1.75rem' }}>
+          <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.1rem', fontWeight: 600, margin: '0 0 0.75rem', color: 'var(--text-primary)' }}>
+            Heute zu erledigen
+          </h2>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0.85rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+            {dailyTasks.map((task) => (
+              <button
+                key={task.id}
+                onClick={() => handleToggleDailyTask(task)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem 0', textAlign: 'left' }}
+              >
+                <span style={{ flexShrink: 0, width: 18, height: 18, borderRadius: '4px', border: `2px solid ${task.completed ? 'var(--accent-green)' : 'var(--border)'}`, background: task.completed ? 'var(--accent-green)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {task.completed && <span style={{ color: '#fff', fontSize: '0.65rem', fontWeight: 700 }}>✓</span>}
+                </span>
+                <span style={{ fontSize: '0.9rem', color: task.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: task.completed ? 'line-through' : 'none', lineHeight: 1.4 }}>
+                  {task.title}
+                </span>
+              </button>
+            ))}
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
+              {dailyTasks.filter((t) => t.completed).length} / {dailyTasks.length} erledigt
+            </p>
+          </div>
+        </section>
+      )}
+
       {/* ── Wochenziele ──────────────────────────────────────────── */}
       <section style={{ marginBottom: '1.75rem' }}>
         <div
@@ -671,7 +742,8 @@ export default function Dashboard() {
               <GoalCard
                 key={goal.id}
                 goal={goal}
-                onUpdateProgress={handleProgressUpdate}
+                tasks={weeklyGoalTasks.filter((t) => t.goal_id === goal.id)}
+                onToggleTask={handleToggleTask}
               />
             ))}
           </div>

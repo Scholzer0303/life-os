@@ -271,16 +271,29 @@ export async function generateReviewSummary(
   zeitraum: ReviewPeriod,
   entries: JournalEntry[],
   goals: Goal[],
-  profile: Profile
+  profile: Profile,
+  reviewSummaries?: string[]
 ): Promise<string> {
   checkRateLimit()
   const client = getClient()
 
   const periodLabel = PERIOD_LABELS[zeitraum]
-  const entrySummary = summarizeEntries(entries)
   const goalSummary = goals.length
     ? goals.map((g) => `- ${g.title} (${g.progress}%)`).join('\n')
     : `Keine ${periodLabel}sziele gesetzt.`
+
+  // Für längere Zeiträume: komprimierte Review-Summaries bevorzugen
+  let contextBlock: string
+  if (reviewSummaries && reviewSummaries.length > 0) {
+    const summaryList = reviewSummaries
+      .map((s, i) => `Review ${i + 1}:\n${s}`)
+      .join('\n\n---\n\n')
+    contextBlock = `Vergangene Reviews des ${periodLabel}s:\n${summaryList}`
+  } else {
+    const entrySummary = summarizeEntries(entries)
+    const dayCount = zeitraum === 'week' ? '7' : zeitraum === 'month' ? '30' : zeitraum === 'quarter' ? '90' : '365'
+    contextBlock = `Journal-Einträge der letzten ${dayCount} Tage:\n${entrySummary}`
+  }
 
   const response = await client.messages.create({
     model: MODEL,
@@ -290,7 +303,7 @@ Analysiere Muster, Energie, Fortschritt und blinde Flecken über den ${periodLab
     messages: [
       {
         role: 'user',
-        content: `${periodLabel}sziele:\n${goalSummary}\n\nJournal-Einträge der letzten ${periodLabel === 'Woche' ? '7' : periodLabel === 'Monat' ? '30' : periodLabel === 'Quartal' ? '90' : '365'} Tage:\n${entrySummary}\n\nFasse den ${periodLabel}szeitraum zusammen.`,
+        content: `${periodLabel}sziele:\n${goalSummary}\n\n${contextBlock}\n\nFasse den ${periodLabel}szeitraum zusammen.`,
       },
     ],
   })

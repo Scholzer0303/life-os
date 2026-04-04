@@ -1,12 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Send, RotateCcw, Zap, Target, HelpCircle, MessageCircle } from 'lucide-react'
+import { Send, RotateCcw, Zap, Target, HelpCircle, MessageCircle, Clock, Trash2, ChevronLeft } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../store/useStore'
 import { sendCoachMessage } from '../lib/claude'
-import { createCoachSession, updateCoachSession } from '../lib/db'
+import { createCoachSession, updateCoachSession, getCoachSessions, deleteCoachSession } from '../lib/db'
 import type { CoachMessage, CoachMode } from '../types'
 import type { CoachSessionRow } from '../types/database'
+
+const TRIGGER_LABEL: Record<string, string> = {
+  on_demand: 'Coach',
+  pattern_interrupt: 'Muster-Interrupt',
+  weekly_review: 'Wochenreview',
+  monthly_review: 'Monatsreview',
+  quarterly_review: 'Quartalsreview',
+  yearly_review: 'Jahresreview',
+  entry_feedback: 'Journal-Feedback',
+}
 
 const MODES: { value: CoachMode; label: string; icon: React.ReactNode; starter: string }[] = [
   {
@@ -67,6 +77,37 @@ export default function Coach() {
   const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Archiv
+  const [showArchive, setShowArchive] = useState(false)
+  const [archiveSessions, setArchiveSessions] = useState<CoachSessionRow[]>([])
+  const [archiveLoading, setArchiveLoading] = useState(false)
+  const [selectedSession, setSelectedSession] = useState<CoachSessionRow | null>(null)
+
+  async function openArchive() {
+    if (!user) return
+    setShowArchive(true)
+    setSelectedSession(null)
+    setArchiveLoading(true)
+    try {
+      const sessions = await getCoachSessions(user.id)
+      setArchiveSessions(sessions)
+    } catch (err) {
+      console.error('Archiv laden fehlgeschlagen:', err)
+    } finally {
+      setArchiveLoading(false)
+    }
+  }
+
+  async function handleDeleteSession(id: string) {
+    try {
+      await deleteCoachSession(id)
+      setArchiveSessions((prev) => prev.filter((s) => s.id !== id))
+      if (selectedSession?.id === id) setSelectedSession(null)
+    } catch (err) {
+      console.error('Session löschen fehlgeschlagen:', err)
+    }
+  }
 
   // Persistenz: bei Änderungen speichern
   useEffect(() => {
@@ -191,6 +232,106 @@ export default function Coach() {
     aiProfile.generatedAt &&
     Math.floor((Date.now() - new Date(aiProfile.generatedAt).getTime()) / 86400000) < 30
 
+  // ── Archiv-Ansicht ──────────────────────────────────────────────────────────
+  if (showArchive) {
+    const sessionMessages = selectedSession
+      ? (Array.isArray(selectedSession.messages) ? selectedSession.messages as unknown as CoachMessage[] : [])
+      : []
+
+    return (
+      <div style={{ padding: '1.5rem', maxWidth: 480, margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+          <button
+            onClick={() => { if (selectedSession) { setSelectedSession(null) } else { setShowArchive(false) } }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'flex' }}
+          >
+            <ChevronLeft size={22} />
+          </button>
+          <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.3rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>
+            {selectedSession ? (TRIGGER_LABEL[selectedSession.trigger] ?? selectedSession.trigger) : 'Vergangene Sessions'}
+          </h2>
+        </div>
+
+        {/* Session-Detail */}
+        {selectedSession && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+              {new Date(selectedSession.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </p>
+            {sessionMessages.map((msg, i) => (
+              <div
+                key={i}
+                style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}
+              >
+                <div style={{
+                  maxWidth: '82%',
+                  padding: '0.65rem 0.9rem',
+                  borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                  background: msg.role === 'user' ? 'var(--accent)' : 'var(--surface)',
+                  border: msg.role === 'assistant' ? '1px solid var(--border)' : 'none',
+                  color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
+                  fontSize: '0.88rem',
+                  lineHeight: 1.5,
+                  whiteSpace: msg.role === 'user' ? 'pre-wrap' : undefined,
+                }}>
+                  {msg.role === 'assistant' ? <ReactMarkdown>{msg.content}</ReactMarkdown> : msg.content}
+                </div>
+              </div>
+            ))}
+            {sessionMessages.length === 0 && (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Keine Nachrichten gespeichert.</p>
+            )}
+          </div>
+        )}
+
+        {/* Session-Liste */}
+        {!selectedSession && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            {archiveLoading && <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Lade Sessions…</p>}
+            {!archiveLoading && archiveSessions.length === 0 && (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Noch keine Sessions gespeichert.</p>
+            )}
+            {archiveSessions.map((s) => {
+              const msgs = Array.isArray(s.messages) ? s.messages as unknown as CoachMessage[] : []
+              const preview = msgs[0]?.content?.slice(0, 80) ?? s.summary?.slice(0, 80) ?? '—'
+              return (
+                <div
+                  key={s.id}
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '0.85rem 1rem', display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}
+                >
+                  <button
+                    onClick={() => setSelectedSession(s)}
+                    style={{ flex: 1, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent)', background: 'rgba(134,59,255,0.1)', padding: '0.15rem 0.45rem', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {TRIGGER_LABEL[s.trigger] ?? s.trigger}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {new Date(s.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+                      {preview}{preview.length >= 80 ? '…' : ''}
+                    </p>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteSession(s.id)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.2rem', flexShrink: 0, display: 'flex' }}
+                    title="Session löschen"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   // Mode selection screen
   if (!mode) {
     return (
@@ -271,16 +412,17 @@ export default function Coach() {
           </div>
         )}
 
-        <h2
-          style={{
-            fontFamily: 'Lora, serif',
-            color: 'var(--text-primary)',
-            fontSize: '1.4rem',
-            marginBottom: '0.4rem',
-          }}
-        >
-          Coach
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+          <h2 style={{ fontFamily: 'Lora, serif', color: 'var(--text-primary)', fontSize: '1.4rem', margin: 0 }}>
+            Coach
+          </h2>
+          <button
+            onClick={openArchive}
+            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '0.35rem 0.75rem', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.78rem', fontFamily: 'DM Sans, sans-serif', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+          >
+            <Clock size={13} /> Vergangene Sessions
+          </button>
+        </div>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
           Was brauchst du gerade?
         </p>

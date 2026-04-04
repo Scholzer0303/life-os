@@ -20,6 +20,13 @@ export type GoalStatus = 'active' | 'completed' | 'paused'
 export type JournalEntryType = 'morning' | 'evening' | 'freeform'
 export type CoachMode = 'stuck' | 'on_track' | 'clarity' | 'chat'
 
+export interface DailyTask {
+  id: string
+  title: string
+  completed: boolean
+  goal_id?: string | null
+}
+
 export interface TimeBlock {
   title: string
   duration_min: number

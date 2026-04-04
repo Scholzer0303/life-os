@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md
 # Wird nach jedem Schritt aktualisiert — immer die neueste Version ins Claude Project hochladen
 
-Zuletzt aktualisiert: 2026-04-04 (Session abgeschlossen — Bugs 1–6 ✅, Änderungen 7–10 ✅, Änderung 11 dokumentiert, Features 12–15 neu nummeriert)
+Zuletzt aktualisiert: 2026-04-04 (Änderung 11 ✅, Feature 13 ✅ + Bugfixes, Feature 14 ✅, Feature 15 ✅)
 
 ---
 
@@ -159,12 +159,15 @@ Bearbeitungsreihenfolge: erst alle Bugs (1–6) ✅, dann Änderungen (7–11), 
 - Beim Start: `getRecentEntries(userId, tage)` lädt passende Einträge (7/30/90/365 Tage), Ziele nach Typ gefiltert
 - Dateien: `src/pages/Review.tsx`, `src/lib/claude.ts`
 
-**Änderung 11 — Review: Intelligente Datenaggregation je Zeitraum** ⚠️ OFFEN
+**Änderung 11 — Review: Intelligente Datenaggregation je Zeitraum** ✅ BEHOBEN
 - Problem: Bei Quartal/Jahr werden zu viele rohe Tageseinträge an die KI übergeben → Token-Limit-Risiko
-- Fix: Hierarchie — Monat nutzt Wochenreviews, Quartal nutzt Monatsreviews, Jahr nutzt Quartalsreviews
-- Fallback: Falls kein Review höherer Ebene existiert → eine Ebene tiefer gehen
-- Technisch: neue DB-Funktion `getReviewSessions(userId, trigger, seit)` + Anpassung `generateReviewSummary()`
-- Dateien: `src/lib/db.ts`, `src/lib/claude.ts`, `src/pages/Review.tsx`
+- Fix: Hierarchie — Monat nutzt `weekly_review`-Sessions, Quartal nutzt `monthly_review`-Sessions, Jahr nutzt `quarterly_review`-Sessions
+- Fallback: Falls kein Review höherer Ebene existiert → eine Ebene tiefer bis zu rohen Einträgen
+- Neue DB-Funktion `getReviewSessions(userId, trigger, seit)` in `db.ts`
+- `generateReviewSummary()` in `claude.ts` hat neuen optionalen Parameter `reviewSummaries?: string[]`
+- Review speichert jetzt mit korrektem Trigger je Zeitraum (`monthly_review`, `quarterly_review`, `yearly_review`)
+- `database.ts` Trigger-Union um neue Werte erweitert
+- Dateien: `src/types/database.ts`, `src/lib/db.ts`, `src/lib/claude.ts`, `src/pages/Review.tsx`
 
 ### 💡 Große Features — eigene Sessions je Feature
 
@@ -177,7 +180,43 @@ Bearbeitungsreihenfolge: erst alle Bugs (1–6) ✅, dann Änderungen (7–11), 
 - Neue Supabase-Tabellen `recurring_blocks` + `recurring_block_exceptions` nötig
 - Aufwand: Sehr Groß — eigene Session
 
-**Feature 13 — Ziel-Kaskade mit abhakbaren Tasks** ⚠️ OFFEN
+**Bug-Fixes Feature 13 (GoalCard / GoalDetailCard)** ✅ BEHOBEN
+- Fokus-Verlust im Task-Input behoben: `NewTaskInput` als eigenständige Komponente außerhalb von `GoalDetailCard` — lokaler State verhindert Re-Renders im Parent
+- Alle Slider entfernt (GoalDetailCard + GoalCard/Dashboard)
+- Kein `onUpdateProgress`-Slider-Prop mehr in GoalCard
+- GoalDetailCard: "Als erledigt markieren"-Toggle ersetzt den Slider (nur wenn keine Tasks vorhanden und `tasksLoaded = true`)
+- Tasks werden beim Mount geladen (nicht mehr lazy) damit Toggle sofort korrekt angezeigt wird
+- Dateien: src/components/goals/GoalDetailCard.tsx, src/components/dashboard/GoalCard.tsx, src/pages/Dashboard.tsx
+
+**Feature 15 — Coach-Archiv** ✅ BEHOBEN
+- Neue DB-Funktionen: `getCoachSessions(userId)` + `deleteCoachSession(id)` in `db.ts`
+- `Coach.tsx`: neuer State `showArchive` + `selectedSession` + `archiveSessions`
+- TRIGGER_LABEL-Mapping: on_demand/pattern_interrupt/weekly_review/monthly_review/quarterly_review/yearly_review/entry_feedback → Deutsche Labels
+- Mode-Selection-Screen: "Vergangene Sessions"-Button oben rechts (Clock-Icon)
+- Archiv-Listenansicht: Sessions sortiert nach Datum, Trigger-Label + Datum + Vorschau der ersten Nachricht
+- Archiv-Detailansicht: vollständige Unterhaltung read-only mit Markdown-Rendering
+- Navigation: Zurück-Button (ChevronLeft) — aus Detail zurück zur Liste, aus Liste zurück zum Coach
+- Löschen: Trash-Icon pro Session mit sofortiger UI-Aktualisierung
+- Dateien: src/lib/db.ts, src/pages/Coach.tsx
+
+**Feature 14 — Tasks im Tagesjournal mit Dashboard-Sync** ✅ BEHOBEN
+- Supabase-Migration: `daily_tasks JSONB DEFAULT '[]'` auf `journal_entries`
+- `database.ts`: `daily_tasks: Json` in Row/Insert/Update von journal_entries
+- `types/index.ts`: neues `DailyTask`-Interface (id, title, completed, goal_id?)
+- `MorningStep2Goal.tsx`: neue Sektion "Wichtigste Aufgaben heute" (1–5 Tasks, optional mit Wochenziel verknüpfen per Select); Eingaben als DailyTask-Array zurückgegeben
+- `MorningJournal.tsx`: `dailyTasks` in MorningData, Vorausfüllen aus bestehendem Eintrag, beim Speichern mitgegeben
+- `EveningJournal.tsx`: Schritt 1 zeigt Tages-Tasks mit Checkboxen; abhaken aktualisiert Morgeneintrag in DB; erledigte Tasks füllen "accomplished"-Feld vor
+- `Dashboard.tsx`: neue Sektion "Heute zu erledigen" (erscheint nur wenn Morgenjournal ausgefüllt + Tasks vorhanden); Tasks als Checkboxen mit Fortschrittsanzeige; Toggle persistiert in DB
+- Dateien: src/types/database.ts, src/types/index.ts, src/components/journal/MorningStep2Goal.tsx, src/components/journal/MorningJournal.tsx, src/components/journal/EveningJournal.tsx, src/pages/Dashboard.tsx
+
+**Feature 13 — Ziel-Kaskade mit abhakbaren Tasks** ✅ BEHOBEN
+- Neue Supabase-Tabelle `goal_tasks` (id, goal_id, user_id, title, completed, sort_order) — RLS aktiv
+- `database.ts`: GoalTaskRow / GoalTaskInsert / GoalTaskUpdate Typen + trigger union erweitert
+- `db.ts`: getGoalTasks, getTasksForGoals, createGoalTask, updateGoalTask, deleteGoalTask
+- `GoalDetailCard.tsx`: Tasks-Sektion mit Checkboxen, Hinzufügen (Enter/Button), Umbenennen (Inline), Löschen, Reihenfolge (↑↓); Fortschrittsbalken berechnet sich aus Tasks; Slider ausgeblendet wenn Tasks vorhanden
+- `GoalCard.tsx` (Dashboard): Tasks inline mit Checkboxen, max. 3 sichtbar, "Weitere anzeigen"-Toggle; Slider nur wenn keine Tasks
+- `Dashboard.tsx`: Tasks für Wochenziele geladen (getTasksForGoals), handleToggleTask mit Fortschritts-Neuberechnung
+- Dateien: src/types/database.ts, src/lib/db.ts, src/components/goals/GoalDetailCard.tsx, src/components/dashboard/GoalCard.tsx, src/pages/Dashboard.tsx
 - Jedes Ziel kann Sub-Tasks bekommen (z.B. Wochenziel A → A1, A2, A3)
 - Tasks haben Checkboxen — wenn abgehakt verschiebt sich Fortschrittsbalken automatisch
 - Dashboard zeigt aktive Wochenziel-Karte mit Tasks inline (max. 3, "Alle anzeigen")

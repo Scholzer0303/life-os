@@ -147,7 +147,7 @@ npm install react-markdown --legacy-peer-deps
 
 ---
 
-### Änderung 11 — Review: Intelligente Datenaggregation je Zeitraum ⚠️ OFFEN
+### Änderung 11 — Review: Intelligente Datenaggregation je Zeitraum ✅ UMGESETZT (2026-04-04)
 **Datei:** `src/pages/Review.tsx`, `src/lib/claude.ts`
 
 **Problem:** Bei Quartal und Jahr werden aktuell zu viele rohe Tageseinträge an die KI übergeben. Das riskiert Token-Limit-Fehler und schlechte Antwortqualität.
@@ -236,7 +236,10 @@ CREATE TABLE recurring_block_exceptions (
 
 ---
 
-### Feature 13 — Ziel-Kaskade mit abhakbaren Tasks ⚠️ OFFEN
+### Feature 13 — Ziel-Kaskade mit abhakbaren Tasks ✅ UMGESETZT (2026-04-04)
+**Bugfixes nachträglich eingebaut (2026-04-04):**
+- Fokus-Verlust im Task-Input behoben (NewTaskInput als eigenständige Komponente)
+- Alle Slider entfernt; Fortschritt nur über Tasks oder "Als erledigt"-Toggle
 **Aufwand: Groß — eigene Session**
 
 **Konzept:**
@@ -268,7 +271,7 @@ CREATE TABLE goal_tasks (
 
 ---
 
-### Feature 14 — Tasks im Tagesjournal mit Dashboard-Sync ⚠️ OFFEN
+### Feature 14 — Tasks im Tagesjournal mit Dashboard-Sync ✅ UMGESETZT (2026-04-04)
 **Aufwand: Groß — eigene Session nach Feature 13**
 **Voraussetzung: Feature 13 muss fertig sein**
 
@@ -293,7 +296,7 @@ Im Morgenjournal können konkrete Tages-Tasks eingetragen werden. Diese erschein
 
 ---
 
-### Feature 15 — Coach-Archiv ⚠️ OFFEN
+### Feature 15 — Coach-Archiv ✅ UMGESETZT (2026-04-04)
 **Aufwand: Mittel — eigene Session**
 
 **Konzept:**

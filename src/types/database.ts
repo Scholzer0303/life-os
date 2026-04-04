@@ -112,6 +112,7 @@ export interface Database {
           energy_level: number | null
           free_text: string | null
           timeblocks: Json
+          daily_tasks: Json
           ai_feedback: string | null
           ai_feedback_requested_at: string | null
           linked_goal_ids: string[]
@@ -132,6 +133,7 @@ export interface Database {
           energy_level?: number | null
           free_text?: string | null
           timeblocks?: Json
+          daily_tasks?: Json
           ai_feedback?: string | null
           ai_feedback_requested_at?: string | null
           linked_goal_ids?: string[]
@@ -148,6 +150,7 @@ export interface Database {
           energy_level?: number | null
           free_text?: string | null
           timeblocks?: Json
+          daily_tasks?: Json
           ai_feedback?: string | null
           ai_feedback_requested_at?: string | null
           linked_goal_ids?: string[]
@@ -161,7 +164,7 @@ export interface Database {
           id: string
           user_id: string
           created_at: string
-          trigger: 'on_demand' | 'pattern_interrupt' | 'weekly_review' | 'entry_feedback'
+          trigger: 'on_demand' | 'pattern_interrupt' | 'weekly_review' | 'entry_feedback' | 'monthly_review' | 'quarterly_review' | 'yearly_review'
           messages: Json
           summary: string | null
         }
@@ -169,13 +172,39 @@ export interface Database {
           id?: string
           user_id: string
           created_at?: string
-          trigger: 'on_demand' | 'pattern_interrupt' | 'weekly_review' | 'entry_feedback'
+          trigger: 'on_demand' | 'pattern_interrupt' | 'weekly_review' | 'entry_feedback' | 'monthly_review' | 'quarterly_review' | 'yearly_review'
           messages?: Json
           summary?: string | null
         }
         Update: {
           messages?: Json
           summary?: string | null
+        }
+        Relationships: []
+      }
+      goal_tasks: {
+        Row: {
+          id: string
+          goal_id: string
+          user_id: string
+          title: string
+          completed: boolean
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          goal_id: string
+          user_id: string
+          title: string
+          completed?: boolean
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          title?: string
+          completed?: boolean
+          sort_order?: number
         }
         Relationships: []
       }
@@ -222,5 +251,9 @@ export type JournalEntryUpdate = Database['public']['Tables']['journal_entries']
 
 export type CoachSessionRow = Database['public']['Tables']['coach_sessions']['Row']
 export type CoachSessionInsert = Database['public']['Tables']['coach_sessions']['Insert']
+
+export type GoalTaskRow = Database['public']['Tables']['goal_tasks']['Row']
+export type GoalTaskInsert = Database['public']['Tables']['goal_tasks']['Insert']
+export type GoalTaskUpdate = Database['public']['Tables']['goal_tasks']['Update']
 
 export type PatternEventInsert = Database['public']['Tables']['pattern_events']['Insert']

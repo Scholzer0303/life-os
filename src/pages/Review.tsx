@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { ChevronRight, CheckCircle2, Circle, Plus, Trash2, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../store/useStore'
-import { getWeeklyGoals, updateGoal, createGoal, createCoachSession, getRecentEntries } from '../lib/db'
+import { getWeeklyGoals, updateGoal, createGoal, createCoachSession, getRecentEntries, getReviewSessions } from '../lib/db'
 import { generateReviewSummary, generateWeeklyFeedback } from '../lib/claude'
 import type { ReviewPeriod } from '../lib/claude'
 import { getCurrentWeek, getCurrentQuarter } from '../lib/utils'
@@ -78,8 +78,49 @@ export default function Review() {
     }
     const relevantGoals = goals.filter((g) => goalTypesByPeriod[period].includes(g.type))
 
-    getRecentEntries(user.id, daysByPeriod[period])
-      .then((entries) => generateReviewSummary(period, entries, relevantGoals, profile))
+    // Hierarchische Datenaggregation:
+    // Monat   → Wochenreviews   (Fallback: rohe Einträge)
+    // Quartal → Monatsreviews   (Fallback: Wochenreviews → rohe Einträge)
+    // Jahr    → Quartalsreviews (Fallback: Monatsreviews → Wochenreviews → rohe Einträge)
+    async function loadAndSummarize() {
+      const seit = new Date()
+      seit.setDate(seit.getDate() - daysByPeriod[period])
+
+      let reviewSummaries: string[] = []
+
+      if (period === 'month') {
+        const sessions = await getReviewSessions(user!.id, 'weekly_review', seit)
+        reviewSummaries = sessions.map((s) => s.summary ?? '').filter(Boolean)
+      } else if (period === 'quarter') {
+        const monthlySessions = await getReviewSessions(user!.id, 'monthly_review', seit)
+        if (monthlySessions.length > 0) {
+          reviewSummaries = monthlySessions.map((s) => s.summary ?? '').filter(Boolean)
+        } else {
+          const weeklySessions = await getReviewSessions(user!.id, 'weekly_review', seit)
+          reviewSummaries = weeklySessions.map((s) => s.summary ?? '').filter(Boolean)
+        }
+      } else if (period === 'year') {
+        const quarterlySessions = await getReviewSessions(user!.id, 'quarterly_review', seit)
+        if (quarterlySessions.length > 0) {
+          reviewSummaries = quarterlySessions.map((s) => s.summary ?? '').filter(Boolean)
+        } else {
+          const monthlySessions = await getReviewSessions(user!.id, 'monthly_review', seit)
+          if (monthlySessions.length > 0) {
+            reviewSummaries = monthlySessions.map((s) => s.summary ?? '').filter(Boolean)
+          } else {
+            const weeklySessions = await getReviewSessions(user!.id, 'weekly_review', seit)
+            reviewSummaries = weeklySessions.map((s) => s.summary ?? '').filter(Boolean)
+          }
+        }
+      }
+
+      // Rohe Einträge immer laden (als Fallback oder für Woche direkt)
+      const entries = await getRecentEntries(user!.id, daysByPeriod[period])
+
+      return generateReviewSummary(period, entries, relevantGoals, profile!, reviewSummaries.length > 0 ? reviewSummaries : undefined)
+    }
+
+    loadAndSummarize()
       .then(setSummary)
       .catch((e) => setSummaryError(e instanceof Error ? e.message : 'Fehler'))
       .finally(() => setSummaryLoading(false))
@@ -165,6 +206,12 @@ export default function Review() {
 
   async function handleFinish() {
     if (!user || saved) return
+    const triggerByPeriod: Record<ReviewPeriod, 'weekly_review' | 'monthly_review' | 'quarterly_review' | 'yearly_review'> = {
+      week: 'weekly_review',
+      month: 'monthly_review',
+      quarter: 'quarterly_review',
+      year: 'yearly_review',
+    }
     try {
       await handleSaveNewGoals()
       const messages: CoachMessage[] = [
@@ -173,7 +220,7 @@ export default function Review() {
       ]
       await createCoachSession({
         user_id: user.id,
-        trigger: 'weekly_review',
+        trigger: triggerByPeriod[period],
         messages: messages as unknown as import('../types/database').Json,
         summary: feedback.slice(0, 200),
       })

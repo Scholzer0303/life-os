@@ -1,30 +1,52 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, ChevronUp, Link } from 'lucide-react'
+import { ChevronDown, ChevronUp, Link, Plus, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
 import { getWeeklyGoals, getActiveGoalHierarchy } from '../../lib/db'
 import type { GoalRow } from '../../types/database'
 import type { ActiveGoalHierarchy } from '../../lib/db'
+import type { DailyTask } from '../../types'
 
 interface Props {
   initialGoal: string
   initialLinkedGoalId: string | null
   initialIdentityAction?: string
+  initialDailyTasks?: DailyTask[]
   identityStatement?: string | null
-  onNext: (goal: string, linkedGoalId: string | null, identityAction: string) => void
+  onNext: (goal: string, linkedGoalId: string | null, identityAction: string, dailyTasks: DailyTask[]) => void
   onBack: () => void
 }
 
-export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, initialIdentityAction = '', identityStatement, onNext, onBack }: Props) {
+export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, initialIdentityAction = '', initialDailyTasks = [], identityStatement, onNext, onBack }: Props) {
   const { user } = useStore()
   const navigate = useNavigate()
   const [goal, setGoal] = useState(initialGoal)
   const [linkedGoalId, setLinkedGoalId] = useState<string | null>(initialLinkedGoalId)
   const [identityAction, setIdentityAction] = useState(initialIdentityAction)
+  const [dailyTasks, setDailyTasks] = useState<DailyTask[]>(
+    initialDailyTasks.length > 0 ? initialDailyTasks : [{ id: crypto.randomUUID(), title: '', completed: false, goal_id: null }]
+  )
   const [weeklyGoals, setWeeklyGoals] = useState<GoalRow[]>([])
   const [hierarchy, setHierarchy] = useState<ActiveGoalHierarchy | null>(null)
   const [hierarchyOpen, setHierarchyOpen] = useState(true)
+
+  function addTask() {
+    if (dailyTasks.length >= 5) return
+    setDailyTasks((prev) => [...prev, { id: crypto.randomUUID(), title: '', completed: false, goal_id: null }])
+  }
+
+  function removeTask(id: string) {
+    setDailyTasks((prev) => prev.filter((t) => t.id !== id))
+  }
+
+  function updateTaskTitle(id: string, title: string) {
+    setDailyTasks((prev) => prev.map((t) => (t.id === id ? { ...t, title } : t)))
+  }
+
+  function updateTaskGoal(id: string, goal_id: string | null) {
+    setDailyTasks((prev) => prev.map((t) => (t.id === id ? { ...t, goal_id } : t)))
+  }
 
   useEffect(() => {
     if (!user) return
@@ -169,6 +191,54 @@ export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, ini
         onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
       />
 
+      {/* Tages-Tasks */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <p style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Wichtigste Aufgaben heute <span style={{ color: 'var(--text-muted)', textTransform: 'none', fontWeight: 400 }}>(optional, max. 5)</span>
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {dailyTasks.map((task, i) => (
+            <div key={task.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', minWidth: '1rem', textAlign: 'center' }}>{i + 1}</span>
+                <input
+                  value={task.title}
+                  onChange={(e) => updateTaskTitle(task.id, e.target.value)}
+                  placeholder={`Aufgabe ${i + 1}…`}
+                  style={{ flex: 1, padding: '0.65rem 0.9rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.9rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                  onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                  onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+                />
+                {dailyTasks.length > 1 && (
+                  <button onClick={() => removeTask(task.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.3rem', display: 'flex' }}>
+                    <Trash2 size={15} />
+                  </button>
+                )}
+              </div>
+              {weeklyGoals.length > 0 && task.title.trim() && (
+                <div style={{ paddingLeft: '1.6rem' }}>
+                  <select
+                    value={task.goal_id ?? ''}
+                    onChange={(e) => updateTaskGoal(task.id, e.target.value || null)}
+                    style={{ width: '100%', padding: '0.4rem 0.7rem', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '0.8rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: task.goal_id ? 'var(--text-primary)' : 'var(--text-muted)', outline: 'none', cursor: 'pointer' }}
+                  >
+                    <option value="">Mit Wochenziel verknüpfen (optional)</option>
+                    {weeklyGoals.map((g) => (
+                      <option key={g.id} value={g.id}>{g.title}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        {dailyTasks.length < 5 && (
+          <button onClick={addTask} style={{ marginTop: '0.5rem', background: 'none', border: '1px dashed var(--border)', borderRadius: '10px', padding: '0.5rem', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem', fontFamily: 'DM Sans, sans-serif', width: '100%', justifyContent: 'center' }}>
+            <Plus size={14} /> Aufgabe hinzufügen
+          </button>
+        )}
+      </div>
+
       {/* Identitäts-Anker */}
       {identityStatement && (
         <div style={{ marginBottom: '1.5rem' }}>
@@ -249,7 +319,7 @@ export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, ini
       <div style={{ display: 'flex', gap: '0.75rem' }}>
         <button onClick={onBack} style={backBtnStyle}>←</button>
         <button
-          onClick={() => onNext(goal.trim(), linkedGoalId, identityAction.trim())}
+          onClick={() => onNext(goal.trim(), linkedGoalId, identityAction.trim(), dailyTasks.filter((t) => t.title.trim()))}
           disabled={!canProceed}
           style={{
             flex: 1,

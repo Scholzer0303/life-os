@@ -1,8 +1,11 @@
-import type { GoalRow } from '../../types/database'
+import { useState } from 'react'
+import { CheckSquare, Square, ChevronDown, ChevronUp } from 'lucide-react'
+import type { GoalRow, GoalTaskRow } from '../../types/database'
 
 interface Props {
   goal: GoalRow
-  onUpdateProgress?: (id: string, progress: number) => void
+  tasks?: GoalTaskRow[]
+  onToggleTask?: (task: GoalTaskRow) => void
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -11,7 +14,12 @@ const TYPE_LABEL: Record<string, string> = {
   weekly: 'Woche',
 }
 
-export default function GoalCard({ goal, onUpdateProgress }: Props) {
+export default function GoalCard({ goal, tasks = [], onToggleTask }: Props) {
+  const [showAll, setShowAll] = useState(false)
+
+  const visibleTasks = showAll ? tasks : tasks.slice(0, 3)
+  const hasTasks = tasks.length > 0
+
   return (
     <div
       style={{
@@ -64,7 +72,7 @@ export default function GoalCard({ goal, onUpdateProgress }: Props) {
           background: 'var(--bg-secondary)',
           borderRadius: '3px',
           overflow: 'hidden',
-          marginBottom: onUpdateProgress ? '0.75rem' : 0,
+          marginBottom: hasTasks ? '0.75rem' : 0,
         }}
       >
         <div
@@ -83,19 +91,34 @@ export default function GoalCard({ goal, onUpdateProgress }: Props) {
         />
       </div>
 
-      {/* Progress input */}
-      {onUpdateProgress && (
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={5}
-          value={goal.progress}
-          onChange={(e) => onUpdateProgress(goal.id, Number(e.target.value))}
-          style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
-          aria-label={`Fortschritt für ${goal.title}`}
-        />
+      {/* Tasks inline */}
+      {hasTasks && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginBottom: '0.5rem' }}>
+          {visibleTasks.map((task) => (
+            <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                onClick={() => onToggleTask?.(task)}
+                style={{ background: 'none', border: 'none', cursor: onToggleTask ? 'pointer' : 'default', color: task.completed ? 'var(--accent)' : 'var(--text-muted)', padding: 0, flexShrink: 0, display: 'flex' }}
+              >
+                {task.completed ? <CheckSquare size={15} /> : <Square size={15} />}
+              </button>
+              <span style={{ fontSize: '0.82rem', color: task.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: task.completed ? 'line-through' : 'none', lineHeight: 1.4, flex: 1 }}>
+                {task.title}
+              </span>
+            </div>
+          ))}
+
+          {tasks.length > 3 && (
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '0.78rem', fontFamily: 'DM Sans, sans-serif', display: 'flex', alignItems: 'center', gap: '0.2rem', padding: '0.2rem 0', marginTop: '0.1rem' }}
+            >
+              {showAll ? <><ChevronUp size={12} /> Weniger anzeigen</> : <><ChevronDown size={12} /> {tasks.length - 3} weitere anzeigen</>}
+            </button>
+          )}
+        </div>
       )}
+
     </div>
   )
 }

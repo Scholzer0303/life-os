@@ -12,6 +12,9 @@ import type {
   CoachSessionRow,
   CoachSessionInsert,
   PatternEventInsert,
+  GoalTaskRow,
+  GoalTaskInsert,
+  GoalTaskUpdate,
 } from '../types/database'
 import type { TimeBlock, CoachMessage } from '../types'
 
@@ -303,6 +306,21 @@ export async function createCoachSession(session: CoachSessionInsert): Promise<C
   return data
 }
 
+export async function getCoachSessions(userId: string): Promise<CoachSessionRow[]> {
+  const { data, error } = await supabase
+    .from('coach_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function deleteCoachSession(id: string): Promise<void> {
+  const { error } = await supabase.from('coach_sessions').delete().eq('id', id)
+  if (error) throw error
+}
+
 export async function updateCoachSession(
   id: string,
   messages: CoachMessage[],
@@ -320,6 +338,68 @@ export async function updateCoachSession(
     .single()
   if (error) throw error
   return data
+}
+
+export async function getReviewSessions(
+  userId: string,
+  trigger: string,
+  seit: Date
+): Promise<CoachSessionRow[]> {
+  const { data, error } = await supabase
+    .from('coach_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('trigger', trigger as CoachSessionRow['trigger'])
+    .gte('created_at', seit.toISOString())
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as CoachSessionRow[]
+}
+
+// ─── Goal Tasks ──────────────────────────────────────────────────────────────
+
+export async function getGoalTasks(goalId: string): Promise<GoalTaskRow[]> {
+  const { data, error } = await supabase
+    .from('goal_tasks')
+    .select('*')
+    .eq('goal_id', goalId)
+    .order('sort_order', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getTasksForGoals(userId: string, goalIds: string[]): Promise<GoalTaskRow[]> {
+  if (goalIds.length === 0) return []
+  const { data, error } = await supabase
+    .from('goal_tasks')
+    .select('*')
+    .eq('user_id', userId)
+    .in('goal_id', goalIds)
+    .order('sort_order', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createGoalTask(task: GoalTaskInsert): Promise<GoalTaskRow> {
+  const { data, error } = await supabase.from('goal_tasks').insert(task).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateGoalTask(id: string, updates: GoalTaskUpdate): Promise<GoalTaskRow> {
+  const { data, error } = await supabase
+    .from('goal_tasks')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteGoalTask(id: string): Promise<void> {
+  const { error } = await supabase.from('goal_tasks').delete().eq('id', id)
+  if (error) throw error
 }
 
 // ─── Pattern Events ───────────────────────────────────────────────────────────
