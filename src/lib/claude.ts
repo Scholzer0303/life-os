@@ -149,6 +149,11 @@ export async function runFiveWhys(answers: string[]): Promise<string> {
     content: a,
   }))
 
+  // API erfordert dass die letzte Nachricht vom Typ "user" ist
+  if (conversation.length > 0 && conversation[conversation.length - 1].role === 'assistant') {
+    conversation.push({ role: 'user' as const, content: 'Bitte stelle mir die nächste Warum-Frage.' })
+  }
+
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,

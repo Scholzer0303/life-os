@@ -168,7 +168,11 @@ export async function getEntryById(id: string): Promise<JournalEntryRow | null> 
 }
 
 export async function createJournalEntry(entry: JournalEntryInsert): Promise<JournalEntryRow> {
-  const { data, error } = await supabase.from('journal_entries').insert(entry).select().single()
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .upsert(entry, { onConflict: 'user_id,entry_date,type' })
+    .select()
+    .single()
   if (error) throw error
   return data
 }

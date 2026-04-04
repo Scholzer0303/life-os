@@ -10,6 +10,7 @@ import {
   getBestStreak,
   getHeatmapData,
   getLastJournalDate,
+  getRecentEntries,
   updateGoal,
   updateProfile,
 } from '../lib/db'
@@ -44,6 +45,7 @@ export default function Dashboard() {
   const [showIdentityReminder, setShowIdentityReminder] = useState(false)
   const [identityModalOpen, setIdentityModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [recentEntries, setRecentEntries] = useState<import('../types/database').JournalEntryRow[]>([])
 
   useEffect(() => {
     if (!user) return
@@ -59,7 +61,7 @@ export default function Dashboard() {
       ? Math.floor((Date.now() - new Date(lastAnalysis).getTime()) / 86400000)
       : 999
     if (daysSince >= 14) {
-      generatePatternAnalysis(profile, recentEntries, goals)
+      generatePatternAnalysis(profile, recentEntries, weeklyGoals)
         .then((analysis) => updateProfile(profile.id, { ai_profile: analysis as unknown as import('../types/database').Json }))
         .catch((err) => console.error('Pattern analysis (silent):', err))
     }
@@ -79,13 +81,14 @@ export default function Dashboard() {
   async function loadDashboardData(userId: string) {
     setIsLoading(true)
     try {
-      const [todayEntries, goals, streakCount, best, heatmap, lastDate] = await Promise.all([
+      const [todayEntries, goals, streakCount, best, heatmap, lastDate, recent] = await Promise.all([
         getTodayEntries(userId),
         getWeeklyGoals(userId),
         getStreak(userId),
         getBestStreak(userId),
         getHeatmapData(userId, 60),
         getLastJournalDate(userId),
+        getRecentEntries(userId, 30),
       ])
 
       const morningEntry = todayEntries.find((e) => e.type === 'morning')
@@ -93,6 +96,7 @@ export default function Dashboard() {
       setHasEveningEntry(todayEntries.some((e) => e.type === 'evening'))
       setMorningGoalToday(morningEntry?.main_goal_today ?? null)
       setWeeklyGoals(goals.slice(0, 3))
+      setRecentEntries(recent)
       setStreak(streakCount)
       setBestStreak(best)
       setHeatmapData(heatmap)

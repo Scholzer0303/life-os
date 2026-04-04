@@ -76,7 +76,23 @@ export default function App() {
         getActiveGoals(userId),
         getRecentEntries(userId, 7),
       ])
-      setProfile(profileData.data)
+
+      let profile = profileData.data
+      if (!profile) {
+        // Kein Profil vorhanden — minimal anlegen damit Foreign Keys funktionieren
+        const { data: created, error: createError } = await supabase
+          .from('profiles')
+          .upsert({ id: userId }, { onConflict: 'id' })
+          .select()
+          .single()
+        if (createError) {
+          console.error('Profil anlegen fehlgeschlagen:', createError)
+        } else {
+          profile = created
+        }
+      }
+
+      setProfile(profile)
       setGoals(goalsData)
       setRecentEntries(recentData)
     } catch (err) {
