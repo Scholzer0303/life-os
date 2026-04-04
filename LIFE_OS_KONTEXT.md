@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md
 # Wird nach jedem Schritt aktualisiert — immer die neueste Version ins Claude Project hochladen
 
-Zuletzt aktualisiert: Nach Schritt 20 (Phase 2 vollständig)
+Zuletzt aktualisiert: 2026-04-04 (Bugfix-Session)
 
 ---
 
@@ -21,7 +21,7 @@ Ziel: Echte Ziele finden, runterbrechen auf Tagesebene, KI-Coach on-demand.
 - State: Zustand
 - Animationen: Framer Motion
 - PWA: Vite PWA Plugin
-- Deployment: Vercel (noch nicht deployed)
+- Deployment: Vercel ✅ live auf https://life-os-henna-xi.vercel.app
 
 ---
 
@@ -32,50 +32,73 @@ C:/Users/Anwender/Desktop/life-os/
 ├── src/
 │   ├── components/
 │   │   ├── ui/
+│   │   ├── dashboard/       ✅ HeatmapGrid, StreakBadge, GoalCard
 │   │   ├── journal/         ✅ MorningJournal, EveningJournal, FreeformJournal, AIFeedbackCard
+│   │   │                       MorningStep2Goal (Ziel-Kaskade + Identitäts-Anker)
 │   │   ├── goals/           ✅ GoalCard, GoalDetailCard, GoalSheet
-│   │   ├── coach/           ✅ (kein separater Ordner, direkt in Coach.tsx)
-│   │   └── onboarding/      ✅ Alle 7 Schritte
+│   │   └── onboarding/      ✅ 9 Schritte
+│   │       Step1.tsx         Willkommen + Name
+│   │       Step2.tsx         Lebensrad (Spider-Web SVG)
+│   │       Step3_Ikigai.tsx  Ikigai (4 Fragen + KI-Synthese) — NEU
+│   │       Step3.tsx         Werte-Radar (12 Karten, Top-5)
+│   │       Step4.tsx         5-Warum-Kette (Claude API)
+│   │       Step5.tsx         Nordstern (KI-Zusammenfassung)
+│   │       Step6_Identity.tsx Identitäts-Modul (zukünftiges Ich) — NEU
+│   │       Step6.tsx         Stopp-Liste
+│   │       Step7.tsx         3-Jahres → Jahr → Quartalsziel
 │   ├── pages/
-│   │   ├── Login.tsx        ✅
-│   │   ├── Onboarding.tsx   ✅
-│   │   ├── Dashboard.tsx    ✅
-│   │   ├── Journal.tsx      ✅
-│   │   ├── Goals.tsx        ✅
-│   │   ├── Coach.tsx        ✅
-│   │   └── Review.tsx       ✅
+│   │   ├── Login.tsx             ✅
+│   │   ├── Onboarding.tsx        ✅ orchestriert 9 Steps, totalSteps=9
+│   │   ├── Dashboard.tsx         ✅
+│   │   ├── Journal.tsx           ✅
+│   │   ├── Goals.tsx             ✅ Tab: 3J/Jahr/Quartal/Monat/Woche/Alle
+│   │   ├── Coach.tsx             ✅ Muster-Panel + starterOverride
+│   │   ├── Review.tsx            ✅ Muster in Step 0
+│   │   ├── Settings.tsx          ✅ 6 Sektionen
+│   │   └── PatternInterrupt.tsx  ✅
 │   ├── lib/
 │   │   ├── supabase.ts      ✅
-│   │   ├── claude.ts        ✅ Mit Rate Limiting
-│   │   ├── db.ts            ✅ CRUD für alle 5 Tabellen
+│   │   ├── claude.ts        ✅ Rate Limiting, alle KI-Funktionen
+│   │   ├── db.ts            ✅ CRUD für alle 5 Tabellen + Analyse-Helfer
 │   │   └── utils.ts         ✅
 │   ├── store/
 │   │   └── useStore.ts      ✅ Zustand Global State
 │   └── types/
-│       ├── index.ts         ✅
+│       ├── index.ts         ✅ inkl. PatternAnalysis
 │       └── database.ts      ✅ Supabase v2 Types
+├── public/icons/            ✅ icon-192.png, icon-512.png, apple-touch-icon.png
+├── scripts/
+│   └── generate-icons.mjs   ✅ Node.js PNG-Generator
 ├── .env                     ✅ Keys eingetragen
+├── .env.example             ✅ Keys dokumentiert
 ├── .gitignore               ✅ .env geschützt
+├── .npmrc                   ✅ legacy-peer-deps=true
 ├── schema.sql               ✅ Bereits in Supabase eingespielt
-├── vite.config.ts           ✅ PWA konfiguriert
-└── LIFE_OS_CLAUDE_CODE_BRIEFING.md
+├── vercel.json              ✅ SPA-Rewrites
+└── vite.config.ts           ✅ PWA konfiguriert
 ```
 
 ---
 
 ## Supabase Tabellen (alle angelegt ✅)
 
-- `profiles` — Nutzerprofil, Nordstern, Werte, Ikigai, Stopp-Liste
-- `goals` — Quartal/Monat/Woche Ziele mit Hierarchie
-- `journal_entries` — Morgen/Abend/Freeform Einträge mit Timeblocks
-- `coach_sessions` — KI-Coach Gespräche
-- `pattern_events` — Pattern Interrupt Log
+| Tabelle | Wichtige Felder |
+|---|---|
+| `profiles` | id, user_id, name, north_star, values[], stop_list[], ikigai(json), ai_profile(json), identity_statement, onboarding_completed |
+| `goals` | id, user_id, title, type (three_year/year/quarterly/monthly/weekly), status, parent_id, progress, quarter, month, year, week |
+| `journal_entries` | id, user_id, entry_date, type, feeling_score, main_goal_today, potential_blockers, accomplished, what_blocked, energy_level, free_text, timeblocks(json), ai_feedback, linked_goal_ids[], identity_action |
+| `coach_sessions` | id, user_id, messages(json), trigger, summary |
+| `pattern_events` | id, user_id, event_type, notes |
 
 Row Level Security: aktiv auf allen Tabellen ✅
 
+### Wichtige Feldnamen (Fallstricke!)
+- Journal: `main_goal_today` (nicht `morning_goal`), `what_blocked` (nicht `blockers`), `entry_date` (nicht `created_at` für Datum)
+- Profile: `ai_profile` (json, enthält PatternAnalysis), `ikigai` (json mit loves/good_at/paid_for/world_needs/synthesis)
+
 ---
 
-## Fertige Schritte
+## Phase 1 — Fertige Schritte (1–8)
 
 ### ✅ Schritt 1 — Setup
 Vite + React + TypeScript + Tailwind v4 + Supabase Client + Claude API Wrapper + Zustand Store + PWA Config + Git init
@@ -90,14 +113,16 @@ Vollständiger Supabase v2-kompatibler Database-Typ
 CRUD Layer für alle 5 Tabellen
 Streak-Berechnung, Heatmap-Daten, Volltextsuche
 
-### ✅ Schritt 4 — Onboarding (7 Schritte)
+### ✅ Schritt 4 — Onboarding (9 Schritte nach Phase 2)
 1. Willkommen + Name
 2. Lebensrad mit animiertem Spider-Web SVG (8 Achsen)
-3. Werte-Radar: 12 Karten, Top-5-Auswahl, Konflikt-Erkennung
-4. 5-Warum-Kette mit Claude API (bis zu 5 KI-Folgefragen)
-5. Nordstern: KI-Zusammenfassung + Freitext
-6. Stopp-Liste: min. 3 Einträge, dynamisch erweiterbar
-7. Erstes Quartalsziel → speichert Profile + Goal in Supabase
+3. **Ikigai** (4 Fragen + KI-Synthese) — hinzugefügt in Schritt 19
+4. Werte-Radar: 12 Karten, Top-5-Auswahl, Konflikt-Erkennung
+5. 5-Warum-Kette mit Claude API (bis zu 5 KI-Folgefragen)
+6. Nordstern: KI-Zusammenfassung + Freitext
+7. **Identität** (zukünftiges Ich + KI-Reformulierung) — hinzugefügt in Schritt 18
+8. Stopp-Liste: min. 3 Einträge, dynamisch erweiterbar
+9. 3-Jahres-Ziel → Jahres-Ziel → Quartalsziel (mit parent_id-Kette) — erweitert in Schritt 17
 Auto-Redirect zu /onboarding wenn nicht abgeschlossen
 
 ### ✅ Schritt 5 — Dashboard
@@ -141,7 +166,7 @@ Gespeichert in Supabase, zurück zum Dashboard nach Speichern
 
 ---
 
-## Nächste Schritte
+## Phase 1 — Fertige Schritte (9–14)
 
 ### ✅ Schritt 9 — KI-Coach Chat-Interface
 - 4 Modi-Auswahl: Festgesteckt / Auf Kurs? / Klarheit / Einfach reden
@@ -213,6 +238,38 @@ Gespeichert in Supabase, zurück zum Dashboard nach Speichern
 - Deployment via `npx vercel --prod` (Vercel CLI, nicht Dashboard)
 - Supabase Site URL auf die Vercel-URL aktualisiert
 - Build erfolgreich: 2267 Module, 14 PWA-Precache-Einträge, 964ms Buildzeit
+
+---
+
+## Bugfix-Session — 2026-04-04
+
+### ✅ Bug behoben: Journal speichern (409 Conflict)
+- **Fehler war:** `409 Conflict` beim Speichern von Morgen-/Abend-Journal
+- **Ursache 1:** `createJournalEntry` nutzte `.insert()` statt `.upsert()`
+- **Fix:** `db.ts` → `.upsert(entry, { onConflict: 'user_id,entry_date,type' })`
+- **Ursache 2 (tiefer):** `profiles`-Eintrag fehlte für den User → Foreign-Key-Verletzung (`Key is not present in table profiles`)
+- **Fix:** `App.tsx` → `loadProfile()` legt automatisch einen minimalen `profiles`-Eintrag an wenn keiner existiert
+- **Voraussetzung:** Unique Constraint in Supabase angelegt: `ALTER TABLE journal_entries ADD CONSTRAINT journal_entries_user_date_type_unique UNIQUE (user_id, entry_date, type)`
+- **Getestet:** Journal speichern funktioniert, Dashboard zeigt Streak und Fokus korrekt ✅
+
+### ✅ Bug behoben: 5-Warum-Kette API-Fehler
+- **Fehler war:** `"This model does not support assistant message prefill. The conversation must end with a user message."`
+- **Ursache:** `runFiveWhys` in `claude.ts` baute Conversation-Array mit alternierenden Rollen — bei gerader Anzahl Antworten endete es mit `assistant`
+- **Fix:** Nach dem Array-Aufbau wird geprüft ob letzte Nachricht `assistant` ist — falls ja, wird `{ role: 'user', content: 'Bitte stelle mir die nächste Warum-Frage.' }` angehängt
+- **Getestet:** Onboarding Schritt 5 läuft durch ✅
+
+### ✅ Fix: Dashboard recentEntries fehlte
+- **Fehler war:** TypeScript Build-Fehler — `recentEntries` und `goals` in `Dashboard.tsx` nicht als State-Variablen definiert
+- **Fix:** `recentEntries` State + `getRecentEntries` in `loadDashboardData` ergänzt; `goals` → `weeklyGoals` (korrekter State-Name)
+
+### ⚠️ Offen: Onboarding Schritt 9 — goals INSERT 400 Bad Request
+- Wahrscheinlich Enum-Bug: `goal_type` kennt `three_year`/`year` noch nicht
+- Debug-Logging in `createGoal` vorbereitet aber noch nicht ausgeführt — Fehlertext noch nicht bekannt
+- SQL-Fix aus CLAUDE.md bereit: `ALTER TYPE goal_type ADD VALUE IF NOT EXISTS 'three_year';`
+
+### ⚠️ Offen: Onboarding-Fortschritt nicht persistent
+- State liegt nur in React — Tab-Wechsel setzt Onboarding zurück
+- Fix: Zwischenspeichern in Supabase `profiles` (z.B. `onboarding_step` Feld) noch nicht implementiert
 
 ---
 
@@ -365,8 +422,8 @@ Alle Phase-2-Schritte abgeschlossen. 🎉
 | **Production URL** | https://life-os-henna-xi.vercel.app |
 | **GitHub Repo** | https://github.com/Scholzer0303/life-os |
 | **Vercel Projekt** | scholzer0303s-projects/life-os |
-| **Deployment ID** | dpl_25iiiULAVmdVkzaxHDKSAy8X8ECR |
-| **Deployed am** | 2026-04-03 |
+| **Letzter Commit** | feat: Phase 2 Schritt 20 - KI Muster-Erkennung |
+| **Deployed am** | 2026-04-04 (Auto-Deploy via Push) |
 
 Auto-Deploy: Jeder Push auf `master` → Vercel baut und deployed automatisch.
 
@@ -380,6 +437,26 @@ npm run dev
 ```
 
 Browser: http://localhost:5174
+
+---
+
+## KI-Funktionen in claude.ts (Überblick)
+
+| Funktion | Wo genutzt |
+|---|---|
+| `sendCoachMessage()` | Coach.tsx — Chat |
+| `getJournalFeedback()` | EveningJournal, FreeformJournal |
+| `runFiveWhys()` | Onboarding Step4 |
+| `summarizeNorthStar()` | Onboarding Step5 |
+| `handlePatternInterrupt()` | PatternInterrupt.tsx |
+| `generateWeeklySummary()` | Review.tsx Step 0 |
+| `generateWeeklyFeedback()` | Review.tsx Step 5 |
+| `generateIkigaiSynthesis()` | Onboarding Step3_Ikigai |
+| `reformulateIdentity()` | Onboarding Step6_Identity |
+| `checkGoalAlignment()` | Goals.tsx |
+| `generatePatternAnalysis()` | Dashboard (auto), Settings (manuell) |
+
+Alle Funktionen nutzen `claude-sonnet-4-6` mit Rate Limiting (min. 10s zwischen Requests).
 
 ---
 

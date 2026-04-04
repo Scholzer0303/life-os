@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
@@ -19,14 +19,35 @@ import type { OnboardingData } from '../types/onboarding'
 import { DEFAULT_ONBOARDING_DATA } from '../types/onboarding'
 
 const TOTAL_STEPS = 9
+const STEP_KEY = 'life-os-onboarding-step'
+const DATA_KEY = 'life-os-onboarding-data'
 
 export default function Onboarding() {
   const { user, setProfile } = useStore()
   const navigate = useNavigate()
-  const [step, setStep] = useState(1)
-  const [data, setData] = useState<OnboardingData>({ ...DEFAULT_ONBOARDING_DATA })
+
+  const [step, setStep] = useState<number>(() => {
+    const saved = localStorage.getItem(STEP_KEY)
+    if (saved) {
+      const n = parseInt(saved, 10)
+      if (n >= 1 && n <= TOTAL_STEPS) return n
+    }
+    return 1
+  })
+
+  const [data, setData] = useState<OnboardingData>(() => {
+    const saved = localStorage.getItem(DATA_KEY)
+    if (saved) {
+      try { return { ...DEFAULT_ONBOARDING_DATA, ...JSON.parse(saved) } } catch { /* ignore */ }
+    }
+    return { ...DEFAULT_ONBOARDING_DATA }
+  })
+
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  useEffect(() => { localStorage.setItem(STEP_KEY, String(step)) }, [step])
+  useEffect(() => { localStorage.setItem(DATA_KEY, JSON.stringify(data)) }, [data])
 
   function handleNext(updates: Partial<OnboardingData>) {
     setData((prev) => ({ ...prev, ...updates }))
@@ -105,6 +126,8 @@ export default function Onboarding() {
         })
       }
 
+      localStorage.removeItem(STEP_KEY)
+      localStorage.removeItem(DATA_KEY)
       setProfile(profile)
       navigate('/', { replace: true })
     } catch (err) {
