@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
-import { createJournalEntry } from '../../lib/db'
+import { createJournalEntry, getTodayEntries, parseTimeblocks } from '../../lib/db'
 import { todayISO } from '../../lib/utils'
 import ProgressBar from '../onboarding/ProgressBar'
 import MorningStep1Feeling from './MorningStep1Feeling'
@@ -36,8 +36,31 @@ export default function MorningJournal() {
     blockers: '',
     timeblocks: [],
   })
+  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  // Heutigen Eintrag laden und Felder vorausfüllen falls vorhanden
+  useEffect(() => {
+    if (!user) { setIsLoading(false); return }
+    getTodayEntries(user.id)
+      .then((entries) => {
+        const existing = entries.find((e) => e.type === 'morning')
+        if (existing) {
+          setData({
+            feelingScore: existing.feeling_score,
+            feelingText: existing.free_text ?? '',
+            mainGoal: existing.main_goal_today ?? '',
+            linkedGoalId: (existing.linked_goal_ids as string[] | null)?.[0] ?? null,
+            identityAction: existing.identity_action ?? '',
+            blockers: existing.potential_blockers ?? '',
+            timeblocks: parseTimeblocks(existing),
+          })
+        }
+      })
+      .catch((err) => console.error('Morgenjournal laden:', err))
+      .finally(() => setIsLoading(false))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function next(patch: Partial<MorningData>) {
     setData((prev) => ({ ...prev, ...patch }))
@@ -75,6 +98,14 @@ export default function MorningJournal() {
   const linkedGoalTitle = data.linkedGoalId
     ? goals.find((g) => g.id === data.linkedGoalId)?.title
     : undefined
+
+  if (isLoading) {
+    return (
+      <div style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+        Lade…
+      </div>
+    )
+  }
 
   return (
     <div>

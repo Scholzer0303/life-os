@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, RefreshCw } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import { getJournalFeedback } from '../../lib/claude'
 import { updateJournalEntry } from '../../lib/db'
 import { useStore } from '../../store/useStore'
@@ -70,9 +71,9 @@ export default function AIFeedbackCard({ entry, onFeedbackSaved }: Props) {
             <RefreshCw size={13} />
           </button>
         </div>
-        <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
-          {feedback}
-        </p>
+        <div style={{ fontSize: '0.9rem', lineHeight: 1.6, color: 'var(--text-primary)' }}>
+          <ReactMarkdown>{feedback}</ReactMarkdown>
+        </div>
       </motion.div>
     )
   }

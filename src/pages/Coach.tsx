@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Send, RotateCcw, Zap, Target, HelpCircle, MessageCircle } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../store/useStore'
 import { sendCoachMessage } from '../lib/claude'
@@ -34,16 +35,61 @@ const MODES: { value: CoachMode; label: string; icon: React.ReactNode; starter: 
   },
 ]
 
+const SESSION_MODE_KEY = 'coach_session_mode'
+const SESSION_MESSAGES_KEY = 'coach_session_messages'
+const SESSION_ID_KEY = 'coach_session_id'
+
 export default function Coach() {
   const { user, profile, goals, recentEntries } = useStore()
-  const [mode, setMode] = useState<CoachMode | null>(null)
-  const [messages, setMessages] = useState<CoachMessage[]>([])
+
+  const [mode, setMode] = useState<CoachMode | null>(() => {
+    const savedMode = localStorage.getItem(SESSION_MODE_KEY)
+    const savedId = localStorage.getItem(SESSION_ID_KEY)
+    // Nur wiederherstellen wenn auch Session-ID vorhanden (sonst stuck state)
+    return savedMode && savedId ? (savedMode as CoachMode) : null
+  })
+
+  const [messages, setMessages] = useState<CoachMessage[]>(() => {
+    const saved = localStorage.getItem(SESSION_MESSAGES_KEY)
+    if (saved) {
+      try { return JSON.parse(saved) as CoachMessage[] } catch { return [] }
+    }
+    return []
+  })
+
+  const [session, setSession] = useState<CoachSessionRow | null>(() => {
+    const savedId = localStorage.getItem(SESSION_ID_KEY)
+    return savedId ? { id: savedId } as CoachSessionRow : null
+  })
+
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [session, setSession] = useState<CoachSessionRow | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Persistenz: bei Änderungen speichern
+  useEffect(() => {
+    if (mode) localStorage.setItem(SESSION_MODE_KEY, mode)
+    else localStorage.removeItem(SESSION_MODE_KEY)
+  }, [mode])
+
+  useEffect(() => {
+    localStorage.setItem(SESSION_MESSAGES_KEY, JSON.stringify(messages))
+  }, [messages])
+
+  useEffect(() => {
+    if (session?.id) localStorage.setItem(SESSION_ID_KEY, session.id)
+  }, [session])
+
+  // Bei Abmelden: Session-Daten aus localStorage löschen
+  useEffect(() => {
+    if (!user) {
+      localStorage.removeItem(SESSION_MODE_KEY)
+      localStorage.removeItem(SESSION_MESSAGES_KEY)
+      localStorage.removeItem(SESSION_ID_KEY)
+    }
+  }, [user])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -121,6 +167,9 @@ export default function Coach() {
   }
 
   function handleReset() {
+    localStorage.removeItem(SESSION_MODE_KEY)
+    localStorage.removeItem(SESSION_MESSAGES_KEY)
+    localStorage.removeItem(SESSION_ID_KEY)
     setMode(null)
     setMessages([])
     setInput('')
@@ -374,10 +423,12 @@ export default function Coach() {
                   color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
                   fontSize: '0.9rem',
                   lineHeight: 1.5,
-                  whiteSpace: 'pre-wrap',
+                  whiteSpace: msg.role === 'user' ? 'pre-wrap' : undefined,
                 }}
               >
-                {msg.content}
+                {msg.role === 'assistant'
+                  ? <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  : msg.content}
               </div>
             </motion.div>
           ))}

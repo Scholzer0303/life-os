@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md
 # Wird nach jedem Schritt aktualisiert — immer die neueste Version ins Claude Project hochladen
 
-Zuletzt aktualisiert: 2026-04-04 (Bugfix-Session)
+Zuletzt aktualisiert: 2026-04-04 (Bug 1–6 behoben — alle Bugs erledigt)
 
 ---
 
@@ -95,6 +95,99 @@ Row Level Security: aktiv auf allen Tabellen ✅
 ### Wichtige Feldnamen (Fallstricke!)
 - Journal: `main_goal_today` (nicht `morning_goal`), `what_blocked` (nicht `blockers`), `entry_date` (nicht `created_at` für Datum)
 - Profile: `ai_profile` (json, enthält PatternAnalysis), `ikigai` (json mit loves/good_at/paid_for/world_needs/synthesis)
+
+---
+
+## Ausstehend — Feedback-Session (April 2026)
+
+Die folgenden Bugs und Features wurden beim Testen der Live-App identifiziert.
+Bearbeitungsreihenfolge: erst alle Bugs (1–6), dann Änderungen (7–10), dann große Features (11–14).
+**Immer nur einen Punkt nach dem anderen. Erst testen, dann "weiter" sagen.**
+
+### 🐛 Bugs — zuerst beheben
+
+**Bug 1 — Onboarding-Fortschritt geht bei Tab-Wechsel verloren** ✅ BEHOBEN
+- Step-Index: `useState` lazy initializer + `useEffect` in `Onboarding.tsx` (Keys: `life-os-onboarding-step`, `life-os-onboarding-data`)
+- Zwischeneingaben: `onDataChange`-Callback in `Step3_Ikigai.tsx` synchronisiert lokalen State sofort in Parent → localStorage
+- Sub-Schritt (Ikigai-Fragen): eigener Key `onboarding_ikigai_substep` in `Step3_Ikigai.tsx`
+
+**Bug 2 — Markdown-Formatierung wird als Text angezeigt** ✅ BEHOBEN
+- `react-markdown` installiert (npm install react-markdown --legacy-peer-deps)
+- Eingebaut in: `Step5Nordstern.tsx` (KI-Vorschlag), `Coach.tsx` (role: assistant), `AIFeedbackCard.tsx` (Feedback-Text)
+
+**Bug 3 — Coach-Unterhaltung geht bei Tab-Wechsel verloren** ✅ BEHOBEN
+- Keys: `coach_session_mode`, `coach_session_messages`, `coach_session_id`
+- Lazy initializer stellt mode + messages + session.id bei Mount wieder her
+- useEffects speichern bei jeder Änderung; handleReset + logout leeren die Keys
+
+**Bug 4 — Grammatikfehler Morgenjournal Schritt 2** ✅ BEHOBEN
+- `src/components/journal/MorningStep2Goal.tsx` Zeile 45: "dein einen Ziel" → "dein Ziel"
+
+**Bug 5 — Morgenjournal zeigt leeres Formular wenn heute bereits Eintrag vorhanden** ✅ BEHOBEN
+- `useEffect` in `MorningJournal.tsx` ruft `getTodayEntries` auf Mount auf
+- Falls morning-Eintrag für heute vorhanden: alle Felder vorausfüllen (feeling, goal, blockers, timeblocks, identityAction)
+- Speichern weiterhin via UPSERT (`createJournalEntry`) — kein Duplikat möglich
+
+**Bug 6 — "KI hilft mir formulieren"-Button nur nach eigenem Text klickbar** ✅ BEHOBEN
+- `disabled`-Bedingung in `Step6_Identity.tsx` auf `isRefining` reduziert (kein `!text.trim()` mehr)
+- `reformulateIdentity` in `claude.ts` bekommt optionalen `context`-Parameter (northStar, values, ikigaiSynthesis, fiveWhysSummary)
+- Ohne Text: KI generiert Vorschlag aus Onboarding-Kontext; mit Text: KI verfeinert den vorhandenen Text
+
+### ✏️ Änderungen — danach
+
+**Änderung 7 — Pattern-Interrupt Banner: Logik-Fix + ⓘ-Symbol** ⚠️ OFFEN
+- Problem 1: Banner erscheint direkt nach dem Onboarding obwohl man gerade erst anfängt
+- Fix: Startdatum des Accounts als Basis für 3-Tage-Logik verwenden, nicht Datum des letzten Eintrags
+- Problem 2: Logik ist nicht transparent
+- Fix: Kleines ⓘ-Symbol in der Kachel — bei Hover erscheint Erklärung "Erscheint wenn 3+ Tage kein Eintrag"
+
+**Änderung 8 — Review umbenennen + manueller Startbutton** ⚠️ OFFEN
+- "Review" → überall umbenennen zu "Wochenreview"
+- KI-Zusammenfassung soll nicht automatisch beim Laden starten
+- Stattdessen: Button "Wochenreview starten" → erst dann beginnt der Flow
+- Datei: `src/pages/Review.tsx`
+
+**Änderung 9 — Einstellungen: ⓘ-Symbole bei allen Buttons** ⚠️ OFFEN
+- Jeder Button in der Einstellungen-Seite bekommt ein kleines ⓘ-Symbol
+- Bei Hover: Tooltip erklärt was der Button tut, welche Logik dahintersteckt, welche Auswirkungen
+- Datei: `src/pages/Settings.tsx`
+
+**Änderung 10 — Review: Zeitraum-Auswahl (Woche/Monat/Quartal/Jahr)** ⚠️ OFFEN
+- Vor dem Start des Reviews: Auswahl welchen Zeitraum man reviewen möchte
+- Je nach Auswahl lädt die App die passenden Daten und übergibt sie an die KI
+- Daten sind alle vorhanden — nur die Logik und UI fehlen
+- Datei: `src/pages/Review.tsx`
+
+### 💡 Große Features — eigene Sessions je Feature
+
+**Feature 11 — Kalender-Tab mit wiederkehrenden Zeitblöcken** ⚠️ OFFEN
+- Eigener Tab "Kalender" in der Navigation
+- Zeitblöcke als Tagesansicht (ähnlich Google Calendar, aber in der App)
+- Wiederkehrende Serien: täglich, Mo-Fr, wöchentlich etc.
+- Beim Bearbeiten einer Serie: Auswahl "Nur diesen Termin / Ab diesem Termin / Alle Termine"
+- Sync: Änderungen im Morgenjournal Schritt 4 erscheinen im Kalender und umgekehrt
+- Neue Supabase-Tabelle `recurring_blocks` nötig
+- Aufwand: Sehr Groß — eigene Session
+
+**Feature 12 — Ziel-Kaskade mit abhakbaren Tasks** ⚠️ OFFEN
+- Von 3-Jahres-Ziel bis Tagesebene alles verbindbar (optional)
+- Jedes Ziel kann Sub-Tasks bekommen (z.B. Wochenziel A → A1, A2, A3)
+- Tasks haben Checkboxen — wenn abgehakt verschiebt sich Fortschrittsbalken automatisch
+- Dashboard zeigt aktive Wochenziel-Karte mit Tasks inline
+- Neue Supabase-Tabelle `goal_tasks` nötig (id, goal_id, title, completed, order)
+- Aufwand: Groß — eigene Session
+
+**Feature 13 — Tasks im Tagesjournal mit Dashboard-Sync** ⚠️ OFFEN
+- Baut auf Feature 12 auf — erst Feature 12 umsetzen
+- Morgenjournal Schritt 2: konkrete Tages-Tasks eintragen (nicht nur Fokus)
+- Tasks im Dashboard mit Checkboxen sichtbar
+- Tasks im Abendjournal als Liste mit Status (erledigt/offen)
+- Tagsüber ergänzte Tasks werden sofort synchronisiert
+- Aufwand: Groß — eigene Session nach Feature 12
+
+**Feature 14 — Review: Zeitraum-Auswahl (Woche/Monat/Quartal/Jahr)** ⚠️ OFFEN
+- Bereits unter Änderung 10 beschrieben — hier als Erinnerung für größeren Umbau
+- Aufwand: Mittel bis Groß
 
 ---
 
@@ -262,14 +355,26 @@ Gespeichert in Supabase, zurück zum Dashboard nach Speichern
 - **Fehler war:** TypeScript Build-Fehler — `recentEntries` und `goals` in `Dashboard.tsx` nicht als State-Variablen definiert
 - **Fix:** `recentEntries` State + `getRecentEntries` in `loadDashboardData` ergänzt; `goals` → `weeklyGoals` (korrekter State-Name)
 
-### ⚠️ Offen: Onboarding Schritt 9 — goals INSERT 400 Bad Request
-- Wahrscheinlich Enum-Bug: `goal_type` kennt `three_year`/`year` noch nicht
-- Debug-Logging in `createGoal` vorbereitet aber noch nicht ausgeführt — Fehlertext noch nicht bekannt
-- SQL-Fix aus CLAUDE.md bereit: `ALTER TYPE goal_type ADD VALUE IF NOT EXISTS 'three_year';`
+### ✅ Bug behoben: CSS --surface Variable fehlte
+- **Fehler war:** Render-Fehler / leere Hintergründe weil `--surface` CSS-Custom-Property nicht definiert war
+- **Ursache:** Tailwind v4 generiert nicht automatisch alle Custom Properties — `--surface` musste explizit in der globalen CSS definiert werden
+- **Fix:** `src/index.css` (oder globale CSS-Datei) → `--surface` Variable unter `:root` eingetragen
+- **Getestet:** Layout rendert korrekt, keine leeren Flächen mehr ✅
 
-### ⚠️ Offen: Onboarding-Fortschritt nicht persistent
-- State liegt nur in React — Tab-Wechsel setzt Onboarding zurück
-- Fix: Zwischenspeichern in Supabase `profiles` (z.B. `onboarding_step` Feld) noch nicht implementiert
+### ⚠️ Bug NICHT behoben: Onboarding-Fortschritt nicht persistent
+- **Laut altem Kontext als behoben markiert — funktioniert aber weiterhin nicht**
+- Symptom: Tab-Wechsel setzt Onboarding auf Schritt 1 zurück
+- Steht als Bug 1 in der Ausstehend-Liste oben — wird in nächster Session als erstes angegangen
+
+### ✅ Bug behoben: Onboarding Schritt 9 — goals INSERT 400 Bad Request (goal_type Enum)
+- **Fehler war:** `400 Bad Request` beim Speichern von 3-Jahres-/Jahres-/Quartalsziel im letzten Onboarding-Schritt
+- **Ursache:** Supabase `goal_type` Enum kannte die Werte `three_year` und `year` noch nicht
+- **Fix:** SQL-Migration in Supabase SQL Editor ausgeführt:
+  ```sql
+  ALTER TYPE goal_type ADD VALUE IF NOT EXISTS 'three_year';
+  ALTER TYPE goal_type ADD VALUE IF NOT EXISTS 'year';
+  ```
+- **Getestet:** Onboarding Schritt 9 speichert alle 3 Ziele erfolgreich, Weiterleitung zu Dashboard funktioniert ✅
 
 ---
 
@@ -409,12 +514,6 @@ Gespeichert in Supabase, zurück zum Dashboard nach Speichern
 
 ---
 
-## Ausstehend
-
-Alle Phase-2-Schritte abgeschlossen. 🎉
-
----
-
 ## Deployment Info
 
 | | |
@@ -422,8 +521,8 @@ Alle Phase-2-Schritte abgeschlossen. 🎉
 | **Production URL** | https://life-os-henna-xi.vercel.app |
 | **GitHub Repo** | https://github.com/Scholzer0303/life-os |
 | **Vercel Projekt** | scholzer0303s-projects/life-os |
-| **Letzter Commit** | feat: Phase 2 Schritt 20 - KI Muster-Erkennung |
-| **Deployed am** | 2026-04-04 (Auto-Deploy via Push) |
+| **Letzter Commit** | fix: --surface CSS-Variable definiert, Onboarding-Persistenz via localStorage |
+| **Deployed am** | 2026-04-04 (Auto-Deploy via Push) — Bugfix-Session vollständig ✅ |
 
 Auto-Deploy: Jeder Push auf `master` → Vercel baut und deployed automatisch.
 

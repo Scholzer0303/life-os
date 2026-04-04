@@ -42,7 +42,7 @@ export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, ini
       transition={{ duration: 0.25 }}
     >
       <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.6rem', fontWeight: 600, margin: '0 0 0.4rem' }}>
-        Was ist dein <em>einen</em> Ziel für heute?
+        Was ist dein Ziel für heute?
       </h2>
       <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.75rem', lineHeight: 1.5 }}>
         Nur eines. Das Wichtigste, das heute passieren soll.

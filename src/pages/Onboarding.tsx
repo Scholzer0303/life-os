@@ -49,6 +49,10 @@ export default function Onboarding() {
   useEffect(() => { localStorage.setItem(STEP_KEY, String(step)) }, [step])
   useEffect(() => { localStorage.setItem(DATA_KEY, JSON.stringify(data)) }, [data])
 
+  function handleDataChange(updates: Partial<OnboardingData>) {
+    setData((prev) => ({ ...prev, ...updates }))
+  }
+
   function handleNext(updates: Partial<OnboardingData>) {
     setData((prev) => ({ ...prev, ...updates }))
     setStep((s) => s + 1)
@@ -187,7 +191,7 @@ export default function Onboarding() {
             <Step2Lebensrad key="step2" data={data} onNext={handleNext} onBack={handleBack} />
           )}
           {step === 3 && (
-            <Step3_Ikigai key="step3ikigai" data={data} onNext={handleNext} onBack={handleBack} />
+            <Step3_Ikigai key="step3ikigai" data={data} onNext={handleNext} onBack={handleBack} onDataChange={handleDataChange} />
           )}
           {step === 4 && (
             <Step3Werte key="step3" data={data} onNext={handleNext} onBack={handleBack} />

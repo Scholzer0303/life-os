@@ -18,11 +18,16 @@ export default function Step6_Identity({ data, onNext, onBack }: Props) {
   const year3 = new Date().getFullYear() + 3
 
   async function handleRefine() {
-    if (!text.trim()) return
     setIsRefining(true)
     setRefineError(null)
     try {
-      const result = await reformulateIdentity(text)
+      const fiveWhysSummary = data.fiveWhys.map((e) => `F: ${e.question} A: ${e.answer}`).join(' | ')
+      const result = await reformulateIdentity(text, {
+        northStar: data.northStar,
+        values: data.selectedValues,
+        ikigaiSynthesis: data.ikigai.synthesis,
+        fiveWhysSummary,
+      })
       setText(result)
     } catch (err) {
       setRefineError(err instanceof Error ? err.message : 'Fehler beim Verfeinern.')
@@ -81,7 +86,7 @@ export default function Step6_Identity({ data, onNext, onBack }: Props) {
       {/* KI-Hilfe Button */}
       <button
         onClick={handleRefine}
-        disabled={!text.trim() || isRefining}
+        disabled={isRefining}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -93,8 +98,8 @@ export default function Step6_Identity({ data, onNext, onBack }: Props) {
           color: 'var(--accent)',
           fontSize: '0.85rem',
           fontFamily: 'DM Sans, sans-serif',
-          cursor: (!text.trim() || isRefining) ? 'not-allowed' : 'pointer',
-          opacity: (!text.trim() || isRefining) ? 0.6 : 1,
+          cursor: isRefining ? 'not-allowed' : 'pointer',
+          opacity: isRefining ? 0.6 : 1,
           marginBottom: '1.25rem',
           transition: 'opacity 0.15s',
         }}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import ReactMarkdown from 'react-markdown'
 import { summarizeNorthStar } from '../../lib/claude'
 import type { OnboardingData } from '../../types/onboarding'
 
@@ -125,7 +126,9 @@ export default function Step5Nordstern({ data, onNext, onBack }: Props) {
             </div>
           ) : suggestion ? (
             <div>
-              <p style={{ margin: '0 0 0.75rem', lineHeight: 1.5, fontSize: '0.9rem' }}>{suggestion}</p>
+              <div style={{ margin: '0 0 0.75rem', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                <ReactMarkdown>{suggestion}</ReactMarkdown>
+              </div>
               <button
                 onClick={useSuggestion}
                 style={{

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
 import { generateIkigaiSynthesis } from '../../lib/claude'
@@ -8,7 +8,10 @@ interface Props {
   data: OnboardingData
   onNext: (updates: Partial<OnboardingData>) => void
   onBack: () => void
+  onDataChange?: (updates: Partial<OnboardingData>) => void
 }
+
+const SUBSTEP_KEY = 'onboarding_ikigai_substep'
 
 const QUESTIONS = [
   {
@@ -37,8 +40,15 @@ const QUESTIONS = [
   },
 ]
 
-export default function Step3_Ikigai({ data, onNext, onBack }: Props) {
-  const [subStep, setSubStep] = useState(0) // 0-3 = questions, 4 = synthesis
+export default function Step3_Ikigai({ data, onNext, onBack, onDataChange }: Props) {
+  const [subStep, setSubStep] = useState<number>(() => {
+    const saved = localStorage.getItem(SUBSTEP_KEY)
+    if (saved) {
+      const n = parseInt(saved, 10)
+      if (n >= 0 && n <= 4) return n
+    }
+    return 0
+  })
   const [answers, setAnswers] = useState<IkigaiData>({
     loves: data.ikigai.loves,
     good_at: data.ikigai.good_at,
@@ -50,6 +60,14 @@ export default function Step3_Ikigai({ data, onNext, onBack }: Props) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [showManual, setShowManual] = useState(false)
+
+  useEffect(() => { localStorage.setItem(SUBSTEP_KEY, String(subStep)) }, [subStep])
+
+  // Zwischeneingaben sofort in Parent-Data speichern → localStorage-Persistenz greift
+  useEffect(() => {
+    onDataChange?.({ ikigai: { ...answers, synthesis } })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers, synthesis])
 
   const current = QUESTIONS[subStep]
   const currentAnswer = subStep < 4 ? answers[current?.key] : ''
@@ -80,6 +98,7 @@ export default function Step3_Ikigai({ data, onNext, onBack }: Props) {
   }
 
   function handleFinishIkigai() {
+    localStorage.removeItem(SUBSTEP_KEY)
     onNext({
       ikigai: {
         loves: answers.loves,
@@ -303,7 +322,7 @@ export default function Step3_Ikigai({ data, onNext, onBack }: Props) {
             </div>
             <div style={{ textAlign: 'center' }}>
               <button
-                onClick={() => onNext({ ikigai: { loves: answers.loves, good_at: answers.good_at, paid_for: answers.paid_for, world_needs: answers.world_needs, synthesis: '' } })}
+                onClick={() => { localStorage.removeItem(SUBSTEP_KEY); onNext({ ikigai: { loves: answers.loves, good_at: answers.good_at, paid_for: answers.paid_for, world_needs: answers.world_needs, synthesis: '' } }) }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.85rem', textDecoration: 'underline' }}
               >
                 Schritt überspringen
@@ -317,7 +336,7 @@ export default function Step3_Ikigai({ data, onNext, onBack }: Props) {
       {subStep < 4 && (
         <div style={{ textAlign: 'center', marginTop: '0.75rem' }}>
           <button
-            onClick={() => onNext({ ikigai: { loves: '', good_at: '', paid_for: '', world_needs: '', synthesis: '' } })}
+            onClick={() => { localStorage.removeItem(SUBSTEP_KEY); onNext({ ikigai: { loves: '', good_at: '', paid_for: '', world_needs: '', synthesis: '' } }) }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.85rem', textDecoration: 'underline' }}
           >
             Schritt überspringen

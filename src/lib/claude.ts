@@ -309,18 +309,33 @@ export async function generateIkigaiSynthesis(
   return block.text
 }
 
-export async function reformulateIdentity(userText: string): Promise<string> {
+interface IdentityContext {
+  northStar?: string
+  values?: string[]
+  ikigaiSynthesis?: string
+  fiveWhysSummary?: string
+}
+
+export async function reformulateIdentity(userText: string, context?: IdentityContext): Promise<string> {
   checkRateLimit()
   const client = getClient()
+
+  let prompt: string
+  if (userText.trim()) {
+    prompt = `Der User beschreibt sein zukünftiges Ich: ${userText}. Forme es um in kraftvolle Gegenwartsform ('Ich bin...', 'Ich habe...', 'Ich lebe...'). Max. 4 Sätze. Deutsch. Nah am Original.`
+  } else {
+    const parts: string[] = []
+    if (context?.northStar) parts.push(`Nordstern: ${context.northStar}`)
+    if (context?.values?.length) parts.push(`Wichtigste Werte: ${context.values.join(', ')}`)
+    if (context?.ikigaiSynthesis) parts.push(`Ikigai-Kern: ${context.ikigaiSynthesis}`)
+    if (context?.fiveWhysSummary) parts.push(`5-Warum-Kette: ${context.fiveWhysSummary}`)
+    prompt = `Basierend auf diesen Onboarding-Antworten:\n${parts.join('\n')}\n\nGeneriere eine kraftvolle Identitäts-Aussage in Gegenwartsform ('Ich bin...', 'Ich habe...', 'Ich lebe...'). Max. 4 Sätze. Deutsch.`
+  }
+
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: 300,
-    messages: [
-      {
-        role: 'user',
-        content: `Der User beschreibt sein zukünftiges Ich: ${userText}. Forme es um in kraftvolle Gegenwartsform ('Ich bin...', 'Ich habe...', 'Ich lebe...'). Max. 4 Sätze. Deutsch. Nah am Original.`,
-      },
-    ],
+    messages: [{ role: 'user', content: prompt }],
   })
   const block = response.content[0]
   if (block.type !== 'text') throw new Error('Unexpected response type from Claude')

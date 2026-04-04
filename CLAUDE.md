@@ -217,7 +217,18 @@ Ein nicht aktualisiertes Logbuch = die nächste Session fängt blind an = Fehler
 ## 11. SESSION-START CHECKLISTE
 
 Beim Start jeder neuen Claude Code Session:
-1. `LIFE_OS_KONTEXT.md` lesen — aktuellen Stand verstehen
-2. `npm run dev` — Dev-Server starten falls nicht läuft
-3. Aktuellen Status im Browser prüfen: http://localhost:5174
-4. Erst dann mit dem gewünschten Schritt anfangen
+1. `LIFE_OS_KONTEXT.md` lesen — aktuellen Stand verstehen, offene Punkte unter "Ausstehend" prüfen
+2. `LIFE_OS_FEATURES.md` lesen — detaillierte Spezifikation für den zu bearbeitenden Bug oder das Feature
+3. `npm run dev` — Dev-Server starten falls nicht läuft
+4. Aktuellen Status im Browser prüfen: http://localhost:5174
+5. Erst dann mit dem gewünschten Schritt anfangen
+
+---
+
+## 12. DATEI-ÜBERSICHT (was ist welche Datei)
+
+| Datei | Zweck | Wer aktualisiert sie |
+|---|---|---|
+| `CLAUDE.md` | Regeln, Architektur, Feldnamen — ändert sich selten | Lukas manuell (oder auf Anfrage) |
+| `LIFE_OS_KONTEXT.md` | Logbuch — was ist fertig, was ist offen | Claude Code nach jedem Schritt automatisch |
+| `LIFE_OS_FEATURES.md` | Detaillierte Spezifikation aller geplanten Bugs/Features | Claude Code markiert erledigte Punkte als Umgesetzt |
