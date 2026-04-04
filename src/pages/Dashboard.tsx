@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sun, Moon, Compass, Flame, BookOpen, MessageCircle, X } from 'lucide-react'
+import { Sun, Moon, Compass, Flame, BookOpen, MessageCircle, X, Info } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import {
   getTodayEntries,
@@ -41,6 +41,8 @@ export default function Dashboard() {
   const [weekActiveDays, setWeekActiveDays] = useState(0)
   const [heatmapData, setHeatmapData] = useState<{ entry_date: string; type: string }[]>([])
   const [showPatternInterrupt, setShowPatternInterrupt] = useState(false)
+  const [showPatternTooltip, setShowPatternTooltip] = useState(false)
+  const tooltipRef = useRef<HTMLDivElement>(null)
   const [morningGoalToday, setMorningGoalToday] = useState<string | null>(null)
   const [showIdentityReminder, setShowIdentityReminder] = useState(false)
   const [identityModalOpen, setIdentityModalOpen] = useState(false)
@@ -112,11 +114,16 @@ export default function Dashboard() {
       )
       setWeekActiveDays(uniqueThisWeek.size)
 
-      // Pattern interrupt: 3+ days without entry
-      if (lastDate && daysSince(lastDate) >= 3) {
-        setShowPatternInterrupt(true)
-      } else if (!lastDate && profile?.onboarding_completed) {
-        setShowPatternInterrupt(true)
+      // Pattern interrupt: nur zeigen wenn Account > 3 Tage alt UND kein Eintrag in letzten 3 Tagen
+      const accountCreatedAt = profile?.created_at
+      const accountAgeInDays = accountCreatedAt
+        ? Math.floor((Date.now() - new Date(accountCreatedAt).getTime()) / 86400000)
+        : 0
+      const accountIsOldEnough = accountAgeInDays >= 3
+      if (accountIsOldEnough) {
+        if (!lastDate || daysSince(lastDate) >= 3) {
+          setShowPatternInterrupt(true)
+        }
       }
     } catch (err) {
       console.error('Dashboard load error:', err)
@@ -199,9 +206,56 @@ export default function Dashboard() {
             >
               <X size={16} />
             </button>
-            <p style={{ margin: '0 0 0.35rem', fontWeight: 600, color: 'var(--accent-warm)' }}>
-              Hey — Leben passiert.
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.35rem' }}>
+              <p style={{ margin: 0, fontWeight: 600, color: 'var(--accent-warm)' }}>
+                Hey — Leben passiert.
+              </p>
+              <div ref={tooltipRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                <button
+                  onMouseEnter={() => setShowPatternTooltip(true)}
+                  onMouseLeave={() => setShowPatternTooltip(false)}
+                  onTouchStart={() => setShowPatternTooltip((v) => !v)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '0.1rem',
+                    color: 'var(--accent-warm)',
+                    opacity: 0.7,
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  aria-label="Info"
+                >
+                  <Info size={14} />
+                </button>
+                {showPatternTooltip && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '100%',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      marginBottom: '6px',
+                      background: 'var(--bg-primary, #1a1a2e)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.75rem',
+                      lineHeight: 1.4,
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '8px',
+                      whiteSpace: 'nowrap',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                      zIndex: 10,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    Dieser Hinweis erscheint wenn du 3 oder mehr
+                    <br />
+                    Tage keinen Eintrag gemacht hast.
+                  </div>
+                )}
+              </div>
+            </div>
             <p
               style={{
                 margin: '0 0 0.85rem',
@@ -540,7 +594,7 @@ export default function Dashboard() {
           style={quickBtnStyle}
         >
           <Flame size={15} />
-          Review
+          Wochenreview
         </button>
       </div>
 

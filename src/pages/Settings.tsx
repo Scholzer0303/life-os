@@ -1,13 +1,58 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Plus, LogOut, RefreshCw, AlertTriangle } from 'lucide-react'
+import { X, Plus, LogOut, RefreshCw, AlertTriangle, Info } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { updateProfile, countJournalEntries, countGoals, deleteAllJournalEntries, deleteAllGoals, deleteAllUserData } from '../lib/db'
 import { generatePatternAnalysis } from '../lib/claude'
 import { useStore } from '../store/useStore'
 
 // ─── Kleine Hilfs-Komponenten ─────────────────────────────────────────────────
+
+function InfoTooltip({ text }: { text: string }) {
+  const [visible, setVisible] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+      <button
+        onMouseEnter={() => setVisible(true)}
+        onMouseLeave={() => setVisible(false)}
+        onTouchStart={() => setVisible((v) => !v)}
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          padding: '0.15rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
+        }}
+        aria-label="Info"
+      >
+        <Info size={14} />
+      </button>
+      {visible && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            marginBottom: '6px',
+            background: 'var(--bg-primary, #1a1a2e)',
+            color: 'var(--text-primary)',
+            fontSize: '0.72rem',
+            lineHeight: 1.45,
+            padding: '0.5rem 0.7rem',
+            borderRadius: '8px',
+            width: '220px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+            zIndex: 50,
+            pointerEvents: 'none',
+            whiteSpace: 'normal',
+          }}
+        >
+          {text}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -569,24 +614,28 @@ export default function Settings() {
                 {saveError}
               </div>
             )}
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              style={{
-                padding: '0.75rem',
-                borderRadius: '10px',
-                border: 'none',
-                background: 'var(--accent)',
-                color: '#fff',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                cursor: isSaving ? 'not-allowed' : 'pointer',
-                opacity: isSaving ? 0.7 : 1,
-                transition: 'opacity 0.15s',
-              }}
-            >
-              {saveSuccess ? 'Gespeichert ✓' : isSaving ? 'Speichert...' : 'Speichern'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  cursor: isSaving ? 'not-allowed' : 'pointer',
+                  opacity: isSaving ? 0.7 : 1,
+                  transition: 'opacity 0.15s',
+                }}
+              >
+                {saveSuccess ? 'Gespeichert ✓' : isSaving ? 'Speichert...' : 'Speichern'}
+              </button>
+              <InfoTooltip text="Speichert deinen Namen, Nordstern, Werte und Stopp-Liste. Keine Daten werden gelöscht." />
+            </div>
           </div>
         </SectionCard>
 
@@ -645,18 +694,21 @@ export default function Settings() {
                 {ikigaiError}
               </div>
             )}
-            <button
-              onClick={handleSaveIkigai}
-              disabled={isSavingIkigai}
-              style={{
-                padding: '0.7rem', borderRadius: '10px', border: 'none',
-                background: 'var(--accent)', color: '#fff', fontSize: '0.875rem',
-                fontWeight: 600, cursor: isSavingIkigai ? 'not-allowed' : 'pointer',
-                opacity: isSavingIkigai ? 0.7 : 1,
-              }}
-            >
-              {ikigaiSaveSuccess ? 'Gespeichert ✓' : isSavingIkigai ? 'Speichert...' : 'Ikigai speichern'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                onClick={handleSaveIkigai}
+                disabled={isSavingIkigai}
+                style={{
+                  flex: 1, padding: '0.7rem', borderRadius: '10px', border: 'none',
+                  background: 'var(--accent)', color: '#fff', fontSize: '0.875rem',
+                  fontWeight: 600, cursor: isSavingIkigai ? 'not-allowed' : 'pointer',
+                  opacity: isSavingIkigai ? 0.7 : 1,
+                }}
+              >
+                {ikigaiSaveSuccess ? 'Gespeichert ✓' : isSavingIkigai ? 'Speichert...' : 'Ikigai speichern'}
+              </button>
+              <InfoTooltip text="Speichert deine Ikigai-Antworten. Keine Daten werden gelöscht." />
+            </div>
           </div>
         </SectionCard>
 
@@ -690,24 +742,26 @@ export default function Settings() {
               {analyzeError && (
                 <p style={{ fontSize: '0.825rem', color: '#dc2626', margin: 0 }}>{analyzeError}</p>
               )}
-              <button
-                onClick={handleReanalyze}
-                disabled={isAnalyzing || recentEntries.length < 14}
-                style={{
-                  marginTop: '0.25rem',
-                  padding: '0.6rem 1rem',
-                  background: isAnalyzing || recentEntries.length < 14 ? 'var(--bg-secondary)' : 'var(--accent)',
-                  color: isAnalyzing || recentEntries.length < 14 ? 'var(--text-muted)' : '#fff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '0.85rem',
-                  fontWeight: 500,
-                  cursor: isAnalyzing || recentEntries.length < 14 ? 'not-allowed' : 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {isAnalyzing ? 'Analysiere…' : 'Jetzt neu analysieren'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <button
+                  onClick={handleReanalyze}
+                  disabled={isAnalyzing || recentEntries.length < 14}
+                  style={{
+                    padding: '0.6rem 1rem',
+                    background: isAnalyzing || recentEntries.length < 14 ? 'var(--bg-secondary)' : 'var(--accent)',
+                    color: isAnalyzing || recentEntries.length < 14 ? 'var(--text-muted)' : '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    cursor: isAnalyzing || recentEntries.length < 14 ? 'not-allowed' : 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  {isAnalyzing ? 'Analysiere…' : 'Jetzt neu analysieren'}
+                </button>
+                <InfoTooltip text="Lässt die KI deine letzten Journal-Einträge neu analysieren und dein Profil aktualisieren. Benötigt mindestens 14 Einträge." />
+              </div>
             </div>
           ) : (
             <div>
@@ -721,23 +775,26 @@ export default function Settings() {
                   {analyzeError && (
                     <p style={{ fontSize: '0.825rem', color: '#dc2626', marginBottom: '0.5rem' }}>{analyzeError}</p>
                   )}
-                  <button
-                    onClick={handleReanalyze}
-                    disabled={isAnalyzing}
-                    style={{
-                      padding: '0.6rem 1rem',
-                      background: isAnalyzing ? 'var(--bg-secondary)' : 'var(--accent)',
-                      color: isAnalyzing ? 'var(--text-muted)' : '#fff',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '0.85rem',
-                      fontWeight: 500,
-                      cursor: isAnalyzing ? 'not-allowed' : 'pointer',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    {isAnalyzing ? 'Analysiere…' : 'Muster jetzt analysieren'}
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <button
+                      onClick={handleReanalyze}
+                      disabled={isAnalyzing}
+                      style={{
+                        padding: '0.6rem 1rem',
+                        background: isAnalyzing ? 'var(--bg-secondary)' : 'var(--accent)',
+                        color: isAnalyzing ? 'var(--text-muted)' : '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        fontWeight: 500,
+                        cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+                        fontFamily: 'inherit',
+                      }}
+                    >
+                      {isAnalyzing ? 'Analysiere…' : 'Muster jetzt analysieren'}
+                    </button>
+                    <InfoTooltip text="Lässt die KI deine Journal-Einträge analysieren und ein persönliches Muster-Profil erstellen." />
+                  </div>
                 </>
               )}
             </div>
@@ -749,24 +806,27 @@ export default function Settings() {
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.875rem', lineHeight: 1.5 }}>
             Starte das Onboarding erneut, um deine Werte und deinen Nordstern zu überarbeiten. Dein Name und deine E-Mail bleiben erhalten.
           </p>
-          <button
-            onClick={() => setShowOnboardingModal(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.65rem 1rem',
-              borderRadius: '8px',
-              border: '1px solid var(--border)',
-              background: 'transparent',
-              color: 'var(--text-primary)',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-            }}
-          >
-            <RefreshCw size={15} />
-            Onboarding neu starten
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              onClick={() => setShowOnboardingModal(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.65rem 1rem',
+                borderRadius: '8px',
+                border: '1px solid var(--border)',
+                background: 'transparent',
+                color: 'var(--text-primary)',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+              }}
+            >
+              <RefreshCw size={15} />
+              Onboarding neu starten
+            </button>
+            <InfoTooltip text="Setzt deinen Onboarding-Status zurück. Dein Name und alle Journal-Einträge bleiben erhalten." />
+          </div>
         </SectionCard>
 
         {/* ── Sektion 5: Gefahrenzone ── */}
@@ -803,92 +863,107 @@ export default function Settings() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
             {/* Journal löschen */}
-            <button
-              onClick={() => setShowDeleteJournalModal(true)}
-              style={{
-                padding: '0.7rem 1rem',
-                borderRadius: '8px',
-                border: 'none',
-                background: '#f97316',
-                color: '#fff',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              Journal-Einträge löschen
-              {journalCount !== null && (
-                <span style={{ fontWeight: 400, opacity: 0.85 }}> ({journalCount} Einträge)</span>
-              )}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                onClick={() => setShowDeleteJournalModal(true)}
+                style={{
+                  flex: 1,
+                  padding: '0.7rem 1rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#f97316',
+                  color: '#fff',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                Journal-Einträge löschen
+                {journalCount !== null && (
+                  <span style={{ fontWeight: 400, opacity: 0.85 }}> ({journalCount} Einträge)</span>
+                )}
+              </button>
+              <InfoTooltip text="Löscht alle deine Morgen-, Abend- und Freeform-Einträge unwiderruflich. Ziele und Profil bleiben erhalten." />
+            </div>
 
             {/* Ziele löschen */}
-            <button
-              onClick={() => setShowDeleteGoalsModal(true)}
-              style={{
-                padding: '0.7rem 1rem',
-                borderRadius: '8px',
-                border: 'none',
-                background: '#f97316',
-                color: '#fff',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-            >
-              Ziele löschen
-              {goalCount !== null && (
-                <span style={{ fontWeight: 400, opacity: 0.85 }}> ({goalCount} Ziele)</span>
-              )}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                onClick={() => setShowDeleteGoalsModal(true)}
+                style={{
+                  flex: 1,
+                  padding: '0.7rem 1rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#f97316',
+                  color: '#fff',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                Ziele löschen
+                {goalCount !== null && (
+                  <span style={{ fontWeight: 400, opacity: 0.85 }}> ({goalCount} Ziele)</span>
+                )}
+              </button>
+              <InfoTooltip text="Löscht alle deine Ziele unwiderruflich. Journal-Einträge und Profil bleiben erhalten." />
+            </div>
 
             {/* Alle Daten löschen */}
-            <button
-              onClick={() => setShowDeleteAllStep(1)}
-              style={{
-                padding: '0.85rem 1rem',
-                borderRadius: '8px',
-                border: 'none',
-                background: '#ef4444',
-                color: '#fff',
-                fontSize: '0.9rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                textAlign: 'left',
-              }}
-            >
-              <AlertTriangle size={16} />
-              Alle Daten löschen &amp; neu starten
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                onClick={() => setShowDeleteAllStep(1)}
+                style={{
+                  flex: 1,
+                  padding: '0.85rem 1rem',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#ef4444',
+                  color: '#fff',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  textAlign: 'left',
+                }}
+              >
+                <AlertTriangle size={16} />
+                Alle Daten löschen &amp; neu starten
+              </button>
+              <InfoTooltip text="Löscht alle Einträge, Ziele, Coach-Sessions und setzt dein Profil zurück. Nur dein Name bleibt. Nicht rückgängig zu machen." />
+            </div>
           </div>
         </div>
 
         {/* ── Sektion 6: Account ── */}
         <SectionCard title="Account">
-          <button
-            onClick={handleSignOut}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.65rem 1rem',
-              borderRadius: '8px',
-              border: '1px solid var(--border)',
-              background: 'transparent',
-              color: 'var(--text-primary)',
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              width: '100%',
-            }}
-          >
-            <LogOut size={15} />
-            Abmelden
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              onClick={handleSignOut}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.65rem 1rem',
+                borderRadius: '8px',
+                border: '1px solid var(--border)',
+                background: 'transparent',
+                color: 'var(--text-primary)',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+              }}
+            >
+              <LogOut size={15} />
+              Abmelden
+            </button>
+            <InfoTooltip text="Meldet dich aus der App ab. Deine Daten bleiben gespeichert." />
+          </div>
         </SectionCard>
       </div>
 

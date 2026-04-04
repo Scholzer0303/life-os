@@ -258,6 +258,48 @@ Analysiere Muster, Energie, Fortschritt und blinde Flecken. Maximal 120 Wörter.
   return block.text
 }
 
+export type ReviewPeriod = 'week' | 'month' | 'quarter' | 'year'
+
+const PERIOD_LABELS: Record<ReviewPeriod, string> = {
+  week: 'Woche',
+  month: 'Monat',
+  quarter: 'Quartal',
+  year: 'Jahr',
+}
+
+export async function generateReviewSummary(
+  zeitraum: ReviewPeriod,
+  entries: JournalEntry[],
+  goals: Goal[],
+  profile: Profile
+): Promise<string> {
+  checkRateLimit()
+  const client = getClient()
+
+  const periodLabel = PERIOD_LABELS[zeitraum]
+  const entrySummary = summarizeEntries(entries)
+  const goalSummary = goals.length
+    ? goals.map((g) => `- ${g.title} (${g.progress}%)`).join('\n')
+    : `Keine ${periodLabel}sziele gesetzt.`
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    system: `Du bist Life OS Coach. Erstelle eine ehrliche, prägnante ${periodLabel}-Zusammenfassung für ${profile.name ?? 'den Nutzer'}.
+Analysiere Muster, Energie, Fortschritt und blinde Flecken über den ${periodLabel}szeitraum. Maximal 150 Wörter. Kein Motivations-Bullshit. Antworte auf Deutsch.`,
+    messages: [
+      {
+        role: 'user',
+        content: `${periodLabel}sziele:\n${goalSummary}\n\nJournal-Einträge der letzten ${periodLabel === 'Woche' ? '7' : periodLabel === 'Monat' ? '30' : periodLabel === 'Quartal' ? '90' : '365'} Tage:\n${entrySummary}\n\nFasse den ${periodLabel}szeitraum zusammen.`,
+      },
+    ],
+  })
+
+  const block = response.content[0]
+  if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
+  return block.text
+}
+
 export async function generateWeeklyFeedback(
   wentWell: string,
   wouldChange: string,

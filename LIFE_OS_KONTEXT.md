@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md
 # Wird nach jedem Schritt aktualisiert — immer die neueste Version ins Claude Project hochladen
 
-Zuletzt aktualisiert: 2026-04-04 (Bug 1–6 behoben — alle Bugs erledigt)
+Zuletzt aktualisiert: 2026-04-04 (Session abgeschlossen — Bugs 1–6 ✅, Änderungen 7–10 ✅, Änderung 11 dokumentiert, Features 12–15 neu nummeriert)
 
 ---
 
@@ -101,10 +101,10 @@ Row Level Security: aktiv auf allen Tabellen ✅
 ## Ausstehend — Feedback-Session (April 2026)
 
 Die folgenden Bugs und Features wurden beim Testen der Live-App identifiziert.
-Bearbeitungsreihenfolge: erst alle Bugs (1–6), dann Änderungen (7–10), dann große Features (11–14).
+Bearbeitungsreihenfolge: erst alle Bugs (1–6) ✅, dann Änderungen (7–11), dann große Features (12–15).
 **Immer nur einen Punkt nach dem anderen. Erst testen, dann "weiter" sagen.**
 
-### 🐛 Bugs — zuerst beheben
+### 🐛 Bugs — alle behoben ✅
 
 **Bug 1 — Onboarding-Fortschritt geht bei Tab-Wechsel verloren** ✅ BEHOBEN
 - Step-Index: `useState` lazy initializer + `useEffect` in `Onboarding.tsx` (Keys: `life-os-onboarding-step`, `life-os-onboarding-data`)
@@ -133,61 +133,70 @@ Bearbeitungsreihenfolge: erst alle Bugs (1–6), dann Änderungen (7–10), dann
 - `reformulateIdentity` in `claude.ts` bekommt optionalen `context`-Parameter (northStar, values, ikigaiSynthesis, fiveWhysSummary)
 - Ohne Text: KI generiert Vorschlag aus Onboarding-Kontext; mit Text: KI verfeinert den vorhandenen Text
 
-### ✏️ Änderungen — danach
+### ✏️ Änderungen (7–11)
 
-**Änderung 7 — Pattern-Interrupt Banner: Logik-Fix + ⓘ-Symbol** ⚠️ OFFEN
-- Problem 1: Banner erscheint direkt nach dem Onboarding obwohl man gerade erst anfängt
-- Fix: Startdatum des Accounts als Basis für 3-Tage-Logik verwenden, nicht Datum des letzten Eintrags
-- Problem 2: Logik ist nicht transparent
-- Fix: Kleines ⓘ-Symbol in der Kachel — bei Hover erscheint Erklärung "Erscheint wenn 3+ Tage kein Eintrag"
+**Änderung 7 — Pattern-Interrupt Banner: Logik-Fix + ⓘ-Symbol** ✅ BEHOBEN
+- Logik-Fix: Banner erscheint nur wenn `profiles.created_at` > 3 Tage alt UND kein Eintrag in den letzten 3 Tagen
+- ⓘ-Icon (lucide `Info`) neben Titel-Text im Banner; bei Hover/Tap öffnet sich Tooltip mit Erklärungstext
+- Tooltip-Farbe: `color: 'var(--text-primary)'` — passt sich an Theme an (Fix nach erstem Test)
+- Datei: `src/pages/Dashboard.tsx`
 
-**Änderung 8 — Review umbenennen + manueller Startbutton** ⚠️ OFFEN
-- "Review" → überall umbenennen zu "Wochenreview"
-- KI-Zusammenfassung soll nicht automatisch beim Laden starten
-- Stattdessen: Button "Wochenreview starten" → erst dann beginnt der Flow
-- Datei: `src/pages/Review.tsx`
+**Änderung 8 — Review umbenennen + manueller Startbutton** ✅ BEHOBEN
+- "Review" → "Wochenreview" in Navigation.tsx (Tab-Label), Dashboard.tsx (Quick-Button), Review.tsx (Abschluss-Button)
+- Landing-Screen vor dem Flow: zeigt Titel + Kurzbeschreibung + "Wochenreview starten →"-Button
+- KI-Zusammenfassung startet erst nach Klick auf Button (useEffect hängt nun an `started`-State, nicht am Mount)
+- Dateien: `src/pages/Review.tsx`, `src/components/layout/Navigation.tsx`, `src/pages/Dashboard.tsx`
 
-**Änderung 9 — Einstellungen: ⓘ-Symbole bei allen Buttons** ⚠️ OFFEN
-- Jeder Button in der Einstellungen-Seite bekommt ein kleines ⓘ-Symbol
-- Bei Hover: Tooltip erklärt was der Button tut, welche Logik dahintersteckt, welche Auswirkungen
+**Änderung 9 — Einstellungen: ⓘ-Symbole bei allen Buttons** ✅ BEHOBEN
+- Wiederverwendbare `InfoTooltip`-Komponente in Settings.tsx (hover + touch-toggle), `color: 'var(--text-primary)'`
+- Tooltips bei: Speichern, Ikigai speichern, KI-Analyse (beide), Onboarding neu starten, Journal löschen, Ziele löschen, Alle Daten löschen, Abmelden
 - Datei: `src/pages/Settings.tsx`
 
-**Änderung 10 — Review: Zeitraum-Auswahl (Woche/Monat/Quartal/Jahr)** ⚠️ OFFEN
-- Vor dem Start des Reviews: Auswahl welchen Zeitraum man reviewen möchte
-- Je nach Auswahl lädt die App die passenden Daten und übergibt sie an die KI
-- Daten sind alle vorhanden — nur die Logik und UI fehlen
-- Datei: `src/pages/Review.tsx`
+**Änderung 10 — Review: Zeitraum-Auswahl (Woche/Monat/Quartal/Jahr)** ✅ BEHOBEN
+- Landing-Screen: 4 Buttons (Woche/Monat/Quartal/Jahr), aktiver Zeitraum lila hervorgehoben
+- Titel und Start-Button passen sich dynamisch an ("Wochenreview starten →", "Monatsreview starten →" etc.)
+- Neue Funktion `generateReviewSummary(zeitraum, entries, goals, profile)` in `claude.ts` + exportierter Typ `ReviewPeriod`
+- Beim Start: `getRecentEntries(userId, tage)` lädt passende Einträge (7/30/90/365 Tage), Ziele nach Typ gefiltert
+- Dateien: `src/pages/Review.tsx`, `src/lib/claude.ts`
+
+**Änderung 11 — Review: Intelligente Datenaggregation je Zeitraum** ⚠️ OFFEN
+- Problem: Bei Quartal/Jahr werden zu viele rohe Tageseinträge an die KI übergeben → Token-Limit-Risiko
+- Fix: Hierarchie — Monat nutzt Wochenreviews, Quartal nutzt Monatsreviews, Jahr nutzt Quartalsreviews
+- Fallback: Falls kein Review höherer Ebene existiert → eine Ebene tiefer gehen
+- Technisch: neue DB-Funktion `getReviewSessions(userId, trigger, seit)` + Anpassung `generateReviewSummary()`
+- Dateien: `src/lib/db.ts`, `src/lib/claude.ts`, `src/pages/Review.tsx`
 
 ### 💡 Große Features — eigene Sessions je Feature
 
-**Feature 11 — Kalender-Tab mit wiederkehrenden Zeitblöcken** ⚠️ OFFEN
+**Feature 12 — Kalender-Tab mit wiederkehrenden Zeitblöcken** ⚠️ OFFEN
 - Eigener Tab "Kalender" in der Navigation
 - Zeitblöcke als Tagesansicht (ähnlich Google Calendar, aber in der App)
 - Wiederkehrende Serien: täglich, Mo-Fr, wöchentlich etc.
 - Beim Bearbeiten einer Serie: Auswahl "Nur diesen Termin / Ab diesem Termin / Alle Termine"
 - Sync: Änderungen im Morgenjournal Schritt 4 erscheinen im Kalender und umgekehrt
-- Neue Supabase-Tabelle `recurring_blocks` nötig
+- Neue Supabase-Tabellen `recurring_blocks` + `recurring_block_exceptions` nötig
 - Aufwand: Sehr Groß — eigene Session
 
-**Feature 12 — Ziel-Kaskade mit abhakbaren Tasks** ⚠️ OFFEN
-- Von 3-Jahres-Ziel bis Tagesebene alles verbindbar (optional)
+**Feature 13 — Ziel-Kaskade mit abhakbaren Tasks** ⚠️ OFFEN
 - Jedes Ziel kann Sub-Tasks bekommen (z.B. Wochenziel A → A1, A2, A3)
 - Tasks haben Checkboxen — wenn abgehakt verschiebt sich Fortschrittsbalken automatisch
-- Dashboard zeigt aktive Wochenziel-Karte mit Tasks inline
-- Neue Supabase-Tabelle `goal_tasks` nötig (id, goal_id, title, completed, order)
+- Dashboard zeigt aktive Wochenziel-Karte mit Tasks inline (max. 3, "Alle anzeigen")
+- Neue Supabase-Tabelle `goal_tasks` nötig (id, goal_id, title, completed, sort_order)
 - Aufwand: Groß — eigene Session
 
-**Feature 13 — Tasks im Tagesjournal mit Dashboard-Sync** ⚠️ OFFEN
-- Baut auf Feature 12 auf — erst Feature 12 umsetzen
+**Feature 14 — Tasks im Tagesjournal mit Dashboard-Sync** ⚠️ OFFEN
+- Baut auf Feature 13 auf — erst Feature 13 umsetzen
 - Morgenjournal Schritt 2: konkrete Tages-Tasks eintragen (nicht nur Fokus)
 - Tasks im Dashboard mit Checkboxen sichtbar
 - Tasks im Abendjournal als Liste mit Status (erledigt/offen)
-- Tagsüber ergänzte Tasks werden sofort synchronisiert
-- Aufwand: Groß — eigene Session nach Feature 12
+- Aufwand: Groß — eigene Session nach Feature 13
 
-**Feature 14 — Review: Zeitraum-Auswahl (Woche/Monat/Quartal/Jahr)** ⚠️ OFFEN
-- Bereits unter Änderung 10 beschrieben — hier als Erinnerung für größeren Umbau
-- Aufwand: Mittel bis Groß
+**Feature 15 — Coach-Archiv** ⚠️ OFFEN
+- Vergangene Coach-Sessions abrufbar und durchsuchbar
+- Im Coach-Tab: neuer Button "Vergangene Sessions" oben rechts
+- Sortiert nach Datum, neueste zuerst; Tap öffnet Unterhaltung (read-only)
+- `coach_sessions` Tabelle existiert bereits — keine Schema-Änderung nötig
+- Aufwand: Mittel — eigene Session
 
 ---
 

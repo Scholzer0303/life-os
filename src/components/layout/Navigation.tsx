@@ -7,7 +7,7 @@ const NAV_ITEMS: { to: string; icon: LucideIcon; label: string; end?: boolean }[
   { to: '/journal', icon: BookOpen, label: 'Journal' },
   { to: '/goals', icon: Target, label: 'Ziele' },
   { to: '/coach', icon: MessageCircle, label: 'Coach' },
-  { to: '/review', icon: RotateCcw, label: 'Review' },
+  { to: '/review', icon: RotateCcw, label: 'Wochenreview' },
   { to: '/settings', icon: Settings, label: 'Einstellungen' },
 ]
 

@@ -84,9 +84,9 @@ npm install react-markdown --legacy-peer-deps
 
 ---
 
-## ✏️ ÄNDERUNGEN (7–10)
+## ✏️ ÄNDERUNGEN (7–11)
 
-### Änderung 7 — Pattern-Interrupt Banner: Logik-Fix + ⓘ-Symbol ⚠️ OFFEN
+### Änderung 7 — Pattern-Interrupt Banner: Logik-Fix + ⓘ-Symbol ✅ UMGESETZT (2026-04-04)
 **Betrifft:** Dashboard.tsx, PatternInterrupt-Banner-Komponente
 **Problem 1 — Falsche Logik:**
 - Aktuell: Banner erscheint wenn letzter Eintrag > 3 Tage her
@@ -99,7 +99,7 @@ npm install react-markdown --legacy-peer-deps
 
 ---
 
-### Änderung 8 — Review umbenennen + manueller Startbutton ⚠️ OFFEN
+### Änderung 8 — Review umbenennen + manueller Startbutton ✅ UMGESETZT (2026-04-04)
 **Datei:** `src/pages/Review.tsx` + Navigation + Tab-Bar
 **Änderung 1:** "Review" überall umbenennen zu "Wochenreview"
 - Tab-Bar Label
@@ -113,7 +113,7 @@ npm install react-markdown --legacy-peer-deps
 
 ---
 
-### Änderung 9 — Einstellungen: ⓘ-Symbole bei Buttons ⚠️ OFFEN
+### Änderung 9 — Einstellungen: ⓘ-Symbole bei Buttons ✅ UMGESETZT (2026-04-04)
 **Datei:** `src/pages/Settings.tsx`
 **Änderung:** Jeder Button in den Einstellungen bekommt ein kleines ⓘ-Symbol daneben.
 **Bei Hover/Tap erscheint ein Tooltip** der erklärt:
@@ -128,7 +128,7 @@ npm install react-markdown --legacy-peer-deps
 
 ---
 
-### Änderung 10 — Review: Zeitraum-Auswahl ⚠️ OFFEN
+### Änderung 10 — Review: Zeitraum-Auswahl ✅ UMGESETZT (2026-04-04)
 **Datei:** `src/pages/Review.tsx`
 **Konzept:** Vor dem Start des Reviews wählt der User welchen Zeitraum er reviewen möchte.
 
@@ -147,9 +147,30 @@ npm install react-markdown --legacy-peer-deps
 
 ---
 
-## 💡 FEATURES (11–14)
+### Änderung 11 — Review: Intelligente Datenaggregation je Zeitraum ⚠️ OFFEN
+**Datei:** `src/pages/Review.tsx`, `src/lib/claude.ts`
 
-### Feature 11 — Kalender-Tab mit wiederkehrenden Zeitblöcken ⚠️ OFFEN
+**Problem:** Bei Quartal und Jahr werden aktuell zu viele rohe Tageseinträge an die KI übergeben. Das riskiert Token-Limit-Fehler und schlechte Antwortqualität.
+
+**Fix — Zusammenfassungs-Hierarchie:**
+- **Woche:** Tageseinträge der letzten 7 Tage + Wochenziele
+- **Monat:** Wochenreviews des Monats (gespeicherte Coach-Sessions mit `trigger = 'weekly_review'`) + Monatsziel + Wochenziele des Monats
+- **Quartal:** Monatsreviews des Quartals + Quartalsziel + Monatsziele
+- **Jahr:** Quartalsreviews + Jahresziel + Quartalsziele
+
+**Fallback:** Falls kein Review der höheren Ebene existiert → eine Ebene tiefer gehen (z.B. keine Monatsreviews → direkt Wocheneinträge verwenden).
+
+**Technisch:**
+- `coach_sessions` Tabelle existiert bereits mit `trigger` und `summary`-Feld
+- Neue DB-Funktion `getReviewSessions(userId, trigger, seit)` in `db.ts` zum Laden vergangener Reviews
+- In `generateReviewSummary()`: statt roher Einträge → komprimierte Review-Summaries als Kontext übergeben
+- Dadurch drastisch weniger Token, bessere Qualität bei langen Zeiträumen
+
+---
+
+## 💡 FEATURES (12–15)
+
+### Feature 12 — Kalender-Tab mit wiederkehrenden Zeitblöcken ⚠️ OFFEN
 **Aufwand: Sehr Groß — eigene Session**
 
 **Übersicht:**
@@ -215,7 +236,7 @@ CREATE TABLE recurring_block_exceptions (
 
 ---
 
-### Feature 12 — Ziel-Kaskade mit abhakbaren Tasks ⚠️ OFFEN
+### Feature 13 — Ziel-Kaskade mit abhakbaren Tasks ⚠️ OFFEN
 **Aufwand: Groß — eigene Session**
 
 **Konzept:**
@@ -247,9 +268,9 @@ CREATE TABLE goal_tasks (
 
 ---
 
-### Feature 13 — Tasks im Tagesjournal mit Dashboard-Sync ⚠️ OFFEN
-**Aufwand: Groß — eigene Session nach Feature 12**
-**Voraussetzung: Feature 12 muss fertig sein**
+### Feature 14 — Tasks im Tagesjournal mit Dashboard-Sync ⚠️ OFFEN
+**Aufwand: Groß — eigene Session nach Feature 13**
+**Voraussetzung: Feature 13 muss fertig sein**
 
 **Konzept:**
 Im Morgenjournal können konkrete Tages-Tasks eingetragen werden. Diese erscheinen im Dashboard und im Abendjournal zum Abhaken.
@@ -272,7 +293,7 @@ Im Morgenjournal können konkrete Tages-Tasks eingetragen werden. Diese erschein
 
 ---
 
-### Feature 14 — Coach-Archiv ⚠️ OFFEN
+### Feature 15 — Coach-Archiv ⚠️ OFFEN
 **Aufwand: Mittel — eigene Session**
 
 **Konzept:**
@@ -300,9 +321,10 @@ Vergangene Coach-Sessions sind abrufbar und durchsuchbar. Aktuell gehen alle Ses
 
 ## Reihenfolge der Umsetzung
 
-1. Bugs 1–6 (alle klein, schnell behebbar)
-2. Änderungen 7–10 (mittel)
-3. Feature 12 — Ziel-Kaskade mit Tasks
-4. Feature 13 — Tasks im Tagesjournal (baut auf 12 auf)
+1. ✅ Bugs 1–6 (erledigt 2026-04-04)
+2. ✅ Änderungen 7–10 (erledigt 2026-04-04)
+3. Änderung 11 — Intelligente Datenaggregation (Review)
+4. Feature 13 — Ziel-Kaskade mit Tasks
+5. Feature 14 — Tasks im Tagesjournal (baut auf 13 auf)
 5. Feature 11 — Kalender (sehr groß, eigene Session)
 6. Feature 14 — Coach-Archiv

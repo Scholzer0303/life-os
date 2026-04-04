@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { ChevronRight, CheckCircle2, Circle, Plus, Trash2, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../store/useStore'
-import { getWeeklyGoals, updateGoal, createGoal, createCoachSession } from '../lib/db'
-import { generateWeeklySummary, generateWeeklyFeedback } from '../lib/claude'
+import { getWeeklyGoals, updateGoal, createGoal, createCoachSession, getRecentEntries } from '../lib/db'
+import { generateReviewSummary, generateWeeklyFeedback } from '../lib/claude'
+import type { ReviewPeriod } from '../lib/claude'
 import { getCurrentWeek, getCurrentQuarter } from '../lib/utils'
 import type { GoalRow } from '../types/database'
 import type { CoachMessage } from '../types'
@@ -20,6 +21,8 @@ const STEPS = [
 export default function Review() {
   const { user, profile, goals, recentEntries } = useStore()
   const aiProfile = profile?.ai_profile as Record<string, string> | null
+  const [period, setPeriod] = useState<ReviewPeriod>('week')
+  const [started, setStarted] = useState(false)
   const [step, setStep] = useState(0)
 
   // Step 1 — AI summary
@@ -60,16 +63,27 @@ export default function Review() {
     }
   }, [user])
 
-  // Load summary on mount
+  // KI-Zusammenfassung nur laden wenn Review manuell gestartet wurde
   useEffect(() => {
-    if (!profile) return
+    if (!started || !profile || !user) return
     setSummaryLoading(true)
     setSummaryError(null)
-    generateWeeklySummary(recentEntries, goals.filter((g) => g.type === 'weekly'), profile)
+
+    const daysByPeriod: Record<ReviewPeriod, number> = { week: 7, month: 30, quarter: 90, year: 365 }
+    const goalTypesByPeriod: Record<ReviewPeriod, string[]> = {
+      week: ['weekly'],
+      month: ['monthly', 'weekly'],
+      quarter: ['quarterly'],
+      year: ['year', 'quarterly'],
+    }
+    const relevantGoals = goals.filter((g) => goalTypesByPeriod[period].includes(g.type))
+
+    getRecentEntries(user.id, daysByPeriod[period])
+      .then((entries) => generateReviewSummary(period, entries, relevantGoals, profile))
       .then(setSummary)
       .catch((e) => setSummaryError(e instanceof Error ? e.message : 'Fehler'))
       .finally(() => setSummaryLoading(false))
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [started]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load week goals when reaching step 4
   useEffect(() => {
@@ -181,6 +195,83 @@ export default function Review() {
     if (step === 1) return wentWell.trim().length > 0
     if (step === 2) return wouldChange.trim().length > 0
     return true
+  }
+
+  const PERIOD_OPTIONS: { value: ReviewPeriod; label: string }[] = [
+    { value: 'week', label: 'Woche' },
+    { value: 'month', label: 'Monat' },
+    { value: 'quarter', label: 'Quartal' },
+    { value: 'year', label: 'Jahr' },
+  ]
+  const periodLabel = PERIOD_OPTIONS.find((p) => p.value === period)?.label ?? 'Woche'
+
+  if (!started) {
+    return (
+      <div style={{ padding: '1.5rem', maxWidth: 480, margin: '0 auto' }}>
+        <h1
+          style={{
+            fontFamily: 'Lora, serif',
+            fontSize: '1.75rem',
+            fontWeight: 600,
+            marginBottom: '0.5rem',
+            color: 'var(--text-primary)',
+          }}
+        >
+          {periodLabel}review
+        </h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+          Nimm dir ein paar Minuten um den vergangenen Zeitraum zu reflektieren. Dein Coach analysiert deine Einträge und gibt dir persönliches Feedback.
+        </p>
+
+        {/* Zeitraum-Auswahl */}
+        <div style={{ marginBottom: '1.75rem' }}>
+          <p style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.6rem' }}>
+            Zeitraum
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {PERIOD_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setPeriod(opt.value)}
+                style={{
+                  flex: 1,
+                  padding: '0.6rem 0.25rem',
+                  borderRadius: '10px',
+                  border: period === opt.value ? 'none' : '1px solid var(--border)',
+                  background: period === opt.value ? 'var(--accent)' : 'var(--bg-card)',
+                  color: period === opt.value ? '#fff' : 'var(--text-secondary)',
+                  fontSize: '0.85rem',
+                  fontWeight: period === opt.value ? 600 : 400,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={() => setStarted(true)}
+          style={{
+            width: '100%',
+            background: 'var(--accent)',
+            border: 'none',
+            borderRadius: 14,
+            padding: '1rem',
+            color: '#fff',
+            fontSize: '1rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          {periodLabel}review starten →
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -502,7 +593,7 @@ export default function Review() {
                       fontFamily: 'inherit',
                     }}
                   >
-                    {saved ? '✓ Gespeichert' : 'Wochen-Review abschließen'}
+                    {saved ? '✓ Gespeichert' : 'Wochenreview abschließen'}
                   </button>
                 </>
               )}
