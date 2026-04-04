@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md
 # Wird nach jedem Schritt aktualisiert — immer die neueste Version ins Claude Project hochladen
 
-Zuletzt aktualisiert: Nach Schritt 14 (Live deployed)
+Zuletzt aktualisiert: Nach Schritt 20 (Phase 2 vollständig)
 
 ---
 
@@ -325,17 +325,36 @@ Gespeichert in Supabase, zurück zum Dashboard nach Speichern
 
 **OnboardingData:** `ikigai: IkigaiData` hinzugefügt; `Onboarding.tsx` speichert ikigai bei Finish
 
+### ✅ Schritt 20 — KI Muster-Erkennung
+
+**types/index.ts:**
+- `PatternAnalysis` Interface: energyPatterns, focusPatterns, sabotagePatterns, progressObservation, coachQuestion, generatedAt
+
+**claude.ts:**
+- `generatePatternAnalysis(profile, entries, goals)` → JSON-Parsing mit Backtick-Strip + try/catch
+
+**Dashboard.tsx:**
+- Auto-Analyse ab 14 Einträgen, alle 14 Tage (silent, kein UI-Feedback)
+- Imports: `generatePatternAnalysis`, `updateProfile`
+
+**Coach.tsx:**
+- Muster-Panel auf Modus-Auswahlseite (< 30 Tage alt): Energie / Fokus / Achtung
+- "Muster mit Coach besprechen →"-Button startet 'clarity'-Session mit coachQuestion als Starter
+- `startSession` erweitert um optionales `starterOverride`-Argument
+
+**Review.tsx:**
+- Step 0 (KI-Zusammenfassung): sabotagePatterns + coachQuestion als Anhang
+
+**Settings.tsx Sektion 3:**
+- Vollständige Anzeige: Energie-Muster, Fokus-Muster, Sabotage-Trigger, "Zuletzt analysiert"-Datum
+- "Jetzt neu analysieren"-Button (nur aktiv wenn ≥14 Einträge)
+- Noch-nicht-Zustand: zeigt verbleibende Einträge bis 14
+
 ---
 
-## Ausstehend (Phase 2)
+## Ausstehend
 
-### ⏳ Schritt 20 — KI Muster-Erkennung
-- PatternAnalysis-Interface in types/index.ts
-- `generatePatternAnalysis()` in claude.ts
-- Dashboard: Auto-Analyse ab 14 Einträgen, alle 14 Tage
-- Coach.tsx: Muster-Anzeige mit "Mit Coach besprechen"-Button
-- Review.tsx: sabotagePatterns + coachQuestion in Wochen-Zusammenfassung
-- Settings.tsx Sektion 3: KI-Profil vollständig mit Muster-Feldern
+Alle Phase-2-Schritte abgeschlossen. 🎉
 
 ---
 

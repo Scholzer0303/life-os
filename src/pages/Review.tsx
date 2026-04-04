@@ -19,6 +19,7 @@ const STEPS = [
 
 export default function Review() {
   const { user, profile, goals, recentEntries } = useStore()
+  const aiProfile = profile?.ai_profile as Record<string, string> | null
   const [step, setStep] = useState(0)
 
   // Step 1 — AI summary
@@ -248,6 +249,27 @@ export default function Review() {
                   }}
                 >
                   {summary}
+                  {aiProfile?.sabotagePatterns && (
+                    <div
+                      style={{
+                        marginTop: '1rem',
+                        paddingTop: '1rem',
+                        borderTop: '1px solid var(--border)',
+                      }}
+                    >
+                      <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', margin: '0 0 0.4rem' }}>
+                        Erkannte Muster
+                      </p>
+                      <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: '0 0 0.5rem', lineHeight: 1.5 }}>
+                        ⚠️ {aiProfile.sabotagePatterns}
+                      </p>
+                      {aiProfile.coachQuestion && (
+                        <p style={{ fontSize: '0.875rem', color: 'var(--accent)', margin: 0, fontStyle: 'italic' }}>
+                          💬 {aiProfile.coachQuestion}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

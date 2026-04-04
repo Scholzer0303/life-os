@@ -32,3 +32,12 @@ export interface CoachMessage {
   content: string
   timestamp: string
 }
+
+export interface PatternAnalysis {
+  energyPatterns: string       // "Montags energielos (Ø 3.1/10), mittwochs am stärksten (Ø 7.8/10)"
+  focusPatterns: string        // "Produktivste Zeit: morgens 9–11 Uhr"
+  sabotagePatterns: string     // "Häufige Blocker: Trading-Themen (4x), Energiemangel (3x)"
+  progressObservation: string  // Fortschritt in Richtung Nordstern
+  coachQuestion: string        // Eine offene Frage basierend auf den Mustern
+  generatedAt: string          // ISO timestamp
+}

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Plus, LogOut, RefreshCw, AlertTriangle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { updateProfile, countJournalEntries, countGoals, deleteAllJournalEntries, deleteAllGoals, deleteAllUserData } from '../lib/db'
+import { generatePatternAnalysis } from '../lib/claude'
 import { useStore } from '../store/useStore'
 
 // ─── Kleine Hilfs-Komponenten ─────────────────────────────────────────────────
@@ -135,7 +136,7 @@ function ConfirmModal({
 // ─── Haupt-Seite ──────────────────────────────────────────────────────────────
 
 export default function Settings() {
-  const { profile, user, setProfile } = useStore()
+  const { profile, user, setProfile, recentEntries, goals } = useStore()
   const navigate = useNavigate()
 
   // Profil-Edit-State
@@ -287,7 +288,25 @@ export default function Settings() {
 
   const ikigaiRaw = profile?.ikigai as Record<string, string> | null
   const aiProfile = profile?.ai_profile as Record<string, string> | null
-  const hasAiProfile = aiProfile && Object.keys(aiProfile).length > 0
+  const hasAiProfile = aiProfile && aiProfile.energyPatterns
+
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null)
+
+  async function handleReanalyze() {
+    if (!profile || !user || recentEntries.length < 14) return
+    setIsAnalyzing(true)
+    setAnalyzeError(null)
+    try {
+      const analysis = await generatePatternAnalysis(profile, recentEntries, goals)
+      const updated = await updateProfile(user.id, { ai_profile: analysis as unknown as import('../types/database').Json })
+      setProfile(updated)
+    } catch (err) {
+      setAnalyzeError(err instanceof Error ? err.message : 'Fehler bei der Analyse.')
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
 
   // Ikigai edit state
   const [ikigaiLoves, setIkigaiLoves] = useState(ikigaiRaw?.loves ?? '')
@@ -641,33 +660,87 @@ export default function Settings() {
           </div>
         </SectionCard>
 
-        {/* ── Sektion 3: KI-Profil (Platzhalter) ── */}
-        <SectionCard title="Dein KI-Profil">
+        {/* ── Sektion 3: KI-Profil ── */}
+        <SectionCard title="🧠 Dein KI-Profil">
           {hasAiProfile ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {aiProfile.energyPatterns && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              {aiProfile!.energyPatterns && (
                 <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Energie</span>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', marginTop: '0.2rem' }}>{aiProfile.energyPatterns}</p>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Energie-Muster</span>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', marginTop: '0.2rem', lineHeight: 1.5 }}>{aiProfile!.energyPatterns}</p>
                 </div>
               )}
-              {aiProfile.focusPatterns && (
+              {aiProfile!.focusPatterns && (
                 <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Fokus</span>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', marginTop: '0.2rem' }}>{aiProfile.focusPatterns}</p>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Fokus-Muster</span>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', marginTop: '0.2rem', lineHeight: 1.5 }}>{aiProfile!.focusPatterns}</p>
                 </div>
               )}
-              {aiProfile.sabotagePatterns && (
+              {aiProfile!.sabotagePatterns && (
                 <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Achtung</span>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', marginTop: '0.2rem' }}>{aiProfile.sabotagePatterns}</p>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sabotage-Trigger</span>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-primary)', marginTop: '0.2rem', lineHeight: 1.5 }}>{aiProfile!.sabotagePatterns}</p>
                 </div>
               )}
+              {aiProfile!.generatedAt && (
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
+                  Zuletzt analysiert: {new Date(aiProfile!.generatedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </p>
+              )}
+              {analyzeError && (
+                <p style={{ fontSize: '0.825rem', color: '#dc2626', margin: 0 }}>{analyzeError}</p>
+              )}
+              <button
+                onClick={handleReanalyze}
+                disabled={isAnalyzing || recentEntries.length < 14}
+                style={{
+                  marginTop: '0.25rem',
+                  padding: '0.6rem 1rem',
+                  background: isAnalyzing || recentEntries.length < 14 ? 'var(--bg-secondary)' : 'var(--accent)',
+                  color: isAnalyzing || recentEntries.length < 14 ? 'var(--text-muted)' : '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  fontWeight: 500,
+                  cursor: isAnalyzing || recentEntries.length < 14 ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {isAnalyzing ? 'Analysiere…' : 'Jetzt neu analysieren'}
+              </button>
             </div>
           ) : (
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-              Schreibe 14 Journal-Einträge — dann erkenne ich deine Muster.
-            </p>
+            <div>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: '0 0 0.75rem' }}>
+                {journalCount !== null && journalCount < 14
+                  ? `Schreibe noch ${14 - journalCount} Journal-${14 - journalCount === 1 ? 'Eintrag' : 'Einträge'} — dann erkenne ich deine Muster.`
+                  : 'Schreibe 14 Journal-Einträge — dann erkenne ich deine Muster.'}
+              </p>
+              {journalCount !== null && journalCount >= 14 && (
+                <>
+                  {analyzeError && (
+                    <p style={{ fontSize: '0.825rem', color: '#dc2626', marginBottom: '0.5rem' }}>{analyzeError}</p>
+                  )}
+                  <button
+                    onClick={handleReanalyze}
+                    disabled={isAnalyzing}
+                    style={{
+                      padding: '0.6rem 1rem',
+                      background: isAnalyzing ? 'var(--bg-secondary)' : 'var(--accent)',
+                      color: isAnalyzing ? 'var(--text-muted)' : '#fff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.85rem',
+                      fontWeight: 500,
+                      cursor: isAnalyzing ? 'not-allowed' : 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    {isAnalyzing ? 'Analysiere…' : 'Muster jetzt analysieren'}
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </SectionCard>
 

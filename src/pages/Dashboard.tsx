@@ -11,7 +11,9 @@ import {
   getHeatmapData,
   getLastJournalDate,
   updateGoal,
+  updateProfile,
 } from '../lib/db'
+import { generatePatternAnalysis } from '../lib/claude'
 import { formatDate, daysSince } from '../lib/utils'
 import HeatmapGrid from '../components/dashboard/HeatmapGrid'
 import StreakBadge from '../components/dashboard/StreakBadge'
@@ -47,6 +49,21 @@ export default function Dashboard() {
     if (!user) return
     loadDashboardData(user.id)
   }, [user])
+
+  // Auto pattern analysis: ab 14 Einträgen, alle 14 Tage
+  useEffect(() => {
+    if (!profile || !recentEntries || recentEntries.length < 14) return
+    const aiProfile = profile.ai_profile as Record<string, string> | null
+    const lastAnalysis = aiProfile?.generatedAt
+    const daysSince = lastAnalysis
+      ? Math.floor((Date.now() - new Date(lastAnalysis).getTime()) / 86400000)
+      : 999
+    if (daysSince >= 14) {
+      generatePatternAnalysis(profile, recentEntries, goals)
+        .then((analysis) => updateProfile(profile.id, { ai_profile: analysis as unknown as import('../types/database').Json }))
+        .catch((err) => console.error('Pattern analysis (silent):', err))
+    }
+  }, [recentEntries.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!profile?.identity_statement) return

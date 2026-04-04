@@ -49,7 +49,7 @@ export default function Coach() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const startSession = useCallback(async (selectedMode: CoachMode) => {
+  const startSession = useCallback(async (selectedMode: CoachMode, starterOverride?: string) => {
     if (!user || !profile) return
     setMode(selectedMode)
     setError(null)
@@ -57,7 +57,7 @@ export default function Coach() {
     const modeConfig = MODES.find((m) => m.value === selectedMode)!
     const starterMessage: CoachMessage = {
       role: 'user',
-      content: modeConfig.starter,
+      content: starterOverride ?? modeConfig.starter,
       timestamp: new Date().toISOString(),
     }
 
@@ -135,6 +135,13 @@ export default function Coach() {
     }
   }
 
+  // Muster-Daten aus ai_profile
+  const aiProfile = profile?.ai_profile as Record<string, string> | null
+  const hasPatterns = aiProfile &&
+    aiProfile.energyPatterns &&
+    aiProfile.generatedAt &&
+    Math.floor((Date.now() - new Date(aiProfile.generatedAt).getTime()) / 86400000) < 30
+
   // Mode selection screen
   if (!mode) {
     return (
@@ -157,6 +164,61 @@ export default function Coach() {
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>
               {profile.north_star}
             </p>
+          </div>
+        )}
+
+        {/* Muster-Panel */}
+        {hasPatterns && (
+          <div
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: '1rem 1.25rem',
+              marginBottom: '1.5rem',
+            }}
+          >
+            <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
+              🔍 Deine Muster
+            </p>
+            {aiProfile!.energyPatterns && (
+              <div style={{ marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Energie: </span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{aiProfile!.energyPatterns}</span>
+              </div>
+            )}
+            {aiProfile!.focusPatterns && (
+              <div style={{ marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Fokus: </span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{aiProfile!.focusPatterns}</span>
+              </div>
+            )}
+            {aiProfile!.sabotagePatterns && (
+              <div style={{ marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Achtung: </span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{aiProfile!.sabotagePatterns}</span>
+              </div>
+            )}
+            {aiProfile!.coachQuestion && (
+              <button
+                onClick={() => startSession('clarity', aiProfile!.coachQuestion)}
+                style={{
+                  width: '100%',
+                  padding: '0.6rem 0.9rem',
+                  background: 'rgba(134,59,255,0.1)',
+                  border: '1px solid rgba(134,59,255,0.25)',
+                  borderRadius: 8,
+                  color: 'var(--accent)',
+                  fontSize: '0.85rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Muster mit Coach besprechen →
+              </button>
+            )}
           </div>
         )}
 

@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import type { Profile, JournalEntry, Goal, CoachMessage } from '../types'
+import type { Profile, JournalEntry, Goal, CoachMessage, PatternAnalysis } from '../types'
 
 const MODEL = 'claude-sonnet-4-6'
 const MAX_TOKENS = 1024
@@ -320,6 +320,56 @@ export async function reformulateIdentity(userText: string): Promise<string> {
   const block = response.content[0]
   if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
   return block.text
+}
+
+export async function generatePatternAnalysis(
+  profile: Profile,
+  entries: JournalEntry[],
+  goals: Goal[]
+): Promise<PatternAnalysis> {
+  checkRateLimit()
+  const client = getClient()
+
+  const ikigai = profile.ikigai as Record<string, string> | null
+  const entrySummary = entries
+    .map((e) =>
+      `Datum: ${e.entry_date} | Typ: ${e.type} | Feeling: ${e.feeling_score ?? '-'}/5 | Ziel: ${e.main_goal_today ?? '-'} | Blocker: ${e.what_blocked ?? '-'} | Energie: ${e.energy_level ?? '-'}/10 | Geschafft: ${e.accomplished ?? '-'}`
+    )
+    .join('\n')
+
+  const prompt = `Du analysierst Journal-Einträge als Verhaltenspsychologe.
+
+NORDSTERN: ${profile.north_star ?? 'nicht angegeben'}
+WERTE: ${(profile.values ?? []).join(', ') || 'nicht angegeben'}
+IKIGAI-KERN: ${ikigai?.synthesis ?? 'nicht angegeben'}
+IDENTITÄT: ${profile.identity_statement ?? 'nicht angegeben'}
+AKTIVE ZIELE: ${goals.filter((g) => g.status === 'active').map((g) => g.title).join(', ') || 'keine'}
+
+EINTRÄGE (${entries.length} Stück, älteste zuerst):
+${entrySummary}
+
+Antworte AUSSCHLIESSLICH als valides JSON ohne Markdown-Backticks:
+{"energyPatterns":"...","focusPatterns":"...","sabotagePatterns":"...","progressObservation":"...","coachQuestion":"..."}
+
+Konkret, direkt, nicht wertend. Echte Zahlen aus den Daten verwenden. Auf Deutsch.`
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 600,
+    messages: [{ role: 'user', content: prompt }],
+  })
+
+  const block = response.content[0]
+  if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
+
+  // Strip potential markdown backticks
+  const cleaned = block.text.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim()
+  const parsed = JSON.parse(cleaned) as Omit<PatternAnalysis, 'generatedAt'>
+
+  return {
+    ...parsed,
+    generatedAt: new Date().toISOString(),
+  }
 }
 
 export async function checkGoalAlignment(
