@@ -128,7 +128,7 @@ Die goal_tasks Logik existiert bereits für Wochenziele. Sie soll jetzt für ALL
 
 ---
 
-### Feature 8 — Kalender: Spezifische Wochentage als Wiederholung ⚠️ OFFEN
+### Feature 8 — Kalender: Spezifische Wochentage als Wiederholung ✅ UMGESETZT (2026-04-05)
 **Dateien:** `src/pages/Calendar.tsx`, `src/components/calendar/BlockSheet.tsx`, `src/lib/db.ts`, `src/types/index.ts`
 **Aufwand:** Mittel
 
