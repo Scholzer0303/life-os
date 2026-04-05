@@ -1,13 +1,20 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronRight, CheckCircle2, Circle, Plus, Trash2, Loader2 } from 'lucide-react'
+import { ChevronRight, CheckCircle2, Circle, Plus, Trash2, Loader2, Archive, ArrowLeft } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../store/useStore'
-import { getWeeklyGoals, updateGoal, createGoal, createCoachSession, getRecentEntries, getReviewSessions } from '../lib/db'
+import { getWeeklyGoals, updateGoal, createGoal, createCoachSession, getRecentEntries, getReviewSessions, getReviewArchive } from '../lib/db'
 import { generateReviewSummary, generateWeeklyFeedback } from '../lib/claude'
 import type { ReviewPeriod } from '../lib/claude'
 import { getCurrentWeek, getCurrentQuarter } from '../lib/utils'
-import type { GoalRow } from '../types/database'
+import type { GoalRow, CoachSessionRow } from '../types/database'
 import type { CoachMessage } from '../types'
+
+const REVIEW_TRIGGER_LABELS: Record<string, string> = {
+  weekly_review: 'Wochenreview',
+  monthly_review: 'Monatsreview',
+  quarterly_review: 'Quartalreview',
+  yearly_review: 'Jahresreview',
+}
 
 const STEPS = [
   'KI-Zusammenfassung',
@@ -46,6 +53,28 @@ export default function Review() {
   const [feedbackLoading, setFeedbackLoading] = useState(false)
   const [feedbackError, setFeedbackError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+
+  // Archive
+  const [showArchive, setShowArchive] = useState(false)
+  const [archiveItems, setArchiveItems] = useState<CoachSessionRow[]>([])
+  const [archiveLoading, setArchiveLoading] = useState(false)
+  const [archiveError, setArchiveError] = useState<string | null>(null)
+  const [selectedReview, setSelectedReview] = useState<CoachSessionRow | null>(null)
+
+  async function openArchive() {
+    if (!user) return
+    setShowArchive(true)
+    setArchiveLoading(true)
+    setArchiveError(null)
+    try {
+      const items = await getReviewArchive(user.id)
+      setArchiveItems(items)
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'Fehler beim Laden')
+    } finally {
+      setArchiveLoading(false)
+    }
+  }
 
   const monthlyGoals = goals.filter((g) => g.type === 'monthly' && g.status === 'active')
   const parentMonthlyId = monthlyGoals[0]?.id ?? null
@@ -252,20 +281,100 @@ export default function Review() {
   ]
   const periodLabel = PERIOD_OPTIONS.find((p) => p.value === period)?.label ?? 'Woche'
 
+  // ── Archiv: Detail-Ansicht ──
+  if (showArchive && selectedReview) {
+    return (
+      <div style={{ padding: '1.5rem', maxWidth: 480, margin: '0 auto' }}>
+        <button
+          onClick={() => setSelectedReview(null)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: 0, marginBottom: '1.25rem', fontFamily: 'inherit' }}
+        >
+          <ArrowLeft size={15} /> Zurück
+        </button>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 0.25rem' }}>
+          {REVIEW_TRIGGER_LABELS[selectedReview.trigger] ?? selectedReview.trigger}
+        </p>
+        <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.3rem', fontWeight: 600, margin: '0 0 1.25rem', color: 'var(--text-primary)' }}>
+          {new Date(selectedReview.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
+        </h2>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '1rem 1.25rem', fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+          {selectedReview.summary ?? '(Kein Inhalt gespeichert)'}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Archiv: Listen-Ansicht ──
+  if (showArchive) {
+    return (
+      <div style={{ padding: '1.5rem', maxWidth: 480, margin: '0 auto' }}>
+        <button
+          onClick={() => setShowArchive(false)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: 0, marginBottom: '1.25rem', fontFamily: 'inherit' }}
+        >
+          <ArrowLeft size={15} /> Zurück
+        </button>
+        <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.4rem', fontWeight: 600, margin: '0 0 1.25rem', color: 'var(--text-primary)' }}>
+          Vergangene Reviews
+        </h2>
+        {archiveLoading && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-muted)' }}>
+            <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
+            <span style={{ fontSize: '0.9rem' }}>Lade Reviews…</span>
+          </div>
+        )}
+        {archiveError && <p style={{ color: '#dc2626', fontSize: '0.9rem' }}>{archiveError}</p>}
+        {!archiveLoading && !archiveError && archiveItems.length === 0 && (
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Noch keine abgeschlossenen Reviews vorhanden.</p>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+          {archiveItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setSelectedReview(item)}
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '0.85rem 1rem', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  {REVIEW_TRIGGER_LABELS[item.trigger] ?? item.trigger}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {new Date(item.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </span>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                {item.summary ? item.summary.slice(0, 100) + (item.summary.length > 100 ? '…' : '') : '(Kein Inhalt)'}
+              </p>
+            </button>
+          ))}
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    )
+  }
+
   if (!started) {
     return (
       <div style={{ padding: '1.5rem', maxWidth: 480, margin: '0 auto' }}>
-        <h1
-          style={{
-            fontFamily: 'Lora, serif',
-            fontSize: '1.75rem',
-            fontWeight: 600,
-            marginBottom: '0.5rem',
-            color: 'var(--text-primary)',
-          }}
-        >
-          {periodLabel}review
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+          <h1
+            style={{
+              fontFamily: 'Lora, serif',
+              fontSize: '1.75rem',
+              fontWeight: 600,
+              margin: 0,
+              color: 'var(--text-primary)',
+            }}
+          >
+            {periodLabel}review
+          </h1>
+          <button
+            onClick={openArchive}
+            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '0.4rem 0.75rem', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontFamily: 'inherit', flexShrink: 0 }}
+          >
+            <Archive size={14} /> Vergangene Reviews
+          </button>
+        </div>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '1.5rem' }}>
           Nimm dir ein paar Minuten um den vergangenen Zeitraum zu reflektieren. Dein Coach analysiert deine Einträge und gibt dir persönliches Feedback.
         </p>

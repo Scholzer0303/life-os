@@ -356,6 +356,17 @@ export async function getReviewSessions(
   return (data ?? []) as CoachSessionRow[]
 }
 
+export async function getReviewArchive(userId: string): Promise<CoachSessionRow[]> {
+  const { data, error } = await supabase
+    .from('coach_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .in('trigger', ['weekly_review', 'monthly_review', 'quarterly_review', 'yearly_review'])
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as CoachSessionRow[]
+}
+
 // ─── Goal Tasks ──────────────────────────────────────────────────────────────
 
 export async function getGoalTasks(goalId: string): Promise<GoalTaskRow[]> {

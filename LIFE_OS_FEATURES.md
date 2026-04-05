@@ -77,7 +77,7 @@ Spezifikation steht bereits vollständig unten — nichts geht verloren.
 
 ---
 
-### Feature 5 — Review-Archiv ⚠️ OFFEN
+### Feature 5 — Review-Archiv ✅ UMGESETZT (2026-04-05)
 **Datei:** `src/pages/Review.tsx`, `src/lib/db.ts`
 **Aufwand:** Klein-Mittel
 
