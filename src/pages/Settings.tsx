@@ -941,6 +941,20 @@ export default function Settings() {
         </div>
 
         {/* ── Sektion 6: Account ── */}
+        <SectionCard title="Datenspeicher">
+          <p style={{ margin: '0 0 0.6rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            Deine Daten werden in Supabase gespeichert. Der kostenlose Plan bietet 500 MB Datenbank-Speicher. Mit normaler Nutzung reicht das für mehrere Jahre.
+          </p>
+          <a
+            href="https://supabase.com/dashboard/project/oqmowbctjzoiwtgpoqmo/settings/billing"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: '0.85rem', color: 'var(--accent)', textDecoration: 'none' }}
+          >
+            Speichernutzung im Supabase Dashboard prüfen →
+          </a>
+        </SectionCard>
+
         <SectionCard title="Account">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button

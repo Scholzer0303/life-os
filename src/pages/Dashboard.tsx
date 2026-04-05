@@ -25,6 +25,50 @@ import GoalCard from '../components/dashboard/GoalCard'
 import type { GoalRow, GoalTaskRow } from '../types/database'
 import type { DailyTask } from '../types'
 
+function InfoTooltip({ text }: { text: string }) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+      <button
+        onMouseEnter={() => setVisible(true)}
+        onMouseLeave={() => setVisible(false)}
+        onTouchStart={() => setVisible((v) => !v)}
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          padding: '0.15rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
+        }}
+        aria-label="Info"
+      >
+        <Info size={14} />
+      </button>
+      {visible && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            marginBottom: '6px',
+            background: 'var(--bg-primary, #1a1a2e)',
+            color: 'var(--text-primary)',
+            fontSize: '0.72rem',
+            lineHeight: 1.45,
+            padding: '0.5rem 0.7rem',
+            borderRadius: '8px',
+            width: '220px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+            zIndex: 50,
+            pointerEvents: 'none',
+            whiteSpace: 'normal',
+          }}
+        >
+          {text}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function getGreeting(name: string | null): string {
   const h = new Date().getHours()
   const n = name ?? 'da'
@@ -357,70 +401,6 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* ── Fokus-Banner ─────────────────────────────────────────── */}
-      {morningGoalToday ? (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          style={{
-            padding: '0.75rem 1rem',
-            background: 'rgba(134,59,255,0.1)',
-            border: '1px solid rgba(134,59,255,0.25)',
-            borderRadius: '10px',
-            marginBottom: '1.25rem',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '0.5rem',
-          }}
-        >
-          <span style={{ fontSize: '1rem', lineHeight: 1 }}>🎯</span>
-          <div>
-            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Dein Fokus heute
-            </span>
-            <p style={{ margin: '0.15rem 0 0', fontSize: '0.875rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>
-              {morningGoalToday}
-            </p>
-          </div>
-        </motion.div>
-      ) : !hasMorningEntry && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          style={{
-            padding: '0.75rem 1rem',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: '10px',
-            marginBottom: '1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-            Starte deinen Tag — Ziel setzen
-          </span>
-          <button
-            onClick={() => navigate('/journal?type=morning')}
-            style={{
-              padding: '0.4rem 0.75rem',
-              background: 'var(--accent)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Starten →
-          </button>
-        </motion.div>
-      )}
-
       {/* ── Nordstern ────────────────────────────────────────────── */}
       {profile?.north_star && (
         <div
@@ -641,6 +621,70 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {/* ── Fokus-Banner ─────────────────────────────────────────── */}
+      {morningGoalToday ? (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          style={{
+            padding: '0.75rem 1rem',
+            background: 'rgba(134,59,255,0.1)',
+            border: '1px solid rgba(134,59,255,0.25)',
+            borderRadius: '10px',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.5rem',
+          }}
+        >
+          <span style={{ fontSize: '1rem', lineHeight: 1 }}>🎯</span>
+          <div>
+            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Dein Fokus heute
+            </span>
+            <p style={{ margin: '0.15rem 0 0', fontSize: '0.875rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>
+              {morningGoalToday}
+            </p>
+          </div>
+        </motion.div>
+      ) : !hasMorningEntry && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          style={{
+            padding: '0.75rem 1rem',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: '10px',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Starte deinen Tag — Ziel setzen
+          </span>
+          <button
+            onClick={() => navigate('/journal?type=morning')}
+            style={{
+              padding: '0.4rem 0.75rem',
+              background: 'var(--accent)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Starten →
+          </button>
+        </motion.div>
+      )}
+
       {/* ── Heute zu erledigen ───────────────────────────────────── */}
       {hasMorningEntry && dailyTasks.length > 0 && (
         <section style={{ marginBottom: '1.75rem' }}>
@@ -791,7 +835,7 @@ export default function Dashboard() {
       </section>
 
       {/* ── Manual Pattern Interrupt ──────────────────────────────── */}
-      <div style={{ textAlign: 'center', paddingBottom: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', paddingBottom: '1rem', gap: '0.25rem' }}>
         <button
           onClick={() => navigate('/pattern-interrupt')}
           style={{
@@ -807,6 +851,7 @@ export default function Dashboard() {
         >
           Ich bin gerade raus aus dem Rhythmus
         </button>
+        <InfoTooltip text="Wenn du hier tippst, öffnet sich ein kurzer geführter Flow der dir hilft wieder in deinen Rhythmus zu finden." />
       </div>
     </div>
   )

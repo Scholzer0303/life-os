@@ -5,9 +5,9 @@ import type { LucideIcon } from 'lucide-react'
 const NAV_ITEMS: { to: string; icon: LucideIcon; label: string; end?: boolean }[] = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/journal', icon: BookOpen, label: 'Journal' },
-  { to: '/goals', icon: Target, label: 'Ziele' },
   { to: '/calendar', icon: Calendar, label: 'Kalender' },
   { to: '/coach', icon: MessageCircle, label: 'Coach' },
+  { to: '/goals', icon: Target, label: 'Ziele' },
   { to: '/review', icon: RotateCcw, label: 'Review' },
   { to: '/settings', icon: Settings, label: 'Einstellungen' },
 ]
