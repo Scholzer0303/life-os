@@ -170,7 +170,7 @@ npm install react-markdown --legacy-peer-deps
 
 ## 💡 FEATURES (12–15)
 
-### Feature 12 — Kalender-Tab mit wiederkehrenden Zeitblöcken ⚠️ OFFEN
+### Feature 12 — Kalender-Tab mit wiederkehrenden Zeitblöcken ✅ UMGESETZT (2026-04-05)
 **Aufwand: Sehr Groß — eigene Session**
 
 **Übersicht:**

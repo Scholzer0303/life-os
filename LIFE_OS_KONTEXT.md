@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md
 # Wird nach jedem Schritt aktualisiert — immer die neueste Version ins Claude Project hochladen
 
-Zuletzt aktualisiert: 2026-04-04 (Änderung 11 ✅, Feature 13 ✅ + Bugfixes, Feature 14 ✅, Feature 15 ✅)
+Zuletzt aktualisiert: 2026-04-05 (Feature 12 ✅ — Kalender-Tab mit wiederkehrenden Zeitblöcken)
 
 ---
 
@@ -171,14 +171,17 @@ Bearbeitungsreihenfolge: erst alle Bugs (1–6) ✅, dann Änderungen (7–11), 
 
 ### 💡 Große Features — eigene Sessions je Feature
 
-**Feature 12 — Kalender-Tab mit wiederkehrenden Zeitblöcken** ⚠️ OFFEN
-- Eigener Tab "Kalender" in der Navigation
-- Zeitblöcke als Tagesansicht (ähnlich Google Calendar, aber in der App)
-- Wiederkehrende Serien: täglich, Mo-Fr, wöchentlich etc.
-- Beim Bearbeiten einer Serie: Auswahl "Nur diesen Termin / Ab diesem Termin / Alle Termine"
-- Sync: Änderungen im Morgenjournal Schritt 4 erscheinen im Kalender und umgekehrt
-- Neue Supabase-Tabellen `recurring_blocks` + `recurring_block_exceptions` nötig
-- Aufwand: Sehr Groß — eigene Session
+**Feature 12 — Kalender-Tab mit wiederkehrenden Zeitblöcken** ✅ BEHOBEN (2026-04-05)
+- Neue Supabase-Tabellen angelegt: `recurring_blocks` + `recurring_block_exceptions` (mit RLS)
+- Neue DB-Funktionen in `db.ts`: getRecurringBlocks, createRecurringBlock, updateRecurringBlock, deleteRecurringBlock, getExceptionsForBlocks, upsertBlockException, deleteBlockException, deleteExceptionsFrom
+- Neue Types in `types/index.ts`: RecurrenceType, RecurringBlock, BlockException, DayBlock, BlockFormData, SeriesEditScope
+- Neue Seite `src/pages/Calendar.tsx`: Tagesansicht 06:00–22:00 in 30-Min-Slots, Datum-Navigation, rote Echtzeit-Linie, farbige Balken für Blöcke
+- Neue Komponente `src/components/calendar/BlockSheet.tsx`: Bottom Sheet zum Erstellen/Bearbeiten — Titel, Von/Bis, 8 Farben, 4 Wiederholungstypen, Wochentag-Auswahl, Start-/Enddatum
+- Neue Komponente `src/components/calendar/SeriesScopeDialog.tsx`: Modal mit 3 Optionen (Nur dieser / Dieser + folgende / Alle)
+- Serien-Logik vollständig: Nur diesen = Exception; Dieser+folgende = Serie kürzen + neue Serie; Alle = Block updaten/löschen
+- Navigation: neuer Tab "Kalender" (Calendar-Icon) zwischen Ziele und Coach; Route `/calendar`
+- Sync mit Morgenjournal Schritt 4: wiederkehrende Blöcke des Tages als Vorlage angezeigt; Änderungen/Löschungen werden als recurring_block_exceptions gespeichert
+- Geänderte Dateien: src/lib/db.ts, src/types/index.ts, src/components/layout/Navigation.tsx, src/App.tsx, src/components/journal/MorningJournal.tsx, src/components/journal/MorningStep4Timeboxing.tsx
 
 **Bug-Fixes Feature 13 (GoalCard / GoalDetailCard)** ✅ BEHOBEN
 - Fokus-Verlust im Task-Input behoben: `NewTaskInput` als eigenständige Komponente außerhalb von `GoalDetailCard` — lokaler State verhindert Re-Renders im Parent

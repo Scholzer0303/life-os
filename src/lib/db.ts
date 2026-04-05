@@ -516,3 +516,116 @@ export async function deleteAllUserData(userId: string): Promise<void> {
     .eq('id', userId)
   if (profileError) throw profileError
 }
+
+// ─── Recurring Blocks ─────────────────────────────────────────────────────────
+
+export interface RecurringBlockRow {
+  id: string
+  user_id: string
+  title: string
+  start_time: string  // 'HH:MM'
+  end_time: string    // 'HH:MM'
+  recurrence_type: 'none' | 'daily' | 'weekdays' | 'weekly'
+  recurrence_day: number | null  // 0=So … 6=Sa
+  start_date: string  // 'YYYY-MM-DD'
+  end_date: string | null
+  color: string
+  created_at: string
+}
+
+export interface RecurringBlockExceptionRow {
+  id: string
+  block_id: string
+  exception_date: string  // 'YYYY-MM-DD'
+  modified_title: string | null
+  modified_start_time: string | null
+  modified_end_time: string | null
+  modified_color: string | null
+  is_deleted: boolean
+  created_at: string
+}
+
+export type RecurringBlockInsert = Omit<RecurringBlockRow, 'id' | 'created_at'>
+export type RecurringBlockUpdate = Partial<Omit<RecurringBlockRow, 'id' | 'user_id' | 'created_at'>>
+export type ExceptionInsert = Omit<RecurringBlockExceptionRow, 'id' | 'created_at'>
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any
+
+export async function getRecurringBlocks(userId: string): Promise<RecurringBlockRow[]> {
+  const { data, error } = await db
+    .from('recurring_blocks')
+    .select('*')
+    .eq('user_id', userId)
+    .order('start_time', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as RecurringBlockRow[]
+}
+
+export async function createRecurringBlock(block: RecurringBlockInsert): Promise<RecurringBlockRow> {
+  const { data, error } = await db
+    .from('recurring_blocks')
+    .insert(block)
+    .select()
+    .single()
+  if (error) throw error
+  return data as RecurringBlockRow
+}
+
+export async function updateRecurringBlock(
+  id: string,
+  updates: RecurringBlockUpdate
+): Promise<RecurringBlockRow> {
+  const { data, error } = await db
+    .from('recurring_blocks')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data as RecurringBlockRow
+}
+
+export async function deleteRecurringBlock(id: string): Promise<void> {
+  const { error } = await db.from('recurring_blocks').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function getExceptionsForBlocks(
+  blockIds: string[]
+): Promise<RecurringBlockExceptionRow[]> {
+  if (blockIds.length === 0) return []
+  const { data, error } = await db
+    .from('recurring_block_exceptions')
+    .select('*')
+    .in('block_id', blockIds)
+  if (error) throw error
+  return (data ?? []) as RecurringBlockExceptionRow[]
+}
+
+export async function upsertBlockException(
+  exception: ExceptionInsert
+): Promise<RecurringBlockExceptionRow> {
+  const { data, error } = await db
+    .from('recurring_block_exceptions')
+    .upsert(exception, { onConflict: 'block_id,exception_date' })
+    .select()
+    .single()
+  if (error) throw error
+  return data as RecurringBlockExceptionRow
+}
+
+export async function deleteBlockException(id: string): Promise<void> {
+  const { error } = await db.from('recurring_block_exceptions').delete().eq('id', id)
+  if (error) throw error
+}
+
+// Löscht alle Ausnahmen ab einem bestimmten Datum für einen Block (für "Dieser und alle folgenden")
+export async function deleteExceptionsFrom(blockId: string, fromDate: string): Promise<void> {
+  const { error } = await db
+    .from('recurring_block_exceptions')
+    .delete()
+    .eq('block_id', blockId)
+    .gte('exception_date', fromDate)
+  if (error) throw error
+}

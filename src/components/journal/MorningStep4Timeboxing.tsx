@@ -1,10 +1,25 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, X, GripVertical } from 'lucide-react'
-import type { TimeBlock } from '../../types'
+import type { TimeBlock, DayBlock } from '../../types'
+import type { ExceptionInsert } from '../../lib/db'
+
+interface EditableCalBlock {
+  block_id: string
+  title: string
+  start_time: string
+  end_time: string
+  color: string
+  original_title: string
+  original_start_time: string
+  original_end_time: string
+  is_deleted: boolean
+}
 
 interface Props {
   initialBlocks: TimeBlock[]
+  calendarBlocks?: DayBlock[]
+  onSaveExceptions?: (exceptions: ExceptionInsert[]) => Promise<void>
   onNext: (blocks: TimeBlock[]) => void
   onBack: () => void
 }
@@ -28,10 +43,29 @@ function formatMinutes(min: number): string {
   return m === 0 ? `${h} Std` : `${h}:${String(m).padStart(2, '0')} Std`
 }
 
-export default function MorningStep4Timeboxing({ initialBlocks, onNext, onBack }: Props) {
+export default function MorningStep4Timeboxing({ initialBlocks, calendarBlocks = [], onSaveExceptions, onNext, onBack }: Props) {
   const [blocks, setBlocks] = useState<TimeBlock[]>(initialBlocks)
   const [newTitle, setNewTitle] = useState('')
   const [newDuration, setNewDuration] = useState(60)
+
+  // Kalender-Blöcke als bearbeitbare lokale Kopien
+  const [calBlocks, setCalBlocks] = useState<EditableCalBlock[]>(() =>
+    calendarBlocks.map(b => ({
+      block_id: b.id,
+      title: b.title,
+      start_time: b.start_time.slice(0, 5),
+      end_time: b.end_time.slice(0, 5),
+      color: b.color,
+      original_title: b.title,
+      original_start_time: b.start_time.slice(0, 5),
+      original_end_time: b.end_time.slice(0, 5),
+      is_deleted: false,
+    }))
+  )
+
+  function updateCalBlock(idx: number, patch: Partial<EditableCalBlock>) {
+    setCalBlocks(prev => prev.map((b, i) => i === idx ? { ...b, ...patch } : b))
+  }
 
   const totalMin = blocks.reduce(
     (acc, b, i) => acc + b.duration_min + (i < blocks.length - 1 ? b.buffer_min : 0),
@@ -69,6 +103,77 @@ export default function MorningStep4Timeboxing({ initialBlocks, onNext, onBack }
       <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.5rem', lineHeight: 1.5 }}>
         Füge Themen-Blöcke hinzu — keine starren Zeiten, nur Schwerpunkte. Zwischen Blöcken: 15 Min Puffer.
       </p>
+
+      {/* Kalender-Vorlage */}
+      {calBlocks.length > 0 && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <p style={{
+            fontSize: '0.75rem', color: 'var(--text-muted)',
+            textTransform: 'uppercase', letterSpacing: '0.05em',
+            margin: '0 0 0.6rem',
+          }}>
+            Wiederkehrende Blöcke heute
+          </p>
+          {calBlocks.map((block, i) => block.is_deleted ? null : (
+            <div key={block.block_id} style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.55rem 0.75rem',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: '10px',
+              marginBottom: '0.4rem',
+              borderLeft: `3px solid ${block.color}`,
+            }}>
+              {/* Zeiten */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', flexShrink: 0 }}>
+                <input
+                  type="time"
+                  value={block.start_time}
+                  onChange={e => updateCalBlock(i, { start_time: e.target.value })}
+                  style={{
+                    border: 'none', background: 'transparent',
+                    fontSize: '0.7rem', color: 'var(--text-muted)',
+                    fontVariantNumeric: 'tabular-nums', width: '4rem',
+                    outline: 'none', cursor: 'pointer',
+                  }}
+                />
+                <input
+                  type="time"
+                  value={block.end_time}
+                  onChange={e => updateCalBlock(i, { end_time: e.target.value })}
+                  style={{
+                    border: 'none', background: 'transparent',
+                    fontSize: '0.7rem', color: 'var(--text-muted)',
+                    fontVariantNumeric: 'tabular-nums', width: '4rem',
+                    outline: 'none', cursor: 'pointer',
+                  }}
+                />
+              </div>
+              {/* Titel */}
+              <input
+                value={block.title}
+                onChange={e => updateCalBlock(i, { title: e.target.value })}
+                style={{
+                  flex: 1, border: 'none', background: 'transparent',
+                  fontSize: '0.9rem', fontWeight: 500,
+                  color: 'var(--text-primary)', outline: 'none', padding: 0,
+                }}
+              />
+              {/* Löschen */}
+              <button
+                onClick={() => updateCalBlock(i, { is_deleted: true })}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--text-muted)', padding: '0.1rem', lineHeight: 1, flexShrink: 0,
+                }}
+                aria-label="Für heute entfernen"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Block list */}
       {blocks.length > 0 && (
@@ -291,7 +396,34 @@ export default function MorningStep4Timeboxing({ initialBlocks, onNext, onBack }
       <div style={{ display: 'flex', gap: '0.75rem' }}>
         <button onClick={onBack} style={backBtnStyle}>←</button>
         <button
-          onClick={() => onNext(blocks)}
+          onClick={async () => {
+            // Ausnahmen für geänderte/gelöschte Kalender-Blöcke speichern
+            if (onSaveExceptions) {
+              const today = new Date().toISOString().split('T')[0]
+              const exceptions: ExceptionInsert[] = calBlocks
+                .filter(b => {
+                  const changed =
+                    b.title !== b.original_title ||
+                    b.start_time !== b.original_start_time ||
+                    b.end_time !== b.original_end_time ||
+                    b.is_deleted
+                  return changed
+                })
+                .map(b => ({
+                  block_id: b.block_id,
+                  exception_date: today,
+                  modified_title: b.title !== b.original_title ? b.title : null,
+                  modified_start_time: b.start_time !== b.original_start_time ? b.start_time : null,
+                  modified_end_time: b.end_time !== b.original_end_time ? b.end_time : null,
+                  modified_color: null,
+                  is_deleted: b.is_deleted,
+                }))
+              if (exceptions.length > 0) {
+                await onSaveExceptions(exceptions)
+              }
+            }
+            onNext(blocks)
+          }}
           style={{
             flex: 1,
             padding: '0.9rem',

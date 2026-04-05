@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
-import { createJournalEntry, getTodayEntries, parseTimeblocks } from '../../lib/db'
+import { createJournalEntry, getTodayEntries, parseTimeblocks, getRecurringBlocks, getExceptionsForBlocks, upsertBlockException } from '../../lib/db'
 import { todayISO } from '../../lib/utils'
 import ProgressBar from '../onboarding/ProgressBar'
 import MorningStep1Feeling from './MorningStep1Feeling'
@@ -10,8 +10,50 @@ import MorningStep2Goal from './MorningStep2Goal'
 import MorningStep3Blockers from './MorningStep3Blockers'
 import MorningStep4Timeboxing from './MorningStep4Timeboxing'
 import MorningStep5Summary from './MorningStep5Summary'
-import type { TimeBlock, DailyTask } from '../../types'
+import type { TimeBlock, DailyTask, DayBlock, RecurringBlock, BlockException } from '../../types'
 import type { Json } from '../../types/database'
+
+function toDateString(date: Date): string {
+  return date.toISOString().split('T')[0]
+}
+
+function blockOccursOnDate(block: RecurringBlock, dateStr: string): boolean {
+  if (dateStr < block.start_date) return false
+  if (block.end_date && dateStr > block.end_date) return false
+  const dow = new Date(dateStr + 'T12:00:00').getDay()
+  switch (block.recurrence_type) {
+    case 'none': return dateStr === block.start_date
+    case 'daily': return true
+    case 'weekdays': return dow >= 1 && dow <= 5
+    case 'weekly': return block.recurrence_day === dow
+    default: return false
+  }
+}
+
+function resolveBlocksForDate(blocks: RecurringBlock[], exceptions: BlockException[], dateStr: string): DayBlock[] {
+  const exMap = new Map<string, BlockException>()
+  for (const ex of exceptions) {
+    if (ex.exception_date === dateStr) exMap.set(ex.block_id, ex)
+  }
+  const result: DayBlock[] = []
+  for (const block of blocks) {
+    if (!blockOccursOnDate(block, dateStr)) continue
+    const ex = exMap.get(block.id)
+    if (ex?.is_deleted) continue
+    result.push({
+      id: block.id,
+      exception_id: ex?.id,
+      date: dateStr,
+      title: ex?.modified_title ?? block.title,
+      start_time: ex?.modified_start_time ?? block.start_time,
+      end_time: ex?.modified_end_time ?? block.end_time,
+      color: ex?.modified_color ?? block.color,
+      recurrence_type: block.recurrence_type,
+      is_modified: !!ex,
+    })
+  }
+  return result.sort((a, b) => a.start_time.localeCompare(b.start_time))
+}
 
 interface MorningData {
   feelingScore: number | null
@@ -41,26 +83,34 @@ export default function MorningJournal() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [todayCalBlocks, setTodayCalBlocks] = useState<DayBlock[]>([])
 
-  // Heutigen Eintrag laden und Felder vorausfüllen falls vorhanden
+  // Heutigen Eintrag + Kalender-Blöcke laden
   useEffect(() => {
     if (!user) { setIsLoading(false); return }
-    getTodayEntries(user.id)
-      .then((entries) => {
-        const existing = entries.find((e) => e.type === 'morning')
-        if (existing) {
-          setData({
-            feelingScore: existing.feeling_score,
-            feelingText: existing.free_text ?? '',
-            mainGoal: existing.main_goal_today ?? '',
-            linkedGoalId: (existing.linked_goal_ids as string[] | null)?.[0] ?? null,
-            identityAction: existing.identity_action ?? '',
-            blockers: existing.potential_blockers ?? '',
-            timeblocks: parseTimeblocks(existing),
-            dailyTasks: Array.isArray(existing.daily_tasks) ? existing.daily_tasks as unknown as DailyTask[] : [],
-          })
-        }
-      })
+    const today = toDateString(new Date())
+    Promise.all([
+      getTodayEntries(user.id),
+      getRecurringBlocks(user.id),
+    ]).then(async ([entries, blocks]) => {
+      const existing = entries.find((e) => e.type === 'morning')
+      if (existing) {
+        setData({
+          feelingScore: existing.feeling_score,
+          feelingText: existing.free_text ?? '',
+          mainGoal: existing.main_goal_today ?? '',
+          linkedGoalId: (existing.linked_goal_ids as string[] | null)?.[0] ?? null,
+          identityAction: existing.identity_action ?? '',
+          blockers: existing.potential_blockers ?? '',
+          timeblocks: parseTimeblocks(existing),
+          dailyTasks: Array.isArray(existing.daily_tasks) ? existing.daily_tasks as unknown as DailyTask[] : [],
+        })
+      }
+      const blockIds = blocks.map(b => b.id)
+      const exceptions = await getExceptionsForBlocks(blockIds)
+      const dayBlocks = resolveBlocksForDate(blocks as RecurringBlock[], exceptions as BlockException[], today)
+      setTodayCalBlocks(dayBlocks)
+    })
       .catch((err) => console.error('Morgenjournal laden:', err))
       .finally(() => setIsLoading(false))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -170,6 +220,12 @@ export default function MorningJournal() {
           <MorningStep4Timeboxing
             key="ms4"
             initialBlocks={data.timeblocks}
+            calendarBlocks={todayCalBlocks}
+            onSaveExceptions={async (exceptions) => {
+              for (const ex of exceptions) {
+                await upsertBlockException(ex)
+              }
+            }}
             onNext={(timeblocks) => next({ timeblocks })}
             onBack={back}
           />
