@@ -7,7 +7,7 @@
 ## 1. PROJEKT-ÜBERBLICK
 
 **App:** Life OS — Persönlicher KI-Mentor und Journal-PWA für Lukas
-**Dev-Server:** http://localhost:5174
+**Dev-Server:** http://localhost:5173 (oder 5174/5175 wenn Port belegt)
 **Produktion:** https://life-os-henna-xi.vercel.app
 **GitHub:** https://github.com/Scholzer0303/life-os (Branch: master)
 **Stack:** React + TypeScript + Vite + Tailwind CSS v4 + Supabase + Anthropic Claude API
@@ -99,41 +99,31 @@ Tailwind v4 hat eine andere Syntax als v3. Vor dem Schreiben neuer Klassen:
 
 ---
 
-## 5. BEKANNTE BUGS (Stand: April 2026)
+## 5. SUPABASE-BESONDERHEITEN
 
-Diese Bugs existieren und müssen behoben werden bevor neue Features gebaut werden:
-
-| Bug | Fehler | Ursache | Fix |
-|-----|--------|---------|-----|
-| Journal speichern | 409 Conflict | INSERT statt UPSERT | `upsert()` mit onConflict |
-| Ziele speichern | 400 Bad Request | goal.type Enum-Mismatch | SQL-Migration prüfen |
-| Coach startet nicht | Kein Fehler, keine Reaktion | onClick-Handler defekt | Handler debuggen |
-| Vercel Deployment | Build failed | TypeScript-Fehler im Build | `npm run build` lokal testen |
-
----
-
-## 6. SUPABASE-BESONDERHEITEN
-
-### 6.1 goal_type Enum
-Die Datenbank hat möglicherweise `goal_type` als Enum — neue Werte müssen explizit hinzugefügt werden:
+### 5.1 goal_type Enum
+Neue Werte müssen explizit hinzugefügt werden:
 ```sql
 ALTER TYPE goal_type ADD VALUE IF NOT EXISTS 'year';
 ALTER TYPE goal_type ADD VALUE IF NOT EXISTS 'three_year';
 ```
-Wenn `400 Bad Request` beim Ziele-Speichern → zuerst diese Migration in Supabase SQL Editor prüfen.
+Wenn `400 Bad Request` beim Ziele-Speichern → zuerst diese Migration prüfen.
 
-### 6.2 journal_entries Unique Constraint
-Für UPSERT muss ein Unique Constraint existieren:
+### 5.2 journal_entries Unique Constraint
+Für UPSERT muss dieser Constraint existieren (bereits angelegt):
 ```sql
 ALTER TABLE journal_entries
   ADD CONSTRAINT journal_entries_user_date_type_unique
   UNIQUE (user_id, entry_date, type);
 ```
-Wenn dieser fehlt → 409-Fehler ist nicht behebbar ohne diesen Constraint.
+
+### 5.3 Bestehende Supabase-Tabellen
+`profiles`, `goals`, `journal_entries`, `coach_sessions`, `pattern_events`, `goal_tasks`, `recurring_blocks`, `recurring_block_exceptions`
+Row Level Security ist auf allen Tabellen aktiv.
 
 ---
 
-## 7. DEPLOYMENT
+## 6. DEPLOYMENT
 
 ```bash
 # Lokal testen BEVOR push
@@ -150,7 +140,7 @@ git push origin master
 
 ---
 
-## 8. NPM BESONDERHEITEN
+## 7. NPM BESONDERHEITEN
 
 ```bash
 npm install [paket] --legacy-peer-deps   # IMMER diesen Flag verwenden
@@ -158,13 +148,20 @@ npm install [paket] --legacy-peer-deps   # IMMER diesen Flag verwenden
 
 ---
 
-## 9. KOMMUNIKATION MIT DEM USER
+## 8. KOMMUNIKATION MIT DEM USER
 
 - Lukas ist kein Entwickler — alles auf Deutsch erklären
 - Nach jedem Teilschritt: kurze Beschreibung was gebaut wurde
 - Bei Fehlern: erklären WAS der Fehler bedeutet, nicht nur technische Details
 - Niemals mehr als einen Teilschritt auf einmal bauen
 - "Fertig" bedeutet: gebaut UND getestet UND funktioniert
+
+---
+
+## 9. DEPLOYMENT-HINWEIS
+
+Auto-Deploy: Jeder Push auf `master` → Vercel baut und deployed automatisch.
+Supabase Redirect URLs: localhost:5173 und https://life-os-henna-xi.vercel.app sind eingetragen.
 
 ---
 
@@ -178,57 +175,43 @@ npm install [paket] --legacy-peer-deps   # IMMER diesen Flag verwenden
 - Funktion in der App getestet und funktioniert ✓
 
 ### Was in die Aktualisierung gehört:
+Nach jedem Schritt wird in LIFE_OS_KONTEXT.md eingetragen:
+- Welcher Schritt abgeschlossen wurde (✅ + Datum)
+- Welche Dateien geändert wurden
+- Ob es offene Punkte gibt
 
-```
-### ✅ [Schrittname] — [Datum]
-**Was gebaut wurde:**
-- [konkrete Beschreibung der Änderung]
-- [welche Dateien wurden geändert]
-- [welche Bugs wurden behoben]
+In LIFE_OS_FEATURES.md wird der erledigte Punkt als `✅ UMGESETZT (Datum)` markiert.
 
-**Getestet:**
-- [was wurde getestet und hat funktioniert]
-
-**Offene Punkte / Bekannte Einschränkungen:**
-- [falls vorhanden]
-```
-
-### Format für Bug-Fixes:
-```
-**Bug behoben:** [Bug-Name]
-- Fehler war: [Fehlermeldung]
-- Ursache: [was war kaputt]
-- Fix: [was wurde geändert, in welcher Datei]
-- Getestet: [wie bestätigt]
-```
-
-### Wo eintragen:
-- Unter dem Abschnitt "Fertige Schritte" — neueste Einträge oben
-- Den "Zuletzt aktualisiert"-Timestamp am Anfang der Datei updaten
-- Offene Bugs aus Abschnitt 5 (CLAUDE.md) als erledigt markieren wenn behoben
+### Verschlankungs-Regel (WICHTIG):
+LIFE_OS_KONTEXT.md darf den aktiven Bereich ("Ausstehend") nie zu groß werden lassen.
+Nach Abschluss eines Pakets gilt:
+- Alle ✅ erledigten Schritte aus dem "Ausstehend"-Bereich entfernen
+- Stattdessen nur eine einzeilige Zusammenfassung in den "Archiv"-Block unten eintragen
+- Oben im Dokument steht immer nur: aktueller App-Stand + was als nächstes kommt
+- Ziel: Der aktive Bereich (alles außer Archiv) bleibt kompakt — nur was Claude Code für die aktuelle Session wirklich braucht
 
 ### Warum das wichtig ist:
-Lukas lädt LIFE_OS_KONTEXT.md nach jeder Session in sein Claude Project hoch.
-So weiß die nächste Session exakt wo wir aufgehört haben — ohne dass etwas verloren geht.
-Ein nicht aktualisiertes Logbuch = die nächste Session fängt blind an = Fehler wiederholen sich.
+Lukas lädt LIFE_OS_KONTEXT.md nach jeder Session ins Claude Project hoch.
+Ein zu langes Dokument kostet Token und erhöht Fehlerrisiko.
+Ein nicht aktualisiertes Logbuch = die nächste Session fängt blind an.
 
 ---
 
 ## 11. SESSION-START CHECKLISTE
 
 Beim Start jeder neuen Claude Code Session:
-1. `LIFE_OS_KONTEXT.md` lesen — aktuellen Stand verstehen, offene Punkte unter "Ausstehend" prüfen
-2. `LIFE_OS_FEATURES.md` lesen — detaillierte Spezifikation für den zu bearbeitenden Bug oder das Feature
+1. `LIFE_OS_KONTEXT.md` lesen — aktuellen Stand + offene Punkte verstehen
+2. `LIFE_OS_FEATURES.md` lesen — genaue Spezifikation für den aktuellen Schritt
 3. `npm run dev` — Dev-Server starten falls nicht läuft
-4. Aktuellen Status im Browser prüfen: http://localhost:5174
-5. Erst dann mit dem gewünschten Schritt anfangen
+4. Aktuellen Status im Browser prüfen
+5. Erst dann mit dem ersten Schritt anfangen
 
 ---
 
-## 12. DATEI-ÜBERSICHT (was ist welche Datei)
+## 12. DATEI-ÜBERSICHT
 
 | Datei | Zweck | Wer aktualisiert sie |
 |---|---|---|
-| `CLAUDE.md` | Regeln, Architektur, Feldnamen — ändert sich selten | Lukas manuell (oder auf Anfrage) |
-| `LIFE_OS_KONTEXT.md` | Logbuch — was ist fertig, was ist offen | Claude Code nach jedem Schritt automatisch |
-| `LIFE_OS_FEATURES.md` | Detaillierte Spezifikation aller geplanten Bugs/Features | Claude Code markiert erledigte Punkte als Umgesetzt |
+| `CLAUDE.md` | Regeln, Architektur, Feldnamen — ändert sich selten | Lukas manuell |
+| `LIFE_OS_KONTEXT.md` | Aktiver Stand + Ausstehend + kompaktes Archiv | Claude Code nach jedem Schritt |
+| `LIFE_OS_FEATURES.md` | Genaue Spezifikation aller Schritte im aktuellen Paket | Claude Code markiert erledigte als ✅ |
