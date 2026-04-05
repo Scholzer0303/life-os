@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { ChevronRight, CheckCircle2, Circle, Plus, Trash2, Loader2, Archive, ArrowLeft } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../store/useStore'
-import { getWeeklyGoals, updateGoal, createGoal, createCoachSession, getRecentEntries, getReviewSessions, getReviewArchive } from '../lib/db'
+import { getWeeklyGoals, updateGoal, createGoal, createCoachSession, getRecentEntries, getReviewSessions, getReviewArchive, deleteCoachSession } from '../lib/db'
 import { generateReviewSummary, generateWeeklyFeedback } from '../lib/claude'
 import type { ReviewPeriod } from '../lib/claude'
 import { getCurrentWeek, getCurrentQuarter } from '../lib/utils'
@@ -60,6 +60,19 @@ export default function Review() {
   const [archiveLoading, setArchiveLoading] = useState(false)
   const [archiveError, setArchiveError] = useState<string | null>(null)
   const [selectedReview, setSelectedReview] = useState<CoachSessionRow | null>(null)
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+
+  async function handleDeleteReview(id: string) {
+    try {
+      await deleteCoachSession(id)
+      setArchiveItems((prev) => prev.filter((item) => item.id !== id))
+    } catch (err) {
+      console.error('Fehler beim Löschen:', err)
+    } finally {
+      setDeleteConfirmId(null)
+    }
+  }
 
   async function openArchive() {
     if (!user) return
@@ -329,23 +342,55 @@ export default function Review() {
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
           {archiveItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setSelectedReview(item)}
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '0.85rem 1rem', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  {REVIEW_TRIGGER_LABELS[item.trigger] ?? item.trigger}
-                </span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {new Date(item.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                </span>
-              </div>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                {item.summary ? item.summary.slice(0, 100) + (item.summary.length > 100 ? '…' : '') : '(Kein Inhalt)'}
-              </p>
-            </button>
+            <div key={item.id}>
+              {deleteConfirmId === item.id ? (
+                <div style={{ background: 'var(--bg-card)', border: '1px solid #dc2626', borderRadius: 12, padding: '0.85rem 1rem' }}>
+                  <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                    Dieses Review wirklich löschen? Das kann nicht rückgängig gemacht werden.
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      onClick={() => handleDeleteReview(item.id)}
+                      style={{ flex: 1, padding: '0.5rem', borderRadius: 8, border: 'none', background: '#dc2626', color: '#fff', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                      Ja, löschen
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirmId(null)}
+                      style={{ flex: 1, padding: '0.5rem', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '0.85rem 1rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                  <button
+                    onClick={() => setSelectedReview(item)}
+                    style={{ flex: 1, background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {REVIEW_TRIGGER_LABELS[item.trigger] ?? item.trigger}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {new Date(item.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                      {item.summary ? item.summary.slice(0, 100) + (item.summary.length > 100 ? '…' : '') : '(Kein Inhalt)'}
+                    </p>
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirmId(item.id)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.2rem', display: 'flex', flexShrink: 0 }}
+                    aria-label="Löschen"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
