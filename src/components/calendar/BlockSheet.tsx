@@ -17,10 +17,22 @@ const PRESET_COLORS = [
 ]
 
 const RECURRENCE_OPTIONS: { value: RecurrenceType; label: string; hint: string }[] = [
-  { value: 'none',     label: 'Einmalig',   hint: 'Nur dieses Datum' },
-  { value: 'daily',    label: 'Täglich',    hint: 'Jeden Tag' },
-  { value: 'weekdays', label: 'Mo–Fr',      hint: 'Werktage' },
-  { value: 'weekly',   label: 'Wöchentlich', hint: 'Gleicher Wochentag' },
+  { value: 'none',     label: 'Einmalig',          hint: 'Nur dieses Datum' },
+  { value: 'daily',    label: 'Täglich',            hint: 'Jeden Tag' },
+  { value: 'weekdays', label: 'Mo–Fr',              hint: 'Werktage' },
+  { value: 'weekly',   label: 'Wöchentlich',        hint: 'Gleicher Wochentag' },
+  { value: 'custom',   label: 'Benutzerdefiniert',  hint: 'Eigene Tage wählen' },
+]
+
+// Mo=1 … Sa=6, So=0 — Reihenfolge: Mo Di Mi Do Fr Sa So
+const WEEKDAY_TOGGLES: { label: string; value: number }[] = [
+  { label: 'Mo', value: 1 },
+  { label: 'Di', value: 2 },
+  { label: 'Mi', value: 3 },
+  { label: 'Do', value: 4 },
+  { label: 'Fr', value: 5 },
+  { label: 'Sa', value: 6 },
+  { label: 'So', value: 0 },
 ]
 
 const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']
@@ -58,6 +70,7 @@ export default function BlockSheet({
   const [color, setColor]                   = useState(PRESET_COLORS[0])
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>('none')
   const [recurrenceDay, setRecurrenceDay]   = useState<number>(1) // Mo
+  const [recurrenceDays, setRecurrenceDays] = useState<number[]>([1]) // Custom-Tage
   const [startDate, setStartDate]           = useState(todayISO())
   const [endDate, setEndDate]               = useState('')
   const [isSaving, setIsSaving]             = useState(false)
@@ -73,6 +86,7 @@ export default function BlockSheet({
       setColor(editing.color)
       setRecurrenceType(editing.recurrence_type)
       setRecurrenceDay(editing.recurrence_day ?? 1)
+      setRecurrenceDays(editing.recurrence_days ?? [1])
       setStartDate(editing.start_date)
       setEndDate(editing.end_date ?? '')
     } else {
@@ -85,6 +99,7 @@ export default function BlockSheet({
       setColor(PRESET_COLORS[0])
       setRecurrenceType('none')
       setRecurrenceDay(1)
+      setRecurrenceDays([1])
       setStartDate(defaultDate ?? todayISO())
       setEndDate('')
     }
@@ -96,6 +111,7 @@ export default function BlockSheet({
     if (!title.trim()) return 'Bitte einen Titel eingeben.'
     if (startTime >= endTime) return 'Startzeit muss vor Endzeit liegen.'
     if (endDate && endDate < startDate) return 'Enddatum muss nach Startdatum liegen.'
+    if (recurrenceType === 'custom' && recurrenceDays.length === 0) return 'Bitte mindestens einen Wochentag wählen.'
     return null
   }
 
@@ -112,6 +128,7 @@ export default function BlockSheet({
         color,
         recurrence_type: recurrenceType,
         recurrence_day: recurrenceType === 'weekly' ? recurrenceDay : null,
+        recurrence_days: recurrenceType === 'custom' ? [...recurrenceDays] : null,
         start_date: startDate,
         end_date: endDate || '',
       })
@@ -343,6 +360,46 @@ export default function BlockSheet({
                         {day}
                       </button>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Wochentage (nur bei custom) */}
+              {recurrenceType === 'custom' && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                    Wochentage wählen
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.35rem' }}>
+                    {WEEKDAY_TOGGLES.map(({ label, value }) => {
+                      const active = recurrenceDays.includes(value)
+                      return (
+                        <button
+                          key={value}
+                          onClick={() => {
+                            setRecurrenceDays(prev =>
+                              prev.includes(value)
+                                ? prev.filter(d => d !== value)
+                                : [...prev, value]
+                            )
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '0.4rem 0',
+                            borderRadius: '0.4rem',
+                            border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                            background: active ? 'var(--accent)' : 'var(--bg)',
+                            color: active ? '#fff' : 'var(--text)',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                          }}
+                          aria-pressed={active}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               )}

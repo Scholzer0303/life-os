@@ -60,6 +60,8 @@ function blockOccursOnDate(block: RecurringBlock, dateStr: string): boolean {
       return dow >= 1 && dow <= 5
     case 'weekly':
       return block.recurrence_day === dow
+    case 'custom':
+      return block.recurrence_days?.includes(dow) ?? false
     default:
       return false
   }
@@ -435,6 +437,7 @@ export default function Calendar() {
         color: data.color,
         recurrence_type: data.recurrence_type,
         recurrence_day: data.recurrence_day,
+        recurrence_days: data.recurrence_days,
         start_date: data.start_date,
         end_date: data.end_date || null,
       })
@@ -452,6 +455,7 @@ export default function Calendar() {
         color: data.color,
         recurrence_type: data.recurrence_type,
         recurrence_day: data.recurrence_day,
+        recurrence_days: data.recurrence_days,
         start_date: data.start_date,
         end_date: data.end_date || null,
       })
@@ -488,6 +492,7 @@ export default function Calendar() {
         color: data.color,
         recurrence_type: data.recurrence_type,
         recurrence_day: data.recurrence_day,
+        recurrence_days: data.recurrence_days,
         start_date: selectedDate,
         end_date: data.end_date || null,
       })

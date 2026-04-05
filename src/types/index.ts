@@ -51,7 +51,7 @@ export interface PatternAnalysis {
 
 // ─── Kalender / Wiederkehrende Zeitblöcke ────────────────────────────────────
 
-export type RecurrenceType = 'none' | 'daily' | 'weekdays' | 'weekly'
+export type RecurrenceType = 'none' | 'daily' | 'weekdays' | 'weekly' | 'custom'
 
 // Rohdaten aus der DB (Serienvorlage)
 export interface RecurringBlock {
@@ -62,6 +62,7 @@ export interface RecurringBlock {
   end_time: string          // 'HH:MM'
   recurrence_type: RecurrenceType
   recurrence_day: number | null  // 0=So … 6=Sa, nur bei 'weekly'
+  recurrence_days: number[] | null  // z.B. [1,3,5] = Mo,Mi,Fr, nur bei 'custom'
   start_date: string        // 'YYYY-MM-DD'
   end_date: string | null
   color: string
@@ -102,6 +103,7 @@ export interface BlockFormData {
   color: string
   recurrence_type: RecurrenceType
   recurrence_day: number | null
+  recurrence_days: number[] | null  // nur bei 'custom'
   start_date: string
   end_date: string
 }

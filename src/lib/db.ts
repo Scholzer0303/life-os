@@ -536,8 +536,9 @@ export interface RecurringBlockRow {
   title: string
   start_time: string  // 'HH:MM'
   end_time: string    // 'HH:MM'
-  recurrence_type: 'none' | 'daily' | 'weekdays' | 'weekly'
+  recurrence_type: 'none' | 'daily' | 'weekdays' | 'weekly' | 'custom'
   recurrence_day: number | null  // 0=So … 6=Sa
+  recurrence_days: number[] | null  // z.B. [1,3,5] = Mo,Mi,Fr, nur bei 'custom'
   start_date: string  // 'YYYY-MM-DD'
   end_date: string | null
   color: string
