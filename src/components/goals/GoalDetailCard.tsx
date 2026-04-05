@@ -52,14 +52,18 @@ interface Props {
 }
 
 const TYPE_COLOR: Record<string, string> = {
-  quarterly: 'var(--accent)',
-  monthly:   'var(--accent-green)',
-  weekly:    'var(--streak)',
+  three_year: 'var(--text-muted)',
+  year:       '#a855f7',
+  quarterly:  'var(--accent)',
+  monthly:    'var(--accent-green)',
+  weekly:     'var(--streak)',
 }
 const TYPE_LABEL: Record<string, string> = {
-  quarterly: 'Q',
-  monthly:   'M',
-  weekly:    'W',
+  three_year: '3J',
+  year:       'J',
+  quarterly:  'Q',
+  monthly:    'M',
+  weekly:     'W',
 }
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
   active:    { background: '#EDF2FF', color: 'var(--accent)' },
@@ -178,7 +182,7 @@ export default function GoalDetailCard({ goal, parentGoal, children = [], linked
   }
 
   const typeColor = TYPE_COLOR[goal.type] ?? 'var(--text-muted)'
-  const canHaveChildren = goal.type === 'quarterly' || goal.type === 'monthly'
+  const canHaveChildren = goal.type === 'three_year' || goal.type === 'year' || goal.type === 'quarterly' || goal.type === 'monthly'
 
   async function handleKICheck() {
     if (!profile) return
@@ -357,7 +361,11 @@ export default function GoalDetailCard({ goal, parentGoal, children = [], linked
           )}
           {canHaveChildren && onAddChild && (
             <button onClick={() => onAddChild(goal.id)} style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-              <Plus size={12} /> {goal.type === 'quarterly' ? 'Monatsziel' : 'Wochenziel'}
+              <Plus size={12} /> {
+                goal.type === 'three_year' ? 'Jahresziel' :
+                goal.type === 'year' ? 'Quartalsziel' :
+                goal.type === 'quarterly' ? 'Monatsziel' : 'Wochenziel'
+              }
             </button>
           )}
         </div>

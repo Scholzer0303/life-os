@@ -96,7 +96,7 @@ Spezifikation steht bereits vollständig unten — nichts geht verloren.
 
 ---
 
-### Feature 6 — Task-Kaskade für alle Ziel-Ebenen ⚠️ OFFEN
+### Feature 6 — Task-Kaskade für alle Ziel-Ebenen ✅ UMGESETZT (2026-04-05)
 **Dateien:** `src/components/goals/GoalDetailCard.tsx`, `src/components/dashboard/GoalCard.tsx`, `src/pages/Goals.tsx`
 **Aufwand:** Mittel
 

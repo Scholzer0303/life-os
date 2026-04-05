@@ -79,7 +79,7 @@ Bearbeitungsreihenfolge: Fix 1 → Fix 2 → Fix 3 → Fix 4 → Feature 5 → F
 | Fix 3 | Tab-Reihenfolge anpassen | Klein | ✅ FERTIG |
 | Fix 4 | Supabase-Speicherinfo in Einstellungen | Klein | ✅ FERTIG |
 | Feature 5 | Review-Archiv | Klein-Mittel | ✅ FERTIG |
-| Feature 6 | Task-Kaskade für alle Ziel-Ebenen | Mittel | ⚠️ OFFEN |
+| Feature 6 | Task-Kaskade für alle Ziel-Ebenen | Mittel | ✅ FERTIG |
 | Feature 7 | Kalender: Wochen- und Monatsansicht | Mittel | ⚠️ OFFEN |
 | Feature 8 | Kalender: Spezifische Wochentage | Mittel | ⚠️ OFFEN |
 | Feature 9 | Tages-Tasks ↔ Wochenziel-Tasks verknüpfen | Groß | ⚠️ OFFEN |

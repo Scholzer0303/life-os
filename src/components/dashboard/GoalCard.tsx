@@ -9,6 +9,8 @@ interface Props {
 }
 
 const TYPE_LABEL: Record<string, string> = {
+  three_year: '3 Jahre',
+  year: 'Jahr',
   quarterly: 'Quartal',
   monthly: 'Monat',
   weekly: 'Woche',
