@@ -80,7 +80,7 @@ Bearbeitungsreihenfolge: Fix 1 → Fix 2 → Fix 3 → Fix 4 → Feature 5 → F
 | Fix 4 | Supabase-Speicherinfo in Einstellungen | Klein | ✅ FERTIG |
 | Feature 5 | Review-Archiv | Klein-Mittel | ✅ FERTIG |
 | Feature 6 | Task-Kaskade für alle Ziel-Ebenen | Mittel | ✅ FERTIG |
-| Feature 7 | Kalender: Wochen- und Monatsansicht | Mittel | ⚠️ OFFEN |
+| Feature 7 | Kalender: Wochen- und Monatsansicht | Mittel | ✅ FERTIG |
 | Feature 8 | Kalender: Spezifische Wochentage | Mittel | ⚠️ OFFEN |
 | Feature 9 | Tages-Tasks ↔ Wochenziel-Tasks verknüpfen | Groß | ⚠️ OFFEN |
 | Feature 10 | Habit Tracker (Paket 2B) | Sehr Groß | ⛔ Erst nach 2A |

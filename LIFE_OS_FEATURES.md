@@ -115,7 +115,7 @@ Die goal_tasks Logik existiert bereits für Wochenziele. Sie soll jetzt für ALL
 
 ---
 
-### Feature 7 — Kalender: Wochen- und Monatsansicht ⚠️ OFFEN
+### Feature 7 — Kalender: Wochen- und Monatsansicht ✅ UMGESETZT (2026-04-05)
 **Datei:** `src/pages/Calendar.tsx`
 **Aufwand:** Mittel
 

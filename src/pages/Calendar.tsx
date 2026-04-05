@@ -105,6 +105,46 @@ function resolveBlocksForDate(
   return result.sort((a, b) => timeToMin(a.start_time) - timeToMin(b.start_time))
 }
 
+// Gibt den Montag der Woche zurück, die dateStr enthält
+function getMondayOfWeek(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00')
+  const dow = d.getDay() // 0=So, 1=Mo … 6=Sa
+  const diff = dow === 0 ? -6 : 1 - dow
+  d.setDate(d.getDate() + diff)
+  return toDateString(d)
+}
+
+// Gibt 7 Datums-Strings Mo–So zurück
+function getWeekDays(dateStr: string): string[] {
+  const monday = getMondayOfWeek(dateStr)
+  return Array.from({ length: 7 }, (_, i) => addDays(monday, i))
+}
+
+// Addiert n Monate zu einem Datum
+function addMonths(dateStr: string, n: number): string {
+  const d = new Date(dateStr + 'T12:00:00')
+  d.setMonth(d.getMonth() + n)
+  return toDateString(d)
+}
+
+// Gibt alle Tage des Monats als Grid-Array zurück (Lücken am Anfang/Ende als null)
+function getMonthGrid(dateStr: string): (string | null)[] {
+  const d = new Date(dateStr + 'T12:00:00')
+  const year = d.getFullYear()
+  const month = d.getMonth()
+  const firstDay = new Date(year, month, 1).getDay() // 0=So
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const leadingNulls = firstDay === 0 ? 6 : firstDay - 1 // Mo=0 Lücken
+  const grid: (string | null)[] = []
+  for (let i = 0; i < leadingNulls; i++) grid.push(null)
+  for (let i = 1; i <= daysInMonth; i++) {
+    grid.push(`${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`)
+  }
+  // Auf volle Wochen auffüllen
+  while (grid.length % 7 !== 0) grid.push(null)
+  return grid
+}
+
 // ─── Zeitachsen-Konstanten ────────────────────────────────────────────────────
 
 const HOUR_START = 6
@@ -242,6 +282,7 @@ export default function Calendar() {
   const today = toDateString(new Date())
 
   const [selectedDate, setSelectedDate] = useState(today)
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
   const [allBlocks, setAllBlocks] = useState<RecurringBlock[]>([])
   const [allExceptions, setAllExceptions] = useState<BlockException[]>([])
   const [loading, setLoading] = useState(true)
@@ -279,9 +320,43 @@ export default function Calendar() {
   const dayBlocks = resolveBlocksForDate(allBlocks, allExceptions, selectedDate)
   const isToday = selectedDate === today
 
-  function goBack() { setSelectedDate(prev => addDays(prev, -1)) }
-  function goForward() { setSelectedDate(prev => addDays(prev, 1)) }
+  function goBack() {
+    if (viewMode === 'week') setSelectedDate(prev => addDays(prev, -7))
+    else if (viewMode === 'month') setSelectedDate(prev => addMonths(prev, -1))
+    else setSelectedDate(prev => addDays(prev, -1))
+  }
+  function goForward() {
+    if (viewMode === 'week') setSelectedDate(prev => addDays(prev, 7))
+    else if (viewMode === 'month') setSelectedDate(prev => addMonths(prev, 1))
+    else setSelectedDate(prev => addDays(prev, 1))
+  }
   function goToday() { setSelectedDate(today) }
+
+  // Navigationslabel je nach Ansicht
+  function getNavLabel(): string {
+    if (viewMode === 'day') return formatDayLabel(selectedDate)
+    if (viewMode === 'week') {
+      const days = getWeekDays(selectedDate)
+      const first = new Date(days[0] + 'T12:00:00')
+      const last = new Date(days[6] + 'T12:00:00')
+      const kw = (() => {
+        const d = new Date(days[0] + 'T12:00:00')
+        d.setDate(d.getDate() + 3)
+        const week1 = new Date(d.getFullYear(), 0, 4)
+        return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() || 7)) / 7)
+      })()
+      return `KW ${kw} · ${first.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })} – ${last.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}`
+    }
+    const d = new Date(selectedDate + 'T12:00:00')
+    return d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
+  }
+
+  function getNavSubLabel(): string {
+    if (viewMode === 'day') {
+      return new Date(selectedDate + 'T12:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    }
+    return ''
+  }
 
   function handleBlockClick(block: DayBlock) {
     const source = allBlocks.find(b => b.id === block.id)
@@ -466,176 +541,188 @@ export default function Calendar() {
     setSheetOpen(false)
   }
 
+  const navIsToday = viewMode === 'day' && isToday
+
   return (
     <div style={{ paddingBottom: '5rem' }}>
       {/* Header */}
-      <div style={{
-        padding: '1rem 1rem 0.5rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-      }}>
+      <div style={{ padding: '1rem 1rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <CalendarIcon size={20} style={{ color: 'var(--accent)' }} />
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Kalender</h1>
         {loading && <Loader2 size={16} style={{ color: 'var(--text-muted)', marginLeft: 'auto' }} className="animate-spin" />}
       </div>
 
+      {/* View-Selector */}
+      <div style={{ display: 'flex', padding: '0 1rem', gap: '0.35rem', marginBottom: '0.25rem' }}>
+        {(['day', 'week', 'month'] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setViewMode(v)}
+            style={{
+              padding: '0.35rem 0.85rem',
+              borderRadius: '999px',
+              border: `1.5px solid ${viewMode === v ? 'var(--accent)' : 'var(--border)'}`,
+              background: viewMode === v ? 'var(--accent)' : 'var(--bg-card)',
+              color: viewMode === v ? '#fff' : 'var(--text-secondary)',
+              fontSize: '0.8rem',
+              fontWeight: viewMode === v ? 600 : 400,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            {v === 'day' ? 'Tag' : v === 'week' ? 'Woche' : 'Monat'}
+          </button>
+        ))}
+      </div>
+
       {/* Datum-Navigation */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0.5rem 1rem',
-        gap: '0.5rem',
-      }}>
-        <button
-          onClick={goBack}
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: '0.5rem',
-            padding: '0.4rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            color: 'var(--text)',
-          }}
-          aria-label="Vorheriger Tag"
-        >
+      <div style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 1rem', gap: '0.5rem' }}>
+        <button onClick={goBack} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.4rem', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text)' }} aria-label="Zurück">
           <ChevronLeft size={18} />
         </button>
-
-        <button
-          onClick={goToday}
-          style={{
-            flex: 1,
-            background: 'var(--bg-card)',
-            border: `1px solid ${isToday ? 'var(--accent)' : 'var(--border)'}`,
-            borderRadius: '0.75rem',
-            padding: '0.6rem 1rem',
-            cursor: 'pointer',
-            textAlign: 'center',
-            color: isToday ? 'var(--accent)' : 'var(--text)',
-            fontWeight: isToday ? 600 : 400,
-            fontSize: '0.95rem',
-          }}
-        >
-          {formatDayLabel(selectedDate)}
-          <span style={{
-            display: 'block',
-            fontSize: '0.7rem',
-            color: 'var(--text-muted)',
-            marginTop: '0.1rem',
-          }}>
-            {new Date(selectedDate + 'T12:00:00').toLocaleDateString('de-DE', {
-              day: '2-digit', month: '2-digit', year: 'numeric'
-            })}
-          </span>
+        <button onClick={goToday} style={{ flex: 1, background: 'var(--bg-card)', border: `1px solid ${navIsToday ? 'var(--accent)' : 'var(--border)'}`, borderRadius: '0.75rem', padding: '0.6rem 1rem', cursor: 'pointer', textAlign: 'center', color: navIsToday ? 'var(--accent)' : 'var(--text)', fontWeight: navIsToday ? 600 : 400, fontSize: '0.9rem' }}>
+          {getNavLabel()}
+          {getNavSubLabel() && (
+            <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+              {getNavSubLabel()}
+            </span>
+          )}
         </button>
-
-        <button
-          onClick={goForward}
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: '0.5rem',
-            padding: '0.4rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            color: 'var(--text)',
-          }}
-          aria-label="Nächster Tag"
-        >
+        <button onClick={goForward} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.4rem', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text)' }} aria-label="Vor">
           <ChevronRight size={18} />
         </button>
       </div>
 
       {/* Fehler */}
       {error && (
-        <div style={{
-          margin: '0 1rem',
-          padding: '0.75rem',
-          background: 'rgba(239,68,68,0.1)',
-          border: '1px solid rgba(239,68,68,0.3)',
-          borderRadius: '0.5rem',
-          color: '#ef4444',
-          fontSize: '0.85rem',
-        }}>
+        <div style={{ margin: '0 1rem', padding: '0.75rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '0.5rem', color: '#ef4444', fontSize: '0.85rem' }}>
           {error}
         </div>
       )}
 
-      {/* Leerer Zustand */}
-      {!loading && !error && dayBlocks.length === 0 && (
-        <div style={{
-          textAlign: 'center',
-          padding: '1rem',
-          color: 'var(--text-muted)',
-          fontSize: '0.85rem',
-        }}>
-          Keine Zeitblöcke für diesen Tag. Tippe auf + um einen zu erstellen.
-        </div>
-      )}
-
-      {/* Zeitachse */}
-      <div style={{
-        margin: '0.5rem 1rem',
-        background: 'var(--bg-card)',
-        borderRadius: '1rem',
-        border: '1px solid var(--border)',
-        overflow: 'hidden',
-        position: 'relative',
-      }}>
-        {/* Block-Overlay-Bereich (absolute Positionierung relativ zur Zeitachse) */}
-        <div style={{ position: 'relative' }}>
-          {/* Zeitslots */}
-          {Array.from({ length: TOTAL_SLOTS }, (_, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                height: `${SLOT_HEIGHT}px`,
-                borderBottom: `1px solid ${isFullHour(i) ? 'var(--border)' : 'rgba(var(--border-rgb, 128,128,128),0.2)'}`,
-              }}
-            >
-              <div style={{
-                width: TIME_COL_WIDTH,
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'flex-start',
-                paddingTop: '0.2rem',
-                paddingLeft: '0.5rem',
-                color: isFullHour(i) ? 'var(--text-muted)' : 'transparent',
-                fontSize: '0.7rem',
-                fontVariantNumeric: 'tabular-nums',
-                userSelect: 'none',
-              }}>
-                {slotLabel(i)}
-              </div>
-              <div style={{ flex: 1, borderLeft: '1px solid var(--border)' }} />
+      {/* ── Tagesansicht ── */}
+      {viewMode === 'day' && !error && (
+        <>
+          {!loading && dayBlocks.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              Keine Zeitblöcke für diesen Tag. Tippe auf + um einen zu erstellen.
             </div>
-          ))}
-
-          {/* Zeitblöcke als absolute Balken */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: TIME_COL_WIDTH,
-            right: 0,
-            bottom: 0,
-            pointerEvents: 'none',
-          }}>
-            <div style={{ position: 'relative', height: `${TOTAL_SLOTS * SLOT_HEIGHT}px`, pointerEvents: 'auto' }}>
-              {dayBlocks.map(block => (
-                <DayBlockBar key={`${block.id}-${block.date}`} block={block} onClick={handleBlockClick} />
+          )}
+          <div style={{ margin: '0.5rem 1rem', background: 'var(--bg-card)', borderRadius: '1rem', border: '1px solid var(--border)', overflow: 'hidden', position: 'relative' }}>
+            <div style={{ position: 'relative' }}>
+              {Array.from({ length: TOTAL_SLOTS }, (_, i) => (
+                <div key={i} style={{ display: 'flex', height: `${SLOT_HEIGHT}px`, borderBottom: `1px solid ${isFullHour(i) ? 'var(--border)' : 'rgba(var(--border-rgb, 128,128,128),0.2)'}` }}>
+                  <div style={{ width: TIME_COL_WIDTH, flexShrink: 0, display: 'flex', alignItems: 'flex-start', paddingTop: '0.2rem', paddingLeft: '0.5rem', color: isFullHour(i) ? 'var(--text-muted)' : 'transparent', fontSize: '0.7rem', fontVariantNumeric: 'tabular-nums', userSelect: 'none' }}>
+                    {slotLabel(i)}
+                  </div>
+                  <div style={{ flex: 1, borderLeft: '1px solid var(--border)' }} />
+                </div>
               ))}
+              <div style={{ position: 'absolute', top: 0, left: TIME_COL_WIDTH, right: 0, bottom: 0, pointerEvents: 'none' }}>
+                <div style={{ position: 'relative', height: `${TOTAL_SLOTS * SLOT_HEIGHT}px`, pointerEvents: 'auto' }}>
+                  {dayBlocks.map(block => (
+                    <DayBlockBar key={`${block.id}-${block.date}`} block={block} onClick={handleBlockClick} />
+                  ))}
+                </div>
+              </div>
+              {isToday && <CurrentTimeLine />}
             </div>
           </div>
+        </>
+      )}
 
-          {/* Aktuelle-Zeit-Linie */}
-          {isToday && <CurrentTimeLine />}
-        </div>
-      </div>
+      {/* ── Wochenansicht ── */}
+      {viewMode === 'week' && !error && (() => {
+        const weekDays = getWeekDays(selectedDate)
+        const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+        return (
+          <div style={{ margin: '0.5rem 1rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '1rem', overflow: 'hidden' }}>
+            {/* Spalten-Header */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid var(--border)' }}>
+              {weekDays.map((d, i) => {
+                const isT = d === today
+                return (
+                  <div key={d} style={{ textAlign: 'center', padding: '0.4rem 0.15rem', borderRight: i < 6 ? '1px solid var(--border)' : 'none', background: isT ? 'rgba(134,59,255,0.06)' : 'transparent' }}>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 500 }}>{DAY_LABELS[i]}</div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: isT ? 700 : 400, color: isT ? 'var(--accent)' : 'var(--text-primary)' }}>
+                      {new Date(d + 'T12:00:00').getDate()}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {/* Spalten-Inhalte */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', minHeight: '120px' }}>
+              {weekDays.map((d, i) => {
+                const blocks = resolveBlocksForDate(allBlocks, allExceptions, d)
+                const isT = d === today
+                return (
+                  <div key={d} style={{ borderRight: i < 6 ? '1px solid var(--border)' : 'none', padding: '0.3rem 0.15rem', display: 'flex', flexDirection: 'column', gap: '0.2rem', background: isT ? 'rgba(134,59,255,0.03)' : 'transparent', minHeight: '80px' }}>
+                    {blocks.map(block => (
+                      <button
+                        key={block.id}
+                        onClick={() => { handleBlockClick(block) }}
+                        style={{ background: block.color, border: 'none', borderRadius: '4px', padding: '0.2rem 0.25rem', cursor: 'pointer', textAlign: 'left', width: '100%', overflow: 'hidden' }}
+                        title={`${block.title} ${block.start_time}–${block.end_time}`}
+                      >
+                        <div style={{ fontSize: '0.6rem', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }}>{block.title}</div>
+                        <div style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.8)', lineHeight: 1.2 }}>{block.start_time}</div>
+                      </button>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── Monatsansicht ── */}
+      {viewMode === 'month' && !error && (() => {
+        const grid = getMonthGrid(selectedDate)
+        const DAY_HEADERS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+        return (
+          <div style={{ margin: '0.5rem 1rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '1rem', overflow: 'hidden' }}>
+            {/* Wochentag-Header */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid var(--border)' }}>
+              {DAY_HEADERS.map(h => (
+                <div key={h} style={{ textAlign: 'center', padding: '0.4rem 0', fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', borderRight: h !== 'So' ? '1px solid var(--border)' : 'none' }}>{h}</div>
+              ))}
+            </div>
+            {/* Wochen-Rows */}
+            {Array.from({ length: grid.length / 7 }, (_, rowIdx) => (
+              <div key={rowIdx} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: rowIdx < grid.length / 7 - 1 ? '1px solid var(--border)' : 'none' }}>
+                {grid.slice(rowIdx * 7, rowIdx * 7 + 7).map((d, colIdx) => {
+                  const isT = d === today
+                  const isSelected = d === selectedDate
+                  const blocks = d ? resolveBlocksForDate(allBlocks, allExceptions, d) : []
+                  return (
+                    <div
+                      key={colIdx}
+                      onClick={() => { if (d) { setSelectedDate(d); setViewMode('day') } }}
+                      style={{ borderRight: colIdx < 6 ? '1px solid var(--border)' : 'none', padding: '0.35rem 0.25rem', minHeight: '52px', cursor: d ? 'pointer' : 'default', background: isSelected ? 'rgba(134,59,255,0.07)' : isT ? 'rgba(134,59,255,0.03)' : 'transparent' }}
+                    >
+                      {d && (
+                        <>
+                          <div style={{ fontSize: '0.75rem', fontWeight: isT ? 700 : 400, color: isT ? 'var(--accent)' : 'var(--text-primary)', textAlign: 'center', marginBottom: '0.2rem' }}>
+                            {new Date(d + 'T12:00:00').getDate()}
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', justifyContent: 'center' }}>
+                            {blocks.slice(0, 3).map(b => (
+                              <div key={b.id} style={{ width: '6px', height: '6px', borderRadius: '50%', background: b.color, flexShrink: 0 }} />
+                            ))}
+                            {blocks.length > 3 && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--text-muted)', flexShrink: 0 }} />}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        )
+      })()}
 
       {/* Floating Add-Button */}
       <button
