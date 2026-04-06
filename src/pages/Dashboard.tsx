@@ -16,6 +16,7 @@ import {
   getTasksForGoals,
   updateGoalTask,
   updateJournalEntry,
+  getTodayGoalTasks,
 } from '../lib/db'
 import { generatePatternAnalysis } from '../lib/claude'
 import { formatDate, daysSince } from '../lib/utils'
@@ -133,8 +134,9 @@ export default function Dashboard() {
 
   async function loadDashboardData(userId: string) {
     setIsLoading(true)
+    const today = new Date().toISOString().split('T')[0]
     try {
-      const [todayEntries, goals, streakCount, best, heatmap, lastDate, recent] = await Promise.all([
+      const [todayEntries, goals, streakCount, best, heatmap, lastDate, recent, todayGoalTasks] = await Promise.all([
         getTodayEntries(userId),
         getWeeklyGoals(userId),
         getStreak(userId),
@@ -142,6 +144,7 @@ export default function Dashboard() {
         getHeatmapData(userId, 60),
         getLastJournalDate(userId),
         getRecentEntries(userId, 30),
+        getTodayGoalTasks(userId, today),
       ])
 
       const morningEntry = todayEntries.find((e) => e.type === 'morning')
@@ -150,7 +153,17 @@ export default function Dashboard() {
       setMorningGoalToday(morningEntry?.main_goal_today ?? null)
       if (morningEntry) {
         setMorningEntryId(morningEntry.id)
-        setDailyTasks(Array.isArray(morningEntry.daily_tasks) ? morningEntry.daily_tasks as unknown as DailyTask[] : [])
+        const unlinkedTasks: DailyTask[] = Array.isArray(morningEntry.daily_tasks)
+          ? morningEntry.daily_tasks as unknown as DailyTask[]
+          : []
+        const linkedTasks: DailyTask[] = todayGoalTasks.map((gt) => ({
+          id: gt.id,
+          title: gt.title,
+          completed: gt.completed,
+          goal_id: gt.goal_id,
+          goal_task_id: gt.id,
+        }))
+        setDailyTasks([...unlinkedTasks, ...linkedTasks])
       }
       const topGoals = goals.slice(0, 3)
       setWeeklyGoals(topGoals)
@@ -203,11 +216,37 @@ export default function Dashboard() {
   }
 
   async function handleToggleDailyTask(task: DailyTask) {
-    if (!morningEntryId) return
-    const updated = dailyTasks.map((t) => (t.id === task.id ? { ...t, completed: !t.completed } : t))
-    setDailyTasks(updated)
-    updateJournalEntry(morningEntryId, { daily_tasks: updated as unknown as import('../types/database').Json })
-      .catch((err) => console.error('daily_tasks update:', err))
+    const updatedList = dailyTasks.map((t) => (t.id === task.id ? { ...t, completed: !t.completed } : t))
+    setDailyTasks(updatedList)
+
+    if (task.goal_task_id) {
+      // Verknüpfter Task → goal_task updaten + Wochenziel-State synchronisieren
+      setWeeklyGoalTasks((prev) => prev.map((t) => t.id === task.goal_task_id ? { ...t, completed: !task.completed } : t))
+      try {
+        await updateGoalTask(task.goal_task_id, { completed: !task.completed })
+        // Fortschritt des Wochenziels neu berechnen
+        if (task.goal_id) {
+          const allGoalTasks = weeklyGoalTasks.map((t) =>
+            t.id === task.goal_task_id ? { ...t, completed: !task.completed } : t
+          )
+          const goalTasks = allGoalTasks.filter((t) => t.goal_id === task.goal_id)
+          if (goalTasks.length > 0) {
+            const progress = Math.round((goalTasks.filter((t) => t.completed).length / goalTasks.length) * 100)
+            handleProgressUpdate(task.goal_id, progress)
+          }
+        }
+      } catch (err) {
+        console.error('Task toggle error:', err)
+        setDailyTasks(dailyTasks)
+        setWeeklyGoalTasks((prev) => prev.map((t) => t.id === task.goal_task_id ? { ...t, completed: task.completed } : t))
+      }
+    } else {
+      // Unverknüpfter Task → nur daily_tasks JSON aktualisieren
+      if (!morningEntryId) return
+      const unlinkedOnly = updatedList.filter((t) => !t.goal_task_id)
+      updateJournalEntry(morningEntryId, { daily_tasks: unlinkedOnly as unknown as import('../types/database').Json })
+        .catch((err) => console.error('daily_tasks update:', err))
+    }
   }
 
   async function handleToggleTask(task: import('../types/database').GoalTaskRow) {

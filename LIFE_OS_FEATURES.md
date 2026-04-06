@@ -159,7 +159,7 @@ Bestehende Typen bleiben erhalten:
 
 ---
 
-### Feature 9 — Tages-Tasks ↔ Wochenziel-Tasks vollständig verknüpfen ⚠️ OFFEN
+### Feature 9 — Tages-Tasks ↔ Wochenziel-Tasks vollständig verknüpfen ✅ UMGESETZT (2026-04-06)
 **Dateien:** `src/components/journal/MorningStep2Goal.tsx`, `src/components/journal/MorningJournal.tsx`, `src/components/journal/EveningJournal.tsx`, `src/pages/Dashboard.tsx`, `src/lib/db.ts`
 **Aufwand:** Groß — eigene Session
 

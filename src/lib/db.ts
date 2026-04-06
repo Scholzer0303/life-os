@@ -413,6 +413,32 @@ export async function deleteGoalTask(id: string): Promise<void> {
   if (error) throw error
 }
 
+export async function getTodayGoalTasks(userId: string, date: string): Promise<GoalTaskRow[]> {
+  const { data, error } = await supabase
+    .from('goal_tasks')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('planned_date', date)
+    .order('sort_order', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getYesterdayOpenGoalTasks(userId: string): Promise<GoalTaskRow[]> {
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterdayStr = yesterday.toISOString().split('T')[0]
+  const { data, error } = await supabase
+    .from('goal_tasks')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('planned_date', yesterdayStr)
+    .eq('completed', false)
+    .order('sort_order', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
 // ─── Pattern Events ───────────────────────────────────────────────────────────
 
 export async function logPatternEvent(event: PatternEventInsert): Promise<void> {

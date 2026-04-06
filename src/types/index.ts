@@ -25,6 +25,7 @@ export interface DailyTask {
   title: string
   completed: boolean
   goal_id?: string | null
+  goal_task_id?: string | null  // gesetzt wenn dieser Task als goal_task gespeichert ist
 }
 
 export interface TimeBlock {

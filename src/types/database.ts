@@ -191,6 +191,7 @@ export interface Database {
           completed: boolean
           sort_order: number
           created_at: string
+          planned_date: string | null
         }
         Insert: {
           id?: string
@@ -200,11 +201,13 @@ export interface Database {
           completed?: boolean
           sort_order?: number
           created_at?: string
+          planned_date?: string | null
         }
         Update: {
           title?: string
           completed?: boolean
           sort_order?: number
+          planned_date?: string | null
         }
         Relationships: []
       }

@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md
 # Wird nach jedem Schritt aktualisiert — immer die neueste Version ins Claude Project hochladen
 
-Zuletzt aktualisiert: 2026-04-05
+Zuletzt aktualisiert: 2026-04-06
 
 ---
 
@@ -13,7 +13,8 @@ Life OS ist eine vollständig funktionsfähige PWA, live auf https://life-os-hen
 - Onboarding (9 Schritte): Name → Lebensrad → Ikigai → Werte → 5-Warum → Nordstern → Identität → Stopp-Liste → Ziele
 - Journal: Morgen (5 Schritte inkl. Tages-Tasks), Abend (4 Schritte), Freeform — alle mit KI-Feedback
 - Ziele: Hierarchie three_year → year → quarterly → monthly → weekly, mit abhakbaren Tasks (goal_tasks)
-- Dashboard: Heatmap, Streak, Wochenziele mit Tasks, Tages-Tasks, Pattern-Interrupt-Banner, Identitäts-Reminder
+- Dashboard: Heatmap, Streak, Wochenziele mit Tasks, Tages-Tasks (verknüpft + unverknüpft, einheitliche Quelle), Pattern-Interrupt-Banner, Identitäts-Reminder
+- Morgenjournal: Übertrag-Dialog für offene gestrige Tasks (Übernehmen/Löschen)
 - Coach: 4 Modi, Muster-Panel, Archiv vergangener Sessions, localStorage-Persistenz
 - Review: Woche/Monat/Quartal/Jahr, KI-Zusammenfassung mit intelligenter Datenaggregation
 - Kalender: Tagesansicht mit wiederkehrenden Zeitblöcken, Serien-Bearbeitung, Sync mit Morgenjournal
@@ -82,7 +83,7 @@ Bearbeitungsreihenfolge: Fix 1 → Fix 2 → Fix 3 → Fix 4 → Feature 5 → F
 | Feature 6 | Task-Kaskade für alle Ziel-Ebenen | Mittel | ✅ FERTIG |
 | Feature 7 | Kalender: Wochen- und Monatsansicht | Mittel | ✅ FERTIG |
 | Feature 8 | Kalender: Spezifische Wochentage | Mittel | ✅ FERTIG |
-| Feature 9 | Tages-Tasks ↔ Wochenziel-Tasks verknüpfen | Groß | ⚠️ OFFEN |
+| Feature 9 | Tages-Tasks ↔ Wochenziel-Tasks verknüpfen | Groß | ✅ FERTIG |
 | Feature 10 | Habit Tracker (Paket 2B) | Sehr Groß | ⛔ Erst nach 2A |
 
 Genaue Spezifikation zu jedem Schritt: siehe LIFE_OS_FEATURES.md

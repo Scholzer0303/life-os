@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
-import { createJournalEntry, getTodayEntries, updateJournalEntry } from '../../lib/db'
+import { createJournalEntry, getTodayEntries, updateJournalEntry, updateGoalTask, getTodayGoalTasks } from '../../lib/db'
 import type { DailyTask } from '../../types'
 import { todayISO } from '../../lib/utils'
 import ProgressBar from '../onboarding/ProgressBar'
@@ -98,15 +98,29 @@ export default function EveningJournal() {
 
   useEffect(() => {
     if (!user) return
-    getTodayEntries(user.id).then((entries) => {
+    const today = new Date().toISOString().split('T')[0]
+    Promise.all([
+      getTodayEntries(user.id),
+      getTodayGoalTasks(user.id, today),
+    ]).then(([entries, todayGoalTasks]) => {
       const morning = entries.find((e) => e.type === 'morning')
       if (morning) {
         setMorningGoal(morning.main_goal_today ?? null)
         setMorningEntryId(morning.id)
-        const tasks = Array.isArray(morning.daily_tasks) ? morning.daily_tasks as unknown as DailyTask[] : []
-        setDailyTasks(tasks)
+        const unlinkedTasks: DailyTask[] = Array.isArray(morning.daily_tasks)
+          ? morning.daily_tasks as unknown as DailyTask[]
+          : []
+        const linkedTasks: DailyTask[] = todayGoalTasks.map((gt) => ({
+          id: gt.id,
+          title: gt.title,
+          completed: gt.completed,
+          goal_id: gt.goal_id,
+          goal_task_id: gt.id,
+        }))
+        const allTasks = [...unlinkedTasks, ...linkedTasks]
+        setDailyTasks(allTasks)
         // accomplished mit erledigten Tasks vorausfüllen
-        const done = tasks.filter((t) => t.completed).map((t) => `- ${t.title}`)
+        const done = allTasks.filter((t) => t.completed).map((t) => `- ${t.title}`)
         if (done.length > 0 && !data.accomplished) {
           patch({ accomplished: done.join('\n') })
         }
@@ -115,15 +129,23 @@ export default function EveningJournal() {
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleToggleDailyTask(task: DailyTask) {
-    const updated = dailyTasks.map((t) => (t.id === task.id ? { ...t, completed: !t.completed } : t))
-    setDailyTasks(updated)
+    const updatedList = dailyTasks.map((t) => (t.id === task.id ? { ...t, completed: !t.completed } : t))
+    setDailyTasks(updatedList)
     // accomplished-Feld bei jeder Änderung aktualisieren
-    const done = updated.filter((t) => t.completed).map((t) => `- ${t.title}`)
+    const done = updatedList.filter((t) => t.completed).map((t) => `- ${t.title}`)
     patch({ accomplished: done.join('\n') })
-    // In DB persistieren
-    if (morningEntryId) {
-      updateJournalEntry(morningEntryId, { daily_tasks: updated as unknown as import('../../types/database').Json })
-        .catch((err) => console.error('daily_tasks update:', err))
+
+    if (task.goal_task_id) {
+      // Verknüpfter Task → goal_task updaten
+      updateGoalTask(task.goal_task_id, { completed: !task.completed })
+        .catch((err) => console.error('goal_task update:', err))
+    } else {
+      // Unverknüpfter Task → daily_tasks JSON aktualisieren
+      if (morningEntryId) {
+        const unlinkedOnly = updatedList.filter((t) => !t.goal_task_id)
+        updateJournalEntry(morningEntryId, { daily_tasks: unlinkedOnly as unknown as import('../../types/database').Json })
+          .catch((err) => console.error('daily_tasks update:', err))
+      }
     }
   }
 
