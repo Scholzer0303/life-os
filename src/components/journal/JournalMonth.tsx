@@ -1,0 +1,429 @@
+import { useState, useEffect, useCallback } from 'react'
+import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
+import { useStore } from '../../store/useStore'
+import { getJournalPeriod, upsertJournalPeriod, getMonthlyGoals, createGoal, updateGoal, deleteGoal } from '../../lib/db'
+import { generatePeriodSummary } from '../../lib/claude'
+import HabitManager from '../habits/HabitManager'
+import type { GoalRow } from '../../types/database'
+
+// ─── Typen ───────────────────────────────────────────────────────────────────
+
+interface MonthPlanningData {
+  theme?: string
+}
+
+interface MonthReflectionData {
+  what_went_well?: string
+  what_went_badly?: string
+  learnings?: string
+}
+
+// ─── Datum-Hilfsfunktionen ────────────────────────────────────────────────────
+
+function getCurrentMonthYear(): { month: number; year: number } {
+  const now = new Date()
+  return { month: now.getMonth() + 1, year: now.getFullYear() }
+}
+
+function getMonthAtOffset(offset: number): { month: number; year: number } {
+  const now = new Date()
+  const d = new Date(now.getFullYear(), now.getMonth() + offset, 1)
+  return { month: d.getMonth() + 1, year: d.getFullYear() }
+}
+
+function getMonthPeriodKey(month: number, year: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`
+}
+
+function getMonthLabel(month: number, year: number): string {
+  return new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1))
+}
+
+// ─── Haupt-Komponente ─────────────────────────────────────────────────────────
+
+export default function JournalMonth() {
+  const { user, profile } = useStore()
+  const current = getCurrentMonthYear()
+  const [monthOffset, setMonthOffset] = useState(0)
+  const [activeSubTab, setActiveSubTab] = useState<'planung' | 'reflexion'>('planung')
+
+  const { month, year } = getMonthAtOffset(monthOffset)
+  const periodKey = getMonthPeriodKey(month, year)
+  const monthLabel = getMonthLabel(month, year)
+  const isCurrentMonth = monthOffset === 0
+
+  // Journal Period
+  const [planning, setPlanning] = useState<MonthPlanningData>({})
+  const [reflection, setReflection] = useState<MonthReflectionData>({})
+  const [aiSummary, setAiSummary] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+
+  // Monatsziele (goals table)
+  const [goals, setGoals] = useState<GoalRow[]>([])
+  const [goalsLoading, setGoalsLoading] = useState(false)
+  const [newGoalTitle, setNewGoalTitle] = useState('')
+
+  // Laden
+  const loadData = useCallback(async () => {
+    if (!user) return
+    setLoading(true)
+    setGoalsLoading(true)
+    try {
+      const [p, g] = await Promise.all([
+        getJournalPeriod(user.id, 'month', periodKey),
+        getMonthlyGoals(user.id, month, year),
+      ])
+      if (p) {
+        setPlanning((p.planning_data as MonthPlanningData) ?? {})
+        setReflection((p.reflection_data as MonthReflectionData) ?? {})
+        setAiSummary(p.ai_summary ?? null)
+      } else {
+        setPlanning({})
+        setReflection({})
+        setAiSummary(null)
+      }
+      setGoals(g)
+    } catch (err) {
+      console.error('JournalMonth laden:', err)
+    } finally {
+      setLoading(false)
+      setGoalsLoading(false)
+    }
+  }, [user, periodKey, month, year]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { loadData() }, [loadData])
+
+  // Planung speichern
+  async function savePlanning() {
+    if (!user) return
+    setSaving(true); setSaveSuccess(false)
+    try {
+      await upsertJournalPeriod(user.id, 'month', periodKey, { planning_data: planning as Record<string, unknown> })
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 2000)
+    } catch (err) {
+      console.error('Planung speichern:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Reflexion speichern
+  async function saveReflection() {
+    if (!user) return
+    setSaving(true); setSaveSuccess(false)
+    try {
+      await upsertJournalPeriod(user.id, 'month', periodKey, {
+        reflection_data: reflection as Record<string, unknown>,
+      })
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 2000)
+    } catch (err) {
+      console.error('Reflexion speichern:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // KI-Zusammenfassung
+  async function handleGenerateSummary() {
+    if (!user) return
+    setAiLoading(true); setAiError(null)
+    try {
+      const planData = {
+        ...planning,
+        goals: goals.map((g) => `${g.title} (${g.status})`),
+      }
+      const summary = await generatePeriodSummary('month', monthLabel, planData, reflection as Record<string, unknown>, profile ?? null)
+      setAiSummary(summary)
+      await upsertJournalPeriod(user.id, 'month', periodKey, { ai_summary: summary })
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'Fehler beim Generieren.')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  // Monatsziele
+  async function addGoal() {
+    if (!user || !newGoalTitle.trim()) return
+    try {
+      const goal = await createGoal({
+        user_id: user.id,
+        title: newGoalTitle.trim(),
+        type: 'monthly',
+        month,
+        year,
+        status: 'active',
+        progress: 0,
+      })
+      setGoals((prev) => [...prev, goal])
+      setNewGoalTitle('')
+    } catch (err) {
+      console.error('Ziel erstellen:', err)
+    }
+  }
+
+  async function toggleGoalStatus(goal: GoalRow) {
+    const nextStatus = goal.status === 'completed' ? 'active' : 'completed'
+    try {
+      const updated = await updateGoal(goal.id, { status: nextStatus })
+      setGoals((prev) => prev.map((g) => g.id === goal.id ? updated : g))
+    } catch (err) {
+      console.error('Ziel-Status:', err)
+    }
+  }
+
+  async function removeGoal(id: string) {
+    if (!confirm('Ziel wirklich löschen?')) return
+    try {
+      await deleteGoal(id)
+      setGoals((prev) => prev.filter((g) => g.id !== id))
+    } catch (err) {
+      console.error('Ziel löschen:', err)
+    }
+  }
+
+  // ─── Render ───────────────────────────────────────────────────────────────
+
+  return (
+    <div>
+      {/* Monats-Navigation */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', gap: '0.5rem' }}>
+        <button
+          onClick={() => setMonthOffset((m) => m - 1)}
+          style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.4rem 0.6rem', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
+          aria-label="Vorheriger Monat"
+        >
+          <ChevronLeft size={16} />
+        </button>
+
+        <div style={{ textAlign: 'center', flex: 1 }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>{monthLabel}</div>
+          {isCurrentMonth && (
+            <div style={{ fontSize: '0.7rem', color: 'var(--accent)', fontWeight: 600, marginTop: '0.1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Aktueller Monat
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={() => setMonthOffset((m) => m + 1)}
+          disabled={month === current.month && year === current.year}
+          style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.4rem 0.6rem', cursor: isCurrentMonth ? 'default' : 'pointer', color: isCurrentMonth ? 'var(--border)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
+          aria-label="Nächster Monat"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+
+      {/* Sub-Tabs */}
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: '1.25rem' }}>
+        {(['planung', 'reflexion'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveSubTab(tab)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.55rem 1.1rem', fontSize: '0.875rem', fontWeight: activeSubTab === tab ? 600 : 400, color: activeSubTab === tab ? 'var(--accent)' : 'var(--text-muted)', borderBottom: activeSubTab === tab ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: '-1px', fontFamily: 'DM Sans, sans-serif', textTransform: 'capitalize', transition: 'color 0.15s' }}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {loading && <div style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Lade…</div>}
+
+      {/* ── PLANUNG ── */}
+      {!loading && activeSubTab === 'planung' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Monatsthema */}
+          <div>
+            <label style={LABEL_STYLE}>Wofür steht dieser Monat?</label>
+            <textarea
+              value={planning.theme ?? ''}
+              onChange={(e) => setPlanning((p) => ({ ...p, theme: e.target.value }))}
+              placeholder="Mein Monatsthema ist…"
+              rows={2}
+              style={TEXTAREA_STYLE}
+              onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+              onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+            />
+          </div>
+
+          {/* Monatsziele */}
+          <div>
+            <div style={LABEL_STYLE}>Monatsziele</div>
+            {goalsLoading ? (
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Lade…</div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  {goals.map((goal) => (
+                    <div key={goal.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.6rem 0.75rem' }}>
+                      <span style={{ flex: 1, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{goal.title}</span>
+                      <button onClick={() => removeGoal(goal.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', display: 'flex' }} aria-label="Entfernen">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    value={newGoalTitle}
+                    onChange={(e) => setNewGoalTitle(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGoal() } }}
+                    placeholder="Neues Ziel…"
+                    style={{ flex: 1, padding: '0.7rem 0.9rem', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
+                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                    onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+                  />
+                  <button
+                    onClick={addGoal}
+                    disabled={!newGoalTitle.trim()}
+                    style={{ padding: '0.7rem 0.9rem', background: newGoalTitle.trim() ? 'var(--accent)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: '8px', cursor: newGoalTitle.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center' }}
+                    aria-label="Hinzufügen"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Habits */}
+          <div>
+            <HabitManager month={month} year={year} />
+          </div>
+
+          {/* Speichern (nur Monatsthema — Ziele und Habits speichern direkt) */}
+          <button
+            onClick={savePlanning}
+            disabled={saving}
+            style={{ padding: '0.9rem', background: saving ? 'var(--text-muted)' : saveSuccess ? '#22c55e' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '1rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: saving ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
+          >
+            {saving ? 'Wird gespeichert…' : saveSuccess ? '✓ Monatsthema gespeichert' : 'Monatsthema speichern'}
+          </button>
+        </div>
+      )}
+
+      {/* ── REFLEXION ── */}
+      {!loading && activeSubTab === 'reflexion' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Monatsziele Status */}
+          {goals.length > 0 ? (
+            <div>
+              <div style={LABEL_STYLE}>Monatsziele</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {goals.map((goal) => (
+                  <button
+                    key={goal.id}
+                    onClick={() => toggleGoalStatus(goal)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', background: goal.status === 'completed' ? '#22c55e14' : 'var(--bg-card)', border: `1px solid ${goal.status === 'completed' ? '#22c55e40' : 'var(--border)'}`, borderRadius: '8px', padding: '0.65rem 0.75rem', cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s' }}
+                  >
+                    <span style={{ fontSize: '1rem', color: goal.status === 'completed' ? '#22c55e' : 'var(--border)', flexShrink: 0 }}>
+                      {goal.status === 'completed' ? '✓' : '○'}
+                    </span>
+                    <span style={{ fontSize: '0.9rem', color: goal.status === 'completed' ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: goal.status === 'completed' ? 'line-through' : 'none' }}>
+                      {goal.title}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Keine Monatsziele geplant.</div>
+          )}
+
+          {/* Reflexionsfelder */}
+          {[
+            { key: 'what_went_well' as const, label: 'Was lief gut?', placeholder: 'Was hat besonders funktioniert diesen Monat…' },
+            { key: 'what_went_badly' as const, label: 'Was lief nicht gut?', placeholder: 'Was hat mich ausgebremst…' },
+            { key: 'learnings' as const, label: 'Learnings', placeholder: 'Was nehme ich mit in den nächsten Monat…' },
+          ].map(({ key, label, placeholder }) => (
+            <div key={key}>
+              <label style={LABEL_STYLE}>{label}</label>
+              <textarea
+                value={reflection[key] ?? ''}
+                onChange={(e) => setReflection((r) => ({ ...r, [key]: e.target.value }))}
+                placeholder={placeholder}
+                rows={3}
+                style={TEXTAREA_STYLE}
+                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+              />
+            </div>
+          ))}
+
+          {/* KI-Zusammenfassung */}
+          <div>
+            {!aiSummary && !aiLoading && (
+              <button onClick={handleGenerateSummary} style={{ width: '100%', padding: '0.85rem', background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                💡 KI-Zusammenfassung generieren
+              </button>
+            )}
+            {aiLoading && (
+              <div style={{ padding: '0.85rem 1rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text-muted)', fontSize: '0.875rem', textAlign: 'center' }}>
+                Mentor denkt…
+              </div>
+            )}
+            {aiError && (
+              <div style={{ padding: '0.75rem 1rem', background: '#FFF0EE', border: '1px solid var(--accent-warm)', borderRadius: '10px', color: 'var(--accent-warm)', fontSize: '0.875rem' }}>
+                {aiError}
+              </div>
+            )}
+            {aiSummary && (
+              <div>
+                <div style={{ padding: '1rem 1.1rem', background: 'color-mix(in srgb, var(--accent) 8%, var(--bg-card))', border: '1px solid color-mix(in srgb, var(--accent) 25%, var(--border))', borderRadius: '10px', fontSize: '0.95rem', lineHeight: 1.6, color: 'var(--text-primary)' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.4rem' }}>
+                    Mentor · {monthLabel}
+                  </span>
+                  {aiSummary}
+                </div>
+                <button onClick={() => { setAiSummary(null); handleGenerateSummary() }} style={{ marginTop: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-muted)', fontFamily: 'DM Sans, sans-serif' }}>
+                  ↻ Neu generieren
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Speichern */}
+          <button
+            onClick={saveReflection}
+            disabled={saving}
+            style={{ padding: '0.9rem', background: saving ? 'var(--text-muted)' : saveSuccess ? '#22c55e' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '1rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: saving ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
+          >
+            {saving ? 'Wird gespeichert…' : saveSuccess ? '✓ Gespeichert' : 'Reflexion speichern'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const LABEL_STYLE: React.CSSProperties = {
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  color: 'var(--text-muted)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  display: 'block',
+  marginBottom: '0.5rem',
+}
+
+const TEXTAREA_STYLE: React.CSSProperties = {
+  width: '100%',
+  padding: '0.85rem 1rem',
+  border: '1.5px solid var(--border)',
+  borderRadius: '10px',
+  fontSize: '0.95rem',
+  fontFamily: 'DM Sans, sans-serif',
+  background: 'var(--bg-primary)',
+  color: 'var(--text-primary)',
+  outline: 'none',
+  resize: 'none',
+  boxSizing: 'border-box',
+  lineHeight: 1.5,
+}

@@ -15,6 +15,10 @@ import type {
   GoalTaskRow,
   GoalTaskInsert,
   GoalTaskUpdate,
+  HabitRow,
+  HabitInsert,
+  HabitUpdate,
+  HabitLogRow,
 } from '../types/database'
 import type { TimeBlock, CoachMessage } from '../types'
 
@@ -70,6 +74,19 @@ export async function getActiveGoals(userId: string): Promise<GoalRow[]> {
     .eq('user_id', userId)
     .eq('status', 'active')
     .order('type', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getMonthlyGoals(userId: string, month: number, year: number): Promise<GoalRow[]> {
+  const { data, error } = await supabase
+    .from('goals')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('type', 'monthly')
+    .eq('month', month)
+    .eq('year', year)
+    .order('created_at', { ascending: true })
   if (error) throw error
   return data ?? []
 }
@@ -156,6 +173,16 @@ export async function getTodayEntries(userId: string): Promise<JournalEntryRow[]
     .select('*')
     .eq('user_id', userId)
     .eq('entry_date', todayISO())
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getEntriesForDate(userId: string, date: string): Promise<JournalEntryRow[]> {
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('entry_date', date)
   if (error) throw error
   return data ?? []
 }
@@ -666,4 +693,159 @@ export async function deleteExceptionsFrom(blockId: string, fromDate: string): P
     .eq('block_id', blockId)
     .gte('exception_date', fromDate)
   if (error) throw error
+}
+
+// ─── Habits ───────────────────────────────────────────────────────────────────
+
+export async function getHabitsForMonth(
+  userId: string,
+  month: number,
+  year: number
+): Promise<HabitRow[]> {
+  const { data, error } = await db
+    .from('habits')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('month', month)
+    .eq('year', year)
+    .eq('is_active', true)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as HabitRow[]
+}
+
+export async function createHabit(
+  userId: string,
+  habitData: Omit<HabitInsert, 'user_id'>
+): Promise<HabitRow> {
+  const { data, error } = await db
+    .from('habits')
+    .insert({ ...habitData, user_id: userId })
+    .select()
+    .single()
+  if (error) throw error
+  return data as HabitRow
+}
+
+export async function updateHabit(habitId: string, updates: HabitUpdate): Promise<HabitRow> {
+  const { data, error } = await db
+    .from('habits')
+    .update(updates)
+    .eq('id', habitId)
+    .select()
+    .single()
+  if (error) throw error
+  return data as HabitRow
+}
+
+export async function deleteHabit(habitId: string): Promise<void> {
+  const { error } = await db.from('habits').delete().eq('id', habitId)
+  if (error) throw error
+}
+
+export async function logHabit(
+  habitId: string,
+  userId: string,
+  date: string,
+  completed: boolean
+): Promise<void> {
+  const { error } = await db
+    .from('habit_logs')
+    .upsert({ habit_id: habitId, user_id: userId, log_date: date, completed }, { onConflict: 'habit_id,log_date' })
+  if (error) throw error
+}
+
+export async function getHabitWeekProgress(
+  userId: string,
+  habitId: string,
+  weekStart: string,
+  weekEnd: string
+): Promise<number> {
+  const { data, error } = await db
+    .from('habit_logs')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('habit_id', habitId)
+    .eq('completed', true)
+    .gte('log_date', weekStart)
+    .lte('log_date', weekEnd)
+  if (error) throw error
+  return (data ?? []).length
+}
+
+export async function getHabitLogs(
+  userId: string,
+  month: number,
+  year: number
+): Promise<HabitLogRow[]> {
+  // Datumsbereich für den Monat berechnen
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`
+  const lastDay = new Date(year, month, 0).getDate()
+  const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+
+  const { data, error } = await db
+    .from('habit_logs')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('log_date', startDate)
+    .lte('log_date', endDate)
+  if (error) throw error
+  return (data ?? []) as HabitLogRow[]
+}
+
+// ─── Journal Periods (Paket 4) ────────────────────────────────────────────────
+
+import type { JournalPeriod } from '../types'
+
+export async function getJournalPeriod(
+  userId: string,
+  periodType: JournalPeriod['period_type'],
+  periodKey: string
+): Promise<JournalPeriod | null> {
+  const { data, error } = await db
+    .from('journal_periods')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('period_type', periodType)
+    .eq('period_key', periodKey)
+    .maybeSingle()
+  if (error) throw error
+  return data as JournalPeriod | null
+}
+
+export async function upsertJournalPeriod(
+  userId: string,
+  periodType: JournalPeriod['period_type'],
+  periodKey: string,
+  updates: { planning_data?: Record<string, unknown>; reflection_data?: Record<string, unknown>; ai_summary?: string }
+): Promise<JournalPeriod> {
+  const { data, error } = await db
+    .from('journal_periods')
+    .upsert(
+      { user_id: userId, period_type: periodType, period_key: periodKey, ...updates, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,period_type,period_key' }
+    )
+    .select()
+    .single()
+  if (error) throw error
+  return data as JournalPeriod
+}
+
+export async function deleteJournalPeriod(id: string): Promise<void> {
+  const { error } = await db.from('journal_periods').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function listJournalPeriods(
+  userId: string,
+  periodType: JournalPeriod['period_type']
+): Promise<JournalPeriod[]> {
+  const { data, error } = await db
+    .from('journal_periods')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('period_type', periodType)
+    .order('period_key', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as JournalPeriod[]
 }

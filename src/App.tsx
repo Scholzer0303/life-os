@@ -15,6 +15,7 @@ import Review from './pages/Review'
 // import Calendar from './pages/Calendar' // Kalender deaktiviert (Paket 3A Schritt 7)
 import PatternInterrupt from './pages/PatternInterrupt'
 import Settings from './pages/Settings'
+import Overview from './pages/Overview'
 
 
 function AppRoutes() {
@@ -29,8 +30,10 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/journal" element={<Journal />} />
-        <Route path="/goals" element={<Goals />} />
+        <Route path="/overview" element={<Overview />} />
         <Route path="/coach" element={<Coach />} />
+        {/* Ziele + Review: kein Nav-Eintrag mehr, Route bleibt als Fallback */}
+        <Route path="/goals" element={<Goals />} />
         {/* <Route path="/calendar" element={<Calendar />} /> */}
         <Route path="/review" element={<Review />} />
         <Route path="/pattern-interrupt" element={<PatternInterrupt />} />

@@ -244,6 +244,66 @@ export interface Database {
         }
         Relationships: []
       }
+      habits: {
+        Row: {
+          id: string
+          user_id: string
+          goal_id: string | null
+          title: string
+          description: string | null
+          color: string
+          month: number
+          year: number
+          is_active: boolean
+          created_at: string
+          frequency_type: 'daily' | 'weekly'
+          frequency_value: number
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          goal_id?: string | null
+          title: string
+          description?: string | null
+          color?: string
+          month: number
+          year: number
+          is_active?: boolean
+          created_at?: string
+          frequency_type?: 'daily' | 'weekly'
+          frequency_value?: number
+        }
+        Update: {
+          goal_id?: string | null
+          title?: string
+          description?: string | null
+          color?: string
+          is_active?: boolean
+          frequency_type?: 'daily' | 'weekly'
+          frequency_value?: number
+        }
+        Relationships: []
+      }
+      habit_logs: {
+        Row: {
+          id: string
+          habit_id: string
+          user_id: string
+          log_date: string
+          completed: boolean
+        }
+        Insert: {
+          id?: string
+          habit_id: string
+          user_id: string
+          log_date: string
+          completed?: boolean
+        }
+        Update: {
+          completed?: boolean
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
@@ -272,3 +332,10 @@ export type GoalTaskInsert = Database['public']['Tables']['goal_tasks']['Insert'
 export type GoalTaskUpdate = Database['public']['Tables']['goal_tasks']['Update']
 
 export type PatternEventInsert = Database['public']['Tables']['pattern_events']['Insert']
+
+export type HabitRow = Database['public']['Tables']['habits']['Row']
+export type HabitInsert = Database['public']['Tables']['habits']['Insert']
+export type HabitUpdate = Database['public']['Tables']['habits']['Update']
+
+export type HabitLogRow = Database['public']['Tables']['habit_logs']['Row']
+export type HabitLogInsert = Database['public']['Tables']['habit_logs']['Insert']

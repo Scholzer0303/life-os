@@ -11,6 +11,11 @@ export type {
   CoachSessionRow as CoachSession,
   CoachSessionInsert,
   PatternEventInsert,
+  HabitRow as Habit,
+  HabitInsert,
+  HabitUpdate,
+  HabitLogRow as HabitLog,
+  HabitLogInsert,
   Json,
 } from './database'
 
@@ -111,3 +116,17 @@ export interface BlockFormData {
 
 // Auswahl beim Bearbeiten einer Serie
 export type SeriesEditScope = 'only_this' | 'this_and_following' | 'all'
+
+// ─── Journal Periods (Paket 4) ────────────────────────────────────────────────
+
+export interface JournalPeriod {
+  id: string
+  user_id: string
+  period_type: 'week' | 'month' | 'quarter' | 'year'
+  period_key: string  // z.B. '2026-W15', '2026-04', '2026-Q2', '2026'
+  planning_data: Record<string, unknown>
+  reflection_data: Record<string, unknown>
+  ai_summary?: string
+  created_at: string
+  updated_at: string
+}

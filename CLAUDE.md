@@ -1,7 +1,7 @@
 # CLAUDE.md — Life OS Entwicklungsregeln
 # Liegt im Stammverzeichnis von Desktop/life-os/
 # Claude Code liest diese Datei automatisch bei jedem Start.
-# Zuletzt aktualisiert: 2026-04-07
+# Zuletzt aktualisiert: 2026-04-07 (Paket 4 — Journal als Herzstück)
 
 ---
 
@@ -62,6 +62,11 @@ unnötig komplex oder mit besserer Methode lösbar sind:
 → Ansprechen, erklären, Alternative vorschlagen
 → Nicht blind umsetzen
 
+### 2.7 Bestehende Daten schützen
+Beim großen Umbau (Paket 4): Keine Supabase-Tabellen löschen.
+Keine bestehenden Daten vernichten. Nur neue Tabellen/Spalten hinzufügen,
+bestehende umnutzen. Code deaktivieren statt löschen.
+
 ---
 
 ## 3. ARCHITEKTUR-REGELN
@@ -74,13 +79,40 @@ src/types/index.ts    → Neue Interfaces und Types
 src/store/useStore.ts → Globaler State (Zustand)
 ```
 
-### 3.2 Supabase-Calls — Pflichtregeln
+### 3.2 Neue Seitenstruktur (Paket 4)
+```
+src/pages/
+  Dashboard.tsx       → bleibt weitgehend wie jetzt
+  Journal.tsx         → NEU: Herzstück, Tab-Navigation Tag/Woche/Monat/Quartal/Jahr
+  Coach.tsx           → bleibt, erhält mehr Kontext
+  Overview.tsx        → NEU: Kalender + Habit-Grid + Metriken-Visualisierung
+  Settings.tsx        → bleibt, Profil-Bereiche einzeln bearbeitbar
+
+src/components/journal/
+  JournalDay.tsx          → Tag: Morgen + Abend (Inhalt aus altem MorningJournal/EveningJournal)
+  JournalWeek.tsx         → Woche: Planung + Reflexion
+  JournalMonth.tsx        → Monat: Planung (Ziele + Habits) + Reflexion
+  JournalQuarter.tsx      → Quartal: Planung + Reflexion
+  JournalYear.tsx         → Jahr: Planung (Nordstern + Jahresziel) + Reflexion
+
+src/components/habits/
+  HabitManager.tsx        → Habits anlegen/bearbeiten/löschen
+  HabitChecklist.tsx      → Abendjournal: Habits abhaken
+  HabitGrid.tsx           → Monatsübersicht: Grid aller Habits × Tage
+
+src/components/overview/
+  OverviewCalendar.tsx    → Kalender-Monatsansicht
+  OverviewStats.tsx       → Monatsstatistiken-Kacheln
+  MetricChart.tsx         → Kurven: Energie / Gewicht / Schlaf
+```
+
+### 3.3 Supabase-Calls — Pflichtregeln
 ```typescript
 // IMMER: user_id Filter
 const { data, error } = await supabase
   .from('tabelle')
   .select('*')
-  .eq('user_id', userId);  // NIEMALS vergessen
+  .eq('user_id', userId);
 
 // IMMER: Fehlerprüfung
 if (error) throw error;
@@ -91,29 +123,32 @@ await supabase
   .upsert({ ...data, user_id: userId }, { onConflict: 'user_id,entry_date,type' });
 ```
 
-### 3.3 Wichtige Feldnamen (falsche Namen = 400 Bad Request)
+### 3.4 Wichtige Feldnamen (falsche Namen = 400 Bad Request)
 ```
 journal_entries:
-  ✅ main_goal_today     (NICHT morning_goal)
-  ✅ what_blocked        (NICHT blockers)
-  ✅ entry_date          (NICHT created_at für das Datum)
-  ✅ feeling_score       (1-10, NICHT 1-5)
+  ✅ main_goal_today     ✅ what_blocked       ✅ entry_date
+  ✅ feeling_score       ✅ calendar_planned   ✅ gratitude
+  ✅ weight              ✅ sleep_score
 
 goals:
-  ✅ type-Werte: 'three_year' | 'year' | 'quarterly' | 'monthly' | 'weekly'
-  ✅ parent_id           (UUID, nullable)
+  ✅ type: 'three_year' | 'year' | 'quarterly' | 'monthly' | 'weekly'
+  ✅ parent_id (UUID, nullable)
+
+habits:
+  ✅ frequency_type: 'daily' | 'weekly'
+  ✅ frequency_value: INT (1–7, relevant bei 'weekly')
+  ✅ month, year (INT)
 
 profiles:
-  ✅ ai_profile          (jsonb)
-  ✅ identity_statement  (text)
-  ✅ ikigai              (jsonb: {loves, good_at, paid_for, world_needs, synthesis})
+  ✅ ai_profile (jsonb)
+  ✅ identity_statement (text)
+  ✅ ikigai (jsonb)
 ```
 
 ---
 
 ## 4. TAILWIND CSS v4 REGELN
 
-Tailwind v4 hat eine andere Syntax als v3:
 - Immer eine existierende Komponente als Vorlage nehmen
 - Nie Klassen raten — im Zweifel inline style verwenden
 - `@apply` nicht verwenden
@@ -122,93 +157,72 @@ Tailwind v4 hat eine andere Syntax als v3:
 
 ## 5. SUPABASE-BESONDERHEITEN
 
-### 5.1 goal_type Enum
-```sql
-ALTER TYPE goal_type ADD VALUE IF NOT EXISTS 'year';
-ALTER TYPE goal_type ADD VALUE IF NOT EXISTS 'three_year';
-```
-Bei `400 Bad Request` beim Ziele-Speichern → zuerst diese Migration prüfen.
-
-### 5.2 journal_entries Unique Constraint
-```sql
-ALTER TABLE journal_entries
-  ADD CONSTRAINT journal_entries_user_date_type_unique
-  UNIQUE (user_id, entry_date, type);
-```
-
-### 5.3 Bestehende Tabellen
+### 5.1 Bestehende Tabellen (nicht löschen!)
 `profiles`, `goals`, `journal_entries`, `coach_sessions`, `pattern_events`,
-`goal_tasks`, `recurring_blocks`, `recurring_block_exceptions`
-Row Level Security aktiv auf allen Tabellen.
+`goal_tasks`, `recurring_blocks`, `recurring_block_exceptions`,
+`habits`, `habit_logs`
+
+### 5.2 Neue Tabellen in Paket 4
+```
+journal_periods   → Planung + Reflexion für Woche/Monat/Quartal/Jahr
+                    (period_type: 'week'|'month'|'quarter'|'year', period_key: z.B. '2026-W15')
+```
+
+### 5.3 SQL-Migration Workflow
+Claude Code identifiziert → Lukas führt manuell im Supabase SQL Editor aus → bestätigt → Claude Code testet
+
+### 5.4 journal_entries Unique Constraint
+```sql
+UNIQUE (user_id, entry_date, type)
+```
 
 ---
 
 ## 6. DEPLOYMENT
 
 ```bash
-# Lokal testen BEVOR push
-npm run build   # muss fehlerfrei sein
-
-# Nur wenn build erfolgreich — und erst am SESSION-ENDE:
-git add -A
-git commit -m "feat: [was wurde gebaut]"
-git push origin master
-# → Vercel deployed automatisch
+npm run build   # lokal testen — muss fehlerfrei sein
+# Nur am SESSION-ENDE:
+git add -A && git commit -m "feat: [was]" && git push origin master
 ```
 
-**Niemals pushen wenn `npm run build` Fehler wirft.**
-**Niemals mitten in einer Session pushen — immer erst am Ende.**
+**Niemals pushen wenn Build Fehler wirft. Niemals mitten in einer Session pushen.**
 
 ---
 
 ## 7. NPM BESONDERHEITEN
 
 ```bash
-npm install [paket] --legacy-peer-deps   # IMMER diesen Flag verwenden
+npm install [paket] --legacy-peer-deps   # IMMER diesen Flag
 ```
 
 ---
 
 ## 8. KOMMUNIKATION MIT LUKAS
 
-- Lukas ist kein Entwickler — alles auf Deutsch erklären
-- Nach jedem Teilschritt: kurze Beschreibung was gebaut wurde, dann warten
-- Bei Fehlern: erklären WAS der Fehler bedeutet, nicht nur technische Details
-- Nie mehr als einen Teilschritt auf einmal bauen
+- Alles auf Deutsch erklären
+- Nach jedem Teilschritt: kurze Beschreibung, dann warten
+- Bei Fehlern: erklären WAS der Fehler bedeutet
 - "Fertig" = gebaut UND getestet UND funktioniert
-- Wenn Lukas eine Anforderung stellt die besser lösbar ist: sagen und erklären
+- Aktiv korrigieren wenn Anforderungen besser lösbar sind
 
 ---
 
 ## 9. KONTEXT-LOGBUCH — AUTOMATISCHE PFLICHT
 
-LIFE_OS_KONTEXT.md ist das Gedächtnis des Projekts.
-**Wird nach JEDEM abgeschlossenen Schritt aktualisiert — ohne dass Lukas danach fragt.**
-
-"Abgeschlossen" bedeutet: Code ✓ + Build fehlerfrei ✓ + App getestet ✓
-
-Nach jedem Schritt:
-- LIFE_OS_KONTEXT.md: Schritt als ✅ + Datum eintragen, geänderte Dateien notieren
-- LIFE_OS_FEATURES.md: Erledigten Punkt als `✅ UMGESETZT (Datum)` markieren
-
-**Verschlankungs-Regel:**
-Nach Abschluss eines Pakets: alle ✅ aus "Ausstehend" entfernen, nur Einzeiler ins Archiv.
-Ziel: aktiver Bereich bleibt kompakt — nur was für die aktuelle Session relevant ist.
+LIFE_OS_KONTEXT.md wird nach JEDEM abgeschlossenen Schritt aktualisiert.
+"Abgeschlossen" = Code ✓ + Build fehlerfrei ✓ + App getestet ✓
 
 ---
 
 ## 10. SESSION-START CHECKLISTE
 
 1. VISION.md lesen
-2. LIFE_OS_KONTEXT.md lesen — aktuellen Stand verstehen
-3. LIFE_OS_FEATURES.md lesen — Spezifikation für aktuellen Schritt
-4. PowerShell-Befehl an Lukas ausgeben:
-   ```powershell
-   cd Desktop/life-os
-   npm run dev
-   ```
-5. Aktuellen Status im Browser prüfen
-6. Erst dann mit dem ersten Schritt anfangen
+2. LIFE_OS_KONTEXT.md lesen
+3. LIFE_OS_FEATURES.md lesen
+4. PowerShell-Befehl ausgeben: `cd Desktop/life-os && npm run dev`
+5. Status im Browser prüfen
+6. Erst dann mit erstem Schritt anfangen
 
 ---
 

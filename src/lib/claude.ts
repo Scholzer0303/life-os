@@ -458,6 +458,45 @@ Konkret, direkt, nicht wertend. Echte Zahlen aus den Daten verwenden. Auf Deutsc
   }
 }
 
+export async function generatePeriodSummary(
+  periodType: 'week' | 'month' | 'quarter' | 'year',
+  periodLabel: string,
+  planningData: Record<string, unknown>,
+  reflectionData: Record<string, unknown>,
+  profile: Profile | null
+): Promise<string> {
+  checkRateLimit()
+  const client = getClient()
+  const name = profile?.name ?? 'der Nutzer'
+  const periodNames: Record<string, string> = { week: 'Woche', month: 'Monat', quarter: 'Quartal', year: 'Jahr' }
+  const periodName = periodNames[periodType] ?? periodType
+
+  const planText = Object.entries(planningData)
+    .filter(([, v]) => v !== undefined && v !== null && v !== '')
+    .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+    .join('\n') || 'Keine Planungsdaten.'
+
+  const reflText = Object.entries(reflectionData)
+    .filter(([, v]) => v !== undefined && v !== null && v !== '')
+    .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+    .join('\n') || 'Keine Reflexionsdaten.'
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 200,
+    system: `Du bist Life OS Coach. Erstelle eine ehrliche, prägnante ${periodName}s-Zusammenfassung für ${name}.
+Analysiere was geplant war, was tatsächlich passierte, und die wichtigste Erkenntnis.
+Maximal 150 Wörter. Kein Motivations-Bullshit. Direkt. Antworte auf Deutsch.`,
+    messages: [{
+      role: 'user',
+      content: `Zeitraum: ${periodLabel}\n\nPlanung:\n${planText}\n\nReflexion:\n${reflText}\n\nFasse zusammen.`,
+    }],
+  })
+  const block = response.content[0]
+  if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
+  return block.text
+}
+
 export async function checkGoalAlignment(
   goal: Goal,
   parentGoal: Goal | null,
