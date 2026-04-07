@@ -477,3 +477,50 @@ export async function checkGoalAlignment(
   if (resultBlock.type !== 'text') throw new Error('Unexpected response type from Claude')
   return resultBlock.text
 }
+
+export async function getEveningImpulse(
+  accomplished: string,
+  energyLevel: number,
+  profile: Profile | null
+): Promise<string> {
+  checkRateLimit()
+  const client = getClient()
+  const name = profile?.name ?? 'du'
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 120,
+    system: `Du bist ein direkter, sachlicher Lebensmentor für ${name}. Antworte auf Deutsch. Maximal 2 kurze Sätze. Kein Gelaber, keine leeren Floskeln.`,
+    messages: [{
+      role: 'user',
+      content: `Was ich heute geschafft habe: "${accomplished || 'Nichts aufgeschrieben'}"\nEnergie-Level: ${energyLevel}/10\n\nGib mir einen kurzen Mentor-Abschluss für den Tag.`,
+    }],
+  })
+  const block = response.content[0]
+  if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
+  return block.text
+}
+
+export async function getMorningImpulse(
+  mainGoal: string,
+  tasks: string[],
+  profile: Profile | null
+): Promise<string> {
+  checkRateLimit()
+  const client = getClient()
+  const name = profile?.name ?? 'du'
+  const taskList = tasks.length > 0 ? tasks.map((t, i) => `${i + 1}. ${t}`).join('\n') : 'Keine Tasks definiert.'
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 120,
+    system: `Du bist ein direkter, sachlicher Lebensmentor für ${name}. Antworte auf Deutsch. Maximal 2 kurze Sätze. Kein Gelaber, keine leeren Floskeln.`,
+    messages: [{
+      role: 'user',
+      content: `Heutiges Hauptziel: "${mainGoal}"\n\nAufgaben:\n${taskList}\n\nGib mir einen kurzen Mentor-Impuls für den Start in den Tag.`,
+    }],
+  })
+  const block = response.content[0]
+  if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
+  return block.text
+}

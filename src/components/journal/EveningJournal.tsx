@@ -3,32 +3,43 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
 import { createJournalEntry, getTodayEntries, updateJournalEntry, updateGoalTask, getTodayGoalTasks } from '../../lib/db'
+import { getEveningImpulse } from '../../lib/claude'
 import type { DailyTask } from '../../types'
 import { todayISO } from '../../lib/utils'
 import ProgressBar from '../onboarding/ProgressBar'
-import AIFeedbackCard from './AIFeedbackCard'
 import type { JournalEntryRow } from '../../types/database'
 
 // ── Energy Scale ──────────────────────────────────────────────────────────────
+function energyColor(n: number): string {
+  if (n <= 4) return 'var(--accent-warm)'
+  if (n <= 7) return 'var(--streak)'
+  return 'var(--accent-green)'
+}
+
 function EnergyScale({ value, onChange }: { value: number | null; onChange: (v: number) => void }) {
+  const [hovered, setHovered] = useState<number | null>(null)
   const levels = Array.from({ length: 10 }, (_, i) => i + 1)
   return (
     <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
       {levels.map((n) => {
         const isSelected = value === n
-        const color = n <= 3 ? 'var(--accent-warm)' : n <= 6 ? 'var(--streak)' : 'var(--accent-green)'
+        const isHovered = hovered === n
+        const color = energyColor(n)
+        const active = isSelected || isHovered
         return (
           <button
             key={n}
             onClick={() => onChange(n)}
+            onMouseEnter={() => setHovered(n)}
+            onMouseLeave={() => setHovered(null)}
             aria-label={`Energie-Level ${n}`}
             aria-pressed={isSelected}
             style={{
               width: '2.4rem',
               height: '2.4rem',
-              background: isSelected ? color : 'var(--bg-card)',
-              color: isSelected ? '#fff' : 'var(--text-secondary)',
-              border: `2px solid ${isSelected ? color : 'var(--border)'}`,
+              background: active ? color : 'var(--bg-card)',
+              color: active ? '#fff' : 'var(--text-secondary)',
+              border: `2px solid ${active ? color : 'var(--border)'}`,
               borderRadius: '8px',
               fontFamily: 'JetBrains Mono, monospace',
               fontWeight: 600,
@@ -36,6 +47,7 @@ function EnergyScale({ value, onChange }: { value: number | null; onChange: (v: 
               cursor: 'pointer',
               transition: 'all 0.12s',
               transform: isSelected ? 'scale(1.1)' : 'scale(1)',
+              opacity: isHovered && !isSelected ? 0.8 : 1,
             }}
           >
             {n}
@@ -82,16 +94,20 @@ interface EveningData {
   whatBlocked: string
   energyLevel: number | null
   freeText: string
+  gratitude: string
 }
 
 export default function EveningJournal() {
-  const { user } = useStore()
+  const { user, profile } = useStore()
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
-  const [data, setData] = useState<EveningData>({ accomplished: '', whatBlocked: '', energyLevel: null, freeText: '' })
+  const [data, setData] = useState<EveningData>({ accomplished: '', whatBlocked: '', energyLevel: null, freeText: '', gratitude: '' })
   const [savedEntry, setSavedEntry] = useState<JournalEntryRow | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [eveningImpulse, setEveningImpulse] = useState<string | null>(null)
+  const [impulseLoading, setImpulseLoading] = useState(false)
+  const [impulseError, setImpulseError] = useState<string | null>(null)
   const [morningGoal, setMorningGoal] = useState<string | null>(null)
   const [morningEntryId, setMorningEntryId] = useState<string | null>(null)
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([])
@@ -163,12 +179,27 @@ export default function EveningJournal() {
         what_blocked: data.whatBlocked || null,
         energy_level: data.energyLevel,
         free_text: data.freeText || null,
+        gratitude: data.gratitude || null,
       })
       setSavedEntry(entry)
       setStep(5) // feedback step
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Fehler beim Speichern.')
       setIsSaving(false)
+    }
+  }
+
+  async function handleGetEveningImpulse() {
+    if (!data.energyLevel) return
+    setImpulseLoading(true)
+    setImpulseError(null)
+    try {
+      const result = await getEveningImpulse(data.accomplished, data.energyLevel, profile ?? null)
+      setEveningImpulse(result)
+    } catch (err) {
+      setImpulseError(err instanceof Error ? err.message : 'Fehler beim Laden.')
+    } finally {
+      setImpulseLoading(false)
     }
   }
 
@@ -284,10 +315,25 @@ export default function EveningJournal() {
             <textarea
               value={data.freeText} onChange={(e) => patch({ freeText: e.target.value })}
               placeholder="Gedanken, Ideen, Gefühle…" rows={4}
-              style={{ width: '100%', padding: '0.85rem 1rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5, marginBottom: '1.5rem' }}
+              style={{ width: '100%', padding: '0.85rem 1rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5, marginBottom: '1.25rem' }}
               onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
               onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
             />
+
+            {/* Dankbarkeit */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem' }}>
+                🙏 Wofür bin ich heute dankbar? (optional)
+              </p>
+              <textarea
+                value={data.gratitude} onChange={(e) => patch({ gratitude: e.target.value })}
+                placeholder="Mindestens eine Sache…" rows={2}
+                style={{ width: '100%', padding: '0.85rem 1rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5 }}
+                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+              />
+            </div>
+
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button onClick={back} style={BACK_BTN}>←</button>
               <button onClick={handleSave} disabled={isSaving}
@@ -300,27 +346,95 @@ export default function EveningJournal() {
 
         {step === 5 && savedEntry && (
           <motion.div key="e5" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-            <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🌙</div>
-              <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.5rem', fontWeight: 600, margin: '0 0 0.35rem' }}>Abend-Journal gespeichert.</h2>
-              <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>Gut gemacht. Ruh dich aus.</p>
+            {/* Header */}
+            <div style={{ textAlign: 'center', padding: '1rem 0 1.25rem' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🌙</div>
+              <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.5rem', fontWeight: 600, margin: '0 0 0.4rem' }}>
+                Tag abgeschlossen.
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+                Kopf ist frei.
+              </p>
             </div>
 
-            {/* Energie badge */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
-              <div style={{ padding: '0.4rem 1rem', background: 'var(--bg-secondary)', borderRadius: '999px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                Energie heute: <strong style={{ fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-primary)' }}>{data.energyLevel}/10</strong>
+            {/* Stats */}
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              {/* Energie */}
+              <div style={{
+                flex: 1, padding: '0.85rem', background: 'var(--bg-card)',
+                border: '1px solid var(--border)', borderRadius: '12px', textAlign: 'center',
+              }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>
+                  Energie heute
+                </div>
+                <div style={{
+                  fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '1.5rem',
+                  color: data.energyLevel
+                    ? (data.energyLevel <= 4 ? 'var(--accent-warm)' : data.energyLevel <= 7 ? 'var(--streak)' : 'var(--accent-green)')
+                    : 'var(--text-primary)',
+                }}>
+                  {data.energyLevel}/10
+                </div>
               </div>
+              {/* Tasks */}
+              {dailyTasks.length > 0 && (
+                <div style={{
+                  flex: 1, padding: '0.85rem', background: 'var(--bg-card)',
+                  border: '1px solid var(--border)', borderRadius: '12px', textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>
+                    Aufgaben
+                  </div>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '1.5rem', color: 'var(--text-primary)' }}>
+                    {dailyTasks.filter((t) => t.completed).length}/{dailyTasks.length}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* AI Feedback */}
+            {/* Mentor-Feedback */}
             <div style={{ marginBottom: '1.5rem' }}>
-              <AIFeedbackCard entry={savedEntry} />
+              {!eveningImpulse && !impulseLoading && (
+                <button
+                  onClick={handleGetEveningImpulse}
+                  style={{
+                    width: '100%', padding: '0.85rem',
+                    background: 'var(--bg-card)', border: '1.5px solid var(--border)',
+                    borderRadius: '10px', fontSize: '0.95rem',
+                    fontFamily: 'DM Sans, sans-serif', color: 'var(--text-secondary)', cursor: 'pointer',
+                  }}
+                >
+                  💡 Mentor-Feedback holen
+                </button>
+              )}
+              {impulseLoading && (
+                <div style={{ padding: '1rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text-muted)', fontSize: '0.875rem', textAlign: 'center' }}>
+                  Mentor denkt…
+                </div>
+              )}
+              {impulseError && (
+                <div style={{ padding: '0.75rem 1rem', background: '#FFF0EE', border: '1px solid var(--accent-warm)', borderRadius: '10px', color: 'var(--accent-warm)', fontSize: '0.875rem' }}>
+                  {impulseError}
+                </div>
+              )}
+              {eveningImpulse && (
+                <div style={{
+                  padding: '1rem 1.1rem',
+                  background: 'color-mix(in srgb, var(--accent) 8%, var(--bg-card))',
+                  border: '1px solid color-mix(in srgb, var(--accent) 25%, var(--border))',
+                  borderRadius: '10px', fontSize: '0.95rem', lineHeight: 1.6, color: 'var(--text-primary)',
+                }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.4rem' }}>
+                    Mentor
+                  </span>
+                  {eveningImpulse}
+                </div>
+              )}
             </div>
 
             <button onClick={() => navigate('/', { replace: true })}
-              style={{ width: '100%', padding: '0.9rem', background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer' }}>
-              Zurück zum Dashboard
+              style={{ width: '100%', padding: '0.9rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '1rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer' }}>
+              → Zum Dashboard
             </button>
           </motion.div>
         )}

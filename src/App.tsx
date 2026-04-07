@@ -12,7 +12,7 @@ import Journal from './pages/Journal'
 import Goals from './pages/Goals'
 import Coach from './pages/Coach'
 import Review from './pages/Review'
-import Calendar from './pages/Calendar'
+// import Calendar from './pages/Calendar' // Kalender deaktiviert (Paket 3A Schritt 7)
 import PatternInterrupt from './pages/PatternInterrupt'
 import Settings from './pages/Settings'
 
@@ -31,7 +31,7 @@ function AppRoutes() {
         <Route path="/journal" element={<Journal />} />
         <Route path="/goals" element={<Goals />} />
         <Route path="/coach" element={<Coach />} />
-        <Route path="/calendar" element={<Calendar />} />
+        {/* <Route path="/calendar" element={<Calendar />} /> */}
         <Route path="/review" element={<Review />} />
         <Route path="/pattern-interrupt" element={<PatternInterrupt />} />
         <Route path="/settings" element={<Settings />} />

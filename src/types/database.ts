@@ -117,6 +117,8 @@ export interface Database {
           ai_feedback_requested_at: string | null
           linked_goal_ids: string[]
           identity_action: string | null
+          calendar_planned: boolean | null
+          gratitude: string | null
         }
         Insert: {
           id?: string
@@ -138,6 +140,8 @@ export interface Database {
           ai_feedback_requested_at?: string | null
           linked_goal_ids?: string[]
           identity_action?: string | null
+          calendar_planned?: boolean | null
+          gratitude?: string | null
         }
         Update: {
           entry_date?: string
@@ -156,6 +160,8 @@ export interface Database {
           linked_goal_ids?: string[]
           updated_at?: string
           identity_action?: string | null
+          calendar_planned?: boolean | null
+          gratitude?: string | null
         }
         Relationships: []
       }

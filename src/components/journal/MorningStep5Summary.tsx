@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
-import { Target, AlertCircle, Clock } from 'lucide-react'
-import type { TimeBlock } from '../../types'
+import { Target, AlertCircle, Clock, CheckSquare } from 'lucide-react'
+import type { TimeBlock, DailyTask } from '../../types'
 
 interface Props {
   feelingScore: number
@@ -8,6 +8,7 @@ interface Props {
   mainGoal: string
   blockers: string
   timeblocks: TimeBlock[]
+  dailyTasks: DailyTask[]
   linkedGoalTitle?: string
   isSaving: boolean
   onSave: () => void
@@ -29,6 +30,7 @@ export default function MorningStep5Summary({
   mainGoal,
   blockers,
   timeblocks,
+  dailyTasks,
   linkedGoalTitle,
   isSaving,
   onSave,
@@ -70,6 +72,20 @@ export default function MorningStep5Summary({
             </p>
           )}
         </SummaryCard>
+
+        {/* Tasks */}
+        {dailyTasks.length > 0 && (
+          <SummaryCard icon={<CheckSquare size={16} color="var(--accent)" />} label={`Aufgaben heute — ${dailyTasks.length}`}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              {dailyTasks.map((task, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.875rem' }}>
+                  <span style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: '0.05rem' }}>·</span>
+                  <span style={{ color: 'var(--text-primary)', lineHeight: 1.4 }}>{task.title}</span>
+                </div>
+              ))}
+            </div>
+          </SummaryCard>
+        )}
 
         {/* Blockers */}
         {blockers && (

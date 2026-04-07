@@ -1,6 +1,18 @@
 # CLAUDE.md — Life OS Entwicklungsregeln
-# Diese Datei liegt im Stammverzeichnis von Desktop/life-os/
-# Claude Code liest sie automatisch bei jedem Start.
+# Liegt im Stammverzeichnis von Desktop/life-os/
+# Claude Code liest diese Datei automatisch bei jedem Start.
+# Zuletzt aktualisiert: 2026-04-07
+
+---
+
+## 0. LESEREIHENFOLGE BEIM SESSION-START
+
+**Pflicht — in dieser Reihenfolge:**
+1. VISION.md — Warum existiert die App, wie soll sie sich anfühlen
+2. LIFE_OS_KONTEXT.md — Wo stehen wir, was ist offen
+3. LIFE_OS_FEATURES.md — Was wird heute gebaut
+
+Erst danach: `npm run dev` starten und loslegen.
 
 ---
 
@@ -21,14 +33,14 @@
 **Niemals einen Schritt als "fertig" markieren ohne Beweis dass er funktioniert.**
 
 Nach JEDER Änderung:
-1. `npm run build` ausführen — muss ohne Fehler durchlaufen
+1. `npm run build` — muss ohne Fehler durchlaufen
 2. Den betroffenen Flow in der laufenden App manuell testen
 3. Nur wenn beides passt: "Schritt X abgeschlossen" schreiben
 
 ### 2.2 Ein Schritt nach dem anderen
 - Immer einen Teilschritt fertigstellen, testen, dann zum nächsten
 - Nie mehrere Features gleichzeitig anfassen
-- Nach jedem Teilschritt kurz beschreiben was gebaut wurde und auf "weiter" warten
+- Nach jedem Teilschritt: kurze Beschreibung was gebaut wurde, dann auf "weiter" warten
 
 ### 2.3 Minimale Änderungen
 - Nur das anfassen was nötig ist
@@ -38,7 +50,17 @@ Nach JEDER Änderung:
 ### 2.4 Fehler beheben, nicht verstecken
 - Keine leeren try/catch ohne Fehlerausgabe
 - Alle Supabase-Fehler: `console.error('Kontext:', error)` + UI-Fehlermeldung
-- Wenn etwas nicht funktioniert: stoppen und dem User erklären — nicht weiterbauen
+- Wenn etwas nicht funktioniert: stoppen und Lukas erklären — nicht weiterbauen
+
+### 2.5 Vision vor Technik
+Vor jeder Implementierungsentscheidung prüfen: Passt das zur VISION.md?
+Wenn nein: Lukas fragen, nicht einfach umsetzen.
+
+### 2.6 Lukas aktiv korrigieren
+Lukas ist kein Entwickler. Wenn seine Anforderungen technisch falsch,
+unnötig komplex oder mit besserer Methode lösbar sind:
+→ Ansprechen, erklären, Alternative vorschlagen
+→ Nicht blind umsetzen
 
 ---
 
@@ -46,9 +68,9 @@ Nach JEDER Änderung:
 
 ### 3.1 Datei-Verantwortlichkeiten
 ```
-src/lib/db.ts        → ALLE Supabase-Operationen (kein direktes Supabase in Komponenten)
-src/lib/claude.ts    → ALLE Claude-API-Aufrufe
-src/types/index.ts   → Neue Interfaces und Types
+src/lib/db.ts         → ALLE Supabase-Operationen (kein direktes Supabase in Komponenten)
+src/lib/claude.ts     → ALLE Claude-API-Aufrufe
+src/types/index.ts    → Neue Interfaces und Types
 src/store/useStore.ts → Globaler State (Zustand)
 ```
 
@@ -64,13 +86,12 @@ const { data, error } = await supabase
 if (error) throw error;
 
 // Journal-Einträge: UPSERT statt INSERT
-// (ein Eintrag pro Tag und Typ — kein Duplikat-Fehler 409)
 await supabase
   .from('journal_entries')
   .upsert({ ...data, user_id: userId }, { onConflict: 'user_id,entry_date,type' });
 ```
 
-### 3.3 Wichtige Feldnamen (Fallstricke — falsche Namen = 400 Bad Request)
+### 3.3 Wichtige Feldnamen (falsche Namen = 400 Bad Request)
 ```
 journal_entries:
   ✅ main_goal_today     (NICHT morning_goal)
@@ -92,34 +113,33 @@ profiles:
 
 ## 4. TAILWIND CSS v4 REGELN
 
-Tailwind v4 hat eine andere Syntax als v3. Vor dem Schreiben neuer Klassen:
+Tailwind v4 hat eine andere Syntax als v3:
 - Immer eine existierende Komponente als Vorlage nehmen
 - Nie Klassen raten — im Zweifel inline style verwenden
-- `@apply` funktioniert anders — nicht verwenden
+- `@apply` nicht verwenden
 
 ---
 
 ## 5. SUPABASE-BESONDERHEITEN
 
 ### 5.1 goal_type Enum
-Neue Werte müssen explizit hinzugefügt werden:
 ```sql
 ALTER TYPE goal_type ADD VALUE IF NOT EXISTS 'year';
 ALTER TYPE goal_type ADD VALUE IF NOT EXISTS 'three_year';
 ```
-Wenn `400 Bad Request` beim Ziele-Speichern → zuerst diese Migration prüfen.
+Bei `400 Bad Request` beim Ziele-Speichern → zuerst diese Migration prüfen.
 
 ### 5.2 journal_entries Unique Constraint
-Für UPSERT muss dieser Constraint existieren (bereits angelegt):
 ```sql
 ALTER TABLE journal_entries
   ADD CONSTRAINT journal_entries_user_date_type_unique
   UNIQUE (user_id, entry_date, type);
 ```
 
-### 5.3 Bestehende Supabase-Tabellen
-`profiles`, `goals`, `journal_entries`, `coach_sessions`, `pattern_events`, `goal_tasks`, `recurring_blocks`, `recurring_block_exceptions`
-Row Level Security ist auf allen Tabellen aktiv.
+### 5.3 Bestehende Tabellen
+`profiles`, `goals`, `journal_entries`, `coach_sessions`, `pattern_events`,
+`goal_tasks`, `recurring_blocks`, `recurring_block_exceptions`
+Row Level Security aktiv auf allen Tabellen.
 
 ---
 
@@ -129,14 +149,15 @@ Row Level Security ist auf allen Tabellen aktiv.
 # Lokal testen BEVOR push
 npm run build   # muss fehlerfrei sein
 
-# Nur wenn build erfolgreich:
+# Nur wenn build erfolgreich — und erst am SESSION-ENDE:
 git add -A
-git commit -m "fix: [was wurde geändert]"
+git commit -m "feat: [was wurde gebaut]"
 git push origin master
 # → Vercel deployed automatisch
 ```
 
 **Niemals pushen wenn `npm run build` Fehler wirft.**
+**Niemals mitten in einer Session pushen — immer erst am Ende.**
 
 ---
 
@@ -148,70 +169,54 @@ npm install [paket] --legacy-peer-deps   # IMMER diesen Flag verwenden
 
 ---
 
-## 8. KOMMUNIKATION MIT DEM USER
+## 8. KOMMUNIKATION MIT LUKAS
 
 - Lukas ist kein Entwickler — alles auf Deutsch erklären
-- Nach jedem Teilschritt: kurze Beschreibung was gebaut wurde
+- Nach jedem Teilschritt: kurze Beschreibung was gebaut wurde, dann warten
 - Bei Fehlern: erklären WAS der Fehler bedeutet, nicht nur technische Details
-- Niemals mehr als einen Teilschritt auf einmal bauen
-- "Fertig" bedeutet: gebaut UND getestet UND funktioniert
+- Nie mehr als einen Teilschritt auf einmal bauen
+- "Fertig" = gebaut UND getestet UND funktioniert
+- Wenn Lukas eine Anforderung stellt die besser lösbar ist: sagen und erklären
 
 ---
 
-## 9. DEPLOYMENT-HINWEIS
+## 9. KONTEXT-LOGBUCH — AUTOMATISCHE PFLICHT
 
-Auto-Deploy: Jeder Push auf `master` → Vercel baut und deployed automatisch.
-Supabase Redirect URLs: localhost:5173 und https://life-os-henna-xi.vercel.app sind eingetragen.
+LIFE_OS_KONTEXT.md ist das Gedächtnis des Projekts.
+**Wird nach JEDEM abgeschlossenen Schritt aktualisiert — ohne dass Lukas danach fragt.**
 
----
+"Abgeschlossen" bedeutet: Code ✓ + Build fehlerfrei ✓ + App getestet ✓
 
-## 10. KONTEXT-LOGBUCH — AUTOMATISCHE PFLICHT
+Nach jedem Schritt:
+- LIFE_OS_KONTEXT.md: Schritt als ✅ + Datum eintragen, geänderte Dateien notieren
+- LIFE_OS_FEATURES.md: Erledigten Punkt als `✅ UMGESETZT (Datum)` markieren
 
-**LIFE_OS_KONTEXT.md ist das Gedächtnis des Projekts. Es wird nach JEDEM abgeschlossenen Schritt aktualisiert — ohne dass Lukas danach fragen muss.**
-
-### Was "abgeschlossen" bedeutet:
-- Code geschrieben ✓
-- `npm run build` fehlerfrei ✓
-- Funktion in der App getestet und funktioniert ✓
-
-### Was in die Aktualisierung gehört:
-Nach jedem Schritt wird in LIFE_OS_KONTEXT.md eingetragen:
-- Welcher Schritt abgeschlossen wurde (✅ + Datum)
-- Welche Dateien geändert wurden
-- Ob es offene Punkte gibt
-
-In LIFE_OS_FEATURES.md wird der erledigte Punkt als `✅ UMGESETZT (Datum)` markiert.
-
-### Verschlankungs-Regel (WICHTIG):
-LIFE_OS_KONTEXT.md darf den aktiven Bereich ("Ausstehend") nie zu groß werden lassen.
-Nach Abschluss eines Pakets gilt:
-- Alle ✅ erledigten Schritte aus dem "Ausstehend"-Bereich entfernen
-- Stattdessen nur eine einzeilige Zusammenfassung in den "Archiv"-Block unten eintragen
-- Oben im Dokument steht immer nur: aktueller App-Stand + was als nächstes kommt
-- Ziel: Der aktive Bereich (alles außer Archiv) bleibt kompakt — nur was Claude Code für die aktuelle Session wirklich braucht
-
-### Warum das wichtig ist:
-Lukas lädt LIFE_OS_KONTEXT.md nach jeder Session ins Claude Project hoch.
-Ein zu langes Dokument kostet Token und erhöht Fehlerrisiko.
-Ein nicht aktualisiertes Logbuch = die nächste Session fängt blind an.
+**Verschlankungs-Regel:**
+Nach Abschluss eines Pakets: alle ✅ aus "Ausstehend" entfernen, nur Einzeiler ins Archiv.
+Ziel: aktiver Bereich bleibt kompakt — nur was für die aktuelle Session relevant ist.
 
 ---
 
-## 11. SESSION-START CHECKLISTE
+## 10. SESSION-START CHECKLISTE
 
-Beim Start jeder neuen Claude Code Session:
-1. `LIFE_OS_KONTEXT.md` lesen — aktuellen Stand + offene Punkte verstehen
-2. `LIFE_OS_FEATURES.md` lesen — genaue Spezifikation für den aktuellen Schritt
-3. `npm run dev` — Dev-Server starten falls nicht läuft
-4. Aktuellen Status im Browser prüfen
-5. Erst dann mit dem ersten Schritt anfangen
+1. VISION.md lesen
+2. LIFE_OS_KONTEXT.md lesen — aktuellen Stand verstehen
+3. LIFE_OS_FEATURES.md lesen — Spezifikation für aktuellen Schritt
+4. PowerShell-Befehl an Lukas ausgeben:
+   ```powershell
+   cd Desktop/life-os
+   npm run dev
+   ```
+5. Aktuellen Status im Browser prüfen
+6. Erst dann mit dem ersten Schritt anfangen
 
 ---
 
-## 12. DATEI-ÜBERSICHT
+## 11. DATEI-ÜBERSICHT
 
-| Datei | Zweck | Wer aktualisiert sie |
+| Datei | Zweck | Wer aktualisiert |
 |---|---|---|
-| `CLAUDE.md` | Regeln, Architektur, Feldnamen — ändert sich selten | Lukas manuell |
-| `LIFE_OS_KONTEXT.md` | Aktiver Stand + Ausstehend + kompaktes Archiv | Claude Code nach jedem Schritt |
-| `LIFE_OS_FEATURES.md` | Genaue Spezifikation aller Schritte im aktuellen Paket | Claude Code markiert erledigte als ✅ |
+| `VISION.md` | Warum + für wen + wie es sich anfühlen soll | Lukas manuell (selten) |
+| `CLAUDE.md` | Regeln, Architektur, Feldnamen | Lukas manuell (selten) |
+| `LIFE_OS_KONTEXT.md` | Aktiver Stand + Ausstehend + Archiv | Claude Code nach jedem Schritt |
+| `LIFE_OS_FEATURES.md` | Genaue Spezifikation aller Schritte | Claude Code markiert erledigte als ✅ |

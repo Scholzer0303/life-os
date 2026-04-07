@@ -194,7 +194,7 @@ export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, ini
       {/* Tages-Tasks */}
       <div style={{ marginBottom: '1.5rem' }}>
         <p style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Wichtigste Aufgaben heute <span style={{ color: 'var(--text-muted)', textTransform: 'none', fontWeight: 400 }}>(optional, max. 5)</span>
+          Wichtigste Aufgaben heute <span style={{ color: 'var(--text-muted)', textTransform: 'none', fontWeight: 400 }}>(optional, max. 4)</span>
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {dailyTasks.map((task, i) => (
@@ -232,7 +232,7 @@ export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, ini
             </div>
           ))}
         </div>
-        {dailyTasks.length < 5 && (
+        {dailyTasks.length < 4 && (
           <button onClick={addTask} style={{ marginTop: '0.5rem', background: 'none', border: '1px dashed var(--border)', borderRadius: '10px', padding: '0.5rem', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem', fontFamily: 'DM Sans, sans-serif', width: '100%', justifyContent: 'center' }}>
             <Plus size={14} /> Aufgabe hinzufügen
           </button>

@@ -1,60 +1,19 @@
 import { useState, useEffect } from 'react'
-import { AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
-import { createJournalEntry, getTodayEntries, parseTimeblocks, getRecurringBlocks, getExceptionsForBlocks, upsertBlockException, createGoalTask, updateGoalTask, getTodayGoalTasks, getYesterdayOpenGoalTasks, deleteGoalTask } from '../../lib/db'
+import { createJournalEntry, getTodayEntries, parseTimeblocks, createGoalTask, updateGoalTask, getTodayGoalTasks, getYesterdayOpenGoalTasks, deleteGoalTask } from '../../lib/db'
+import { getMorningImpulse } from '../../lib/claude'
 import { todayISO } from '../../lib/utils'
 import ProgressBar from '../onboarding/ProgressBar'
 import MorningStep1Feeling from './MorningStep1Feeling'
 import MorningStep2Goal from './MorningStep2Goal'
 import MorningStep3Blockers from './MorningStep3Blockers'
-import MorningStep4Timeboxing from './MorningStep4Timeboxing'
+import MorningStep4CalendarCheck from './MorningStep4CalendarCheck'
 import MorningStep5Summary from './MorningStep5Summary'
-import type { TimeBlock, DailyTask, DayBlock, RecurringBlock, BlockException } from '../../types'
+import type { TimeBlock, DailyTask } from '../../types'
 import type { Json, GoalTaskRow } from '../../types/database'
 import MorningCarryOverDialog from './MorningCarryOverDialog'
-
-function toDateString(date: Date): string {
-  return date.toISOString().split('T')[0]
-}
-
-function blockOccursOnDate(block: RecurringBlock, dateStr: string): boolean {
-  if (dateStr < block.start_date) return false
-  if (block.end_date && dateStr > block.end_date) return false
-  const dow = new Date(dateStr + 'T12:00:00').getDay()
-  switch (block.recurrence_type) {
-    case 'none': return dateStr === block.start_date
-    case 'daily': return true
-    case 'weekdays': return dow >= 1 && dow <= 5
-    case 'weekly': return block.recurrence_day === dow
-    default: return false
-  }
-}
-
-function resolveBlocksForDate(blocks: RecurringBlock[], exceptions: BlockException[], dateStr: string): DayBlock[] {
-  const exMap = new Map<string, BlockException>()
-  for (const ex of exceptions) {
-    if (ex.exception_date === dateStr) exMap.set(ex.block_id, ex)
-  }
-  const result: DayBlock[] = []
-  for (const block of blocks) {
-    if (!blockOccursOnDate(block, dateStr)) continue
-    const ex = exMap.get(block.id)
-    if (ex?.is_deleted) continue
-    result.push({
-      id: block.id,
-      exception_id: ex?.id,
-      date: dateStr,
-      title: ex?.modified_title ?? block.title,
-      start_time: ex?.modified_start_time ?? block.start_time,
-      end_time: ex?.modified_end_time ?? block.end_time,
-      color: ex?.modified_color ?? block.color,
-      recurrence_type: block.recurrence_type,
-      is_modified: !!ex,
-    })
-  }
-  return result.sort((a, b) => a.start_time.localeCompare(b.start_time))
-}
 
 interface MorningData {
   feelingScore: number | null
@@ -65,6 +24,7 @@ interface MorningData {
   blockers: string
   timeblocks: TimeBlock[]
   dailyTasks: DailyTask[]
+  calendarPlanned: boolean | null
 }
 
 export default function MorningJournal() {
@@ -80,22 +40,25 @@ export default function MorningJournal() {
     blockers: '',
     timeblocks: [],
     dailyTasks: [],
+    calendarPlanned: null,
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [todayCalBlocks, setTodayCalBlocks] = useState<DayBlock[]>([])
   const [carryOverTasks, setCarryOverTasks] = useState<GoalTaskRow[]>([])
+  const [showCompletion, setShowCompletion] = useState(false)
+  const [impulse, setImpulse] = useState<string | null>(null)
+  const [impulseLoading, setImpulseLoading] = useState(false)
+  const [impulseError, setImpulseError] = useState<string | null>(null)
 
-  // Heutigen Eintrag + Kalender-Blöcke laden
+  // Heutigen Eintrag laden
   useEffect(() => {
     if (!user) { setIsLoading(false); return }
-    const today = toDateString(new Date())
+    const today = todayISO()
     Promise.all([
       getTodayEntries(user.id),
-      getRecurringBlocks(user.id),
       getTodayGoalTasks(user.id, today),
-    ]).then(async ([entries, blocks, todayGoalTasks]) => {
+    ]).then(([entries, todayGoalTasks]) => {
       const existing = entries.find((e) => e.type === 'morning')
       if (existing) {
         // Unverknüpfte Tasks aus JSON + verknüpfte Tasks aus goal_tasks zusammenführen
@@ -118,6 +81,7 @@ export default function MorningJournal() {
           blockers: existing.potential_blockers ?? '',
           timeblocks: parseTimeblocks(existing),
           dailyTasks: [...unlinkedTasks, ...linkedTasks],
+          calendarPlanned: (existing as { calendar_planned?: boolean | null }).calendar_planned ?? null,
         })
       } else {
         // Erstes Öffnen heute → offene gestrige Tasks für Übertrag-Dialog laden
@@ -125,10 +89,6 @@ export default function MorningJournal() {
           .then(setCarryOverTasks)
           .catch((err) => console.error('Carry-over Tasks laden:', err))
       }
-      const blockIds = blocks.map(b => b.id)
-      const exceptions = await getExceptionsForBlocks(blockIds)
-      const dayBlocks = resolveBlocksForDate(blocks as RecurringBlock[], exceptions as BlockException[], today)
-      setTodayCalBlocks(dayBlocks)
     })
       .catch((err) => console.error('Morgenjournal laden:', err))
       .finally(() => setIsLoading(false))
@@ -174,7 +134,8 @@ export default function MorningJournal() {
         timeblocks: data.timeblocks as unknown as Json,
         daily_tasks: unlinkedTasks as unknown as Json,
         linked_goal_ids: data.linkedGoalId ? [data.linkedGoalId] : [],
-      })
+        calendar_planned: data.calendarPlanned,
+      } as Parameters<typeof createJournalEntry>[0])
 
       // Verknüpfte Tasks als goal_tasks speichern
       for (const task of linkedTasks) {
@@ -193,10 +154,24 @@ export default function MorningJournal() {
         }
       }
 
-      navigate('/', { replace: true })
+      setShowCompletion(true)
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Fehler beim Speichern.')
       setIsSaving(false)
+    }
+  }
+
+  async function handleGetImpulse() {
+    setImpulseLoading(true)
+    setImpulseError(null)
+    try {
+      const taskTitles = data.dailyTasks.map((t) => t.title)
+      const result = await getMorningImpulse(data.mainGoal, taskTitles, profile ?? null)
+      setImpulse(result)
+    } catch (err) {
+      setImpulseError(err instanceof Error ? err.message : 'Fehler beim Laden.')
+    } finally {
+      setImpulseLoading(false)
     }
   }
 
@@ -226,6 +201,108 @@ export default function MorningJournal() {
           onComplete={handleCarryOverComplete}
         />
       </div>
+    )
+  }
+
+  // Abschluss-Seite nach erfolgreichem Speichern
+  if (showCompletion) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div style={{ textAlign: 'center', padding: '1.5rem 0 1rem' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>✅</div>
+          <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.5rem', fontWeight: 600, margin: '0 0 0.5rem' }}>
+            Guter Start.
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+            Du weißt was heute zählt. Starte den Tag.
+          </p>
+        </div>
+
+        {/* Mentor-Impuls */}
+        <div style={{ margin: '1.5rem 0' }}>
+          {!impulse && !impulseLoading && (
+            <button
+              onClick={handleGetImpulse}
+              style={{
+                width: '100%',
+                padding: '0.85rem',
+                background: 'var(--bg-card)',
+                border: '1.5px solid var(--border)',
+                borderRadius: '10px',
+                fontSize: '0.95rem',
+                fontFamily: 'DM Sans, sans-serif',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+              }}
+            >
+              💡 Mentor-Impuls holen
+            </button>
+          )}
+          {impulseLoading && (
+            <div style={{
+              padding: '1rem',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: '10px',
+              color: 'var(--text-muted)',
+              fontSize: '0.875rem',
+              textAlign: 'center',
+            }}>
+              Mentor denkt…
+            </div>
+          )}
+          {impulseError && (
+            <div style={{
+              padding: '0.75rem 1rem',
+              background: '#FFF0EE',
+              border: '1px solid var(--accent-warm)',
+              borderRadius: '10px',
+              color: 'var(--accent-warm)',
+              fontSize: '0.875rem',
+            }}>
+              {impulseError}
+            </div>
+          )}
+          {impulse && (
+            <div style={{
+              padding: '1rem 1.1rem',
+              background: 'color-mix(in srgb, var(--accent) 8%, var(--bg-card))',
+              border: '1px solid color-mix(in srgb, var(--accent) 25%, var(--border))',
+              borderRadius: '10px',
+              fontSize: '0.95rem',
+              lineHeight: 1.6,
+              color: 'var(--text-primary)',
+            }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.4rem' }}>
+                Mentor
+              </span>
+              {impulse}
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={() => navigate('/', { replace: true })}
+          style={{
+            width: '100%',
+            padding: '0.9rem',
+            background: 'var(--accent)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '10px',
+            fontSize: '1rem',
+            fontFamily: 'DM Sans, sans-serif',
+            fontWeight: 500,
+            cursor: 'pointer',
+          }}
+        >
+          → Zum Dashboard
+        </button>
+      </motion.div>
     )
   }
 
@@ -285,16 +362,10 @@ export default function MorningJournal() {
           />
         )}
         {step === 4 && (
-          <MorningStep4Timeboxing
+          <MorningStep4CalendarCheck
             key="ms4"
-            initialBlocks={data.timeblocks}
-            calendarBlocks={todayCalBlocks}
-            onSaveExceptions={async (exceptions) => {
-              for (const ex of exceptions) {
-                await upsertBlockException(ex)
-              }
-            }}
-            onNext={(timeblocks) => next({ timeblocks })}
+            initialValue={data.calendarPlanned}
+            onNext={(calendarPlanned) => next({ calendarPlanned })}
             onBack={back}
           />
         )}
@@ -306,6 +377,7 @@ export default function MorningJournal() {
             mainGoal={data.mainGoal}
             blockers={data.blockers}
             timeblocks={data.timeblocks}
+            dailyTasks={data.dailyTasks}
             linkedGoalTitle={linkedGoalTitle}
             isSaving={isSaving}
             onSave={handleSave}

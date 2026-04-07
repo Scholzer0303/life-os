@@ -1,7 +1,12 @@
-# LIFE_OS_KONTEXT.md
-# Wird nach jedem Schritt aktualisiert — immer die neueste Version ins Claude Project hochladen
+# LIFE_OS_KONTEXT.md — Projektgedächtnis
+# Wird nach JEDEM abgeschlossenen Schritt von Claude Code aktualisiert.
+# Nach jeder Session: diese Datei ins Claude Project hochladen (ersetzt alte Version).
+# Zuletzt aktualisiert: 2026-04-07
 
-Zuletzt aktualisiert: 2026-04-06
+---
+
+## Session-Start Lesereihenfolge
+VISION.md → LIFE_OS_KONTEXT.md → LIFE_OS_FEATURES.md
 
 ---
 
@@ -11,15 +16,25 @@ Life OS ist eine vollständig funktionsfähige PWA, live auf https://life-os-hen
 
 **Was die App kann:**
 - Onboarding (9 Schritte): Name → Lebensrad → Ikigai → Werte → 5-Warum → Nordstern → Identität → Stopp-Liste → Ziele
-- Journal: Morgen (5 Schritte inkl. Tages-Tasks), Abend (4 Schritte), Freeform — alle mit KI-Feedback
-- Ziele: Hierarchie three_year → year → quarterly → monthly → weekly, mit abhakbaren Tasks (goal_tasks)
-- Dashboard: Heatmap, Streak, Wochenziele mit Tasks, Tages-Tasks (verknüpft + unverknüpft, einheitliche Quelle), Pattern-Interrupt-Banner, Identitäts-Reminder
-- Morgenjournal: Übertrag-Dialog für offene gestrige Tasks (Übernehmen/Löschen)
-- Coach: 4 Modi, Muster-Panel, Archiv vergangener Sessions, localStorage-Persistenz
-- Review: Woche/Monat/Quartal/Jahr, KI-Zusammenfassung mit intelligenter Datenaggregation
-- Kalender: Tagesansicht mit wiederkehrenden Zeitblöcken, Serien-Bearbeitung, Sync mit Morgenjournal
-- Einstellungen: Profil, Ikigai, KI-Analyse, Daten löschen (granular), Abmelden
-- Pattern Interrupt: eigene Seite mit 3-Schritt-Flow
+- Journal: Morgen (5 Schritte), Abend (4 Schritte), Freeform — alle mit optionalem KI-Feedback
+- Ziele: Hierarchie three_year → year → quarterly → monthly → weekly, Tasks auf allen Ebenen
+- Dashboard: Nordstern, Identitäts-Banner, heutiger Fokus, Tasks, Wochenziele, Heatmap, Streak
+- Coach: 4 Modi, Vergangene Sessions, Nordstern als Kontext
+- Review: Woche/Monat/Quartal/Jahr, KI-Zusammenfassung, Archiv
+- Kalender: Tab existiert noch (wird in Paket 3A Schritt 7 entfernt)
+- Einstellungen: Profil, Werte, Stopp-Liste, Ikigai, KI-Profil, Onboarding neu starten, Datenverwaltung
+
+**Bekannte Probleme die in Paket 3 behoben werden:**
+- Morgenjournal Schritt 4 (Zeitblöcke) gegen Vision — wird ersetzt
+- Keine Abschluss-Seite nach Journal-Speichern
+- Energie-Farbkodierung fehlt im Abendjournal
+- Dankbarkeit fehlt im Abendjournal
+- Tasks fehlen in Morgenjournal-Zusammenfassung
+- Ziele nicht echten Daten zugeordnet
+- Kein Periodenübergang-Flow
+- Kein Habit-Tracker
+- Keine Metriken-Visualisierung
+- Kalender-Tab noch sichtbar
 
 ---
 
@@ -42,9 +57,11 @@ Life OS ist eine vollständig funktionsfähige PWA, live auf https://life-os-hen
 | `journal_entries` | Morgen/Abend/Freeform-Einträge inkl. daily_tasks (JSONB) |
 | `coach_sessions` | KI-Coach-Unterhaltungen + Reviews |
 | `pattern_events` | Pattern-Interrupt-Logs |
-| `goal_tasks` | Abhakbare Tasks pro Ziel |
-| `recurring_blocks` | Wiederkehrende Kalender-Zeitblöcke |
-| `recurring_block_exceptions` | Ausnahmen/Änderungen einzelner Serientermine |
+| `goal_tasks` | Abhakbare Tasks pro Ziel (alle Ebenen) |
+| `recurring_blocks` | Wiederkehrende Kalender-Zeitblöcke (wird in 3A entfernt) |
+| `recurring_block_exceptions` | Ausnahmen Serientermine (wird in 3A entfernt) |
+
+Neue Tabellen kommen in Paket 3C: `habits`, `habit_logs`
 
 Row Level Security aktiv auf allen Tabellen.
 
@@ -68,29 +85,38 @@ src/
 
 ---
 
-## Ausstehend — Paket 2
+## Ausstehend — Paket 3
 
-Bearbeitungsreihenfolge: Fix 1 → Fix 2 → Fix 3 → Fix 4 → Feature 5 → Feature 6 → Feature 7 → Feature 8 → Feature 9 → (Pause) → Feature 10
-**Immer nur einen Schritt nach dem anderen. Erst testen, dann "weiter" sagen.**
+**Nächste Session startet mit: Paket 3B, Schritt 8**
+Bearbeitungsreihenfolge strikt einhalten. Immer nur einen Schritt. Erst testen, dann "weiter".
 
-| Nr | Name | Typ | Status |
-|----|------|-----|--------|
-| Fix 1 | ⓘ beim "Ich bin raus"-Link | Klein | ✅ FERTIG |
-| Fix 2 | Fokus-Karte im Dashboard verschieben | Klein | ✅ FERTIG |
-| Fix 3 | Tab-Reihenfolge anpassen | Klein | ✅ FERTIG |
-| Fix 4 | Supabase-Speicherinfo in Einstellungen | Klein | ✅ FERTIG |
-| Feature 5 | Review-Archiv | Klein-Mittel | ✅ FERTIG |
-| Feature 6 | Task-Kaskade für alle Ziel-Ebenen | Mittel | ✅ FERTIG |
-| Feature 7 | Kalender: Wochen- und Monatsansicht | Mittel | ✅ FERTIG |
-| Feature 8 | Kalender: Spezifische Wochentage | Mittel | ✅ FERTIG |
-| Feature 9 | Tages-Tasks ↔ Wochenziel-Tasks verknüpfen | Groß | ✅ FERTIG |
-| Feature 10 | Habit Tracker (Paket 2B) | Sehr Groß | ⛔ Erst nach 2A |
+| Nr | Name | Paket | Status |
+|----|------|-------|--------|
+| 8 | Ziele: Datum-Logik dynamisch | 3B | ⚠️ OFFEN |
+| 9 | Ziele: Periodenübergang-Flow | 3B | ⚠️ OFFEN |
+| 10 | Ziele: Hierarchie visuell | 3B | ⚠️ OFFEN |
+| 11 | Ziele: Tasks nur auf Monat/Woche | 3B | ⚠️ OFFEN |
+| 12 | Coach: Ton-Auswahl | 3B | ⚠️ OFFEN |
+| 13 | Morgenjournal: Metriken-Felder | 3C | ⛔ Nach 3B |
+| 14 | Habit-Tracker: Datenbank & Grundstruktur | 3C | ⛔ Nach 3B |
+| 15 | Habit-Tracker: Habits beim Monatsziel definieren | 3C | ⛔ Nach 3B |
+| 16 | Habit-Tracker: Abendjournal-Integration | 3C | ⛔ Nach 3B |
+| 17 | Metriken-Visualisierung im Ziele-Tab | 3D | ⛔ Nach 3C |
+| 18 | Habit-Tracker: Monatsübersicht vollständig | 3D | ⛔ Nach 3C |
+| 19 | Review-Seite aufwerten | 3D | ⛔ Nach 3C |
+| 20 | Subtile Animationen | 3D | ⛔ Nach 3C |
 
 Genaue Spezifikation zu jedem Schritt: siehe LIFE_OS_FEATURES.md
 
 ---
 
-## Archiv (abgeschlossene Pakete)
+## Archiv
 
 **Paket 1 — April 2026 ✅**
-Bugs 1–6 (Onboarding-Persistenz, Markdown, Coach-Session, Grammatik, Journal-Prefill, KI-Button), Änderungen 7–11 (Banner-Logik, Review umbenennen, Einstellungs-Tooltips, Zeitraum-Auswahl, intelligente Aggregation), Features 12–15 (Kalender, Ziel-Tasks, Tages-Tasks im Journal, Coach-Archiv). Build fehlerfrei, live deployed.
+Bugs 1–6, Änderungen 7–11, Features 12–15. Build fehlerfrei, live deployed.
+
+**Paket 2A — April 2026 ✅**
+Fix 1–4, Feature 5–9 (Review-Archiv, Task-Kaskade, Kalender Woche/Monat, Custom-Wochentage, Task-Verknüpfung + Übertrag-Dialog).
+
+**Paket 3A — April 2026 ✅**
+Schritte 1–7: Morgenjournal (Zeitblock→Kalender-Check, Abschluss-Seite, Tasks max. 4), Abendjournal (Energie-Farben, Dankbarkeit, Abschluss-Seite), Kalender-Tab entfernt. Neue DB-Felder: `calendar_planned`, `gratitude`.
