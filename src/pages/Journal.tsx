@@ -7,6 +7,8 @@ import FreeformJournal from '../components/journal/FreeformJournal'
 import JournalDay from '../components/journal/JournalDay'
 import JournalWeek from '../components/journal/JournalWeek'
 import JournalMonth from '../components/journal/JournalMonth'
+import JournalQuarter from '../components/journal/JournalQuarter'
+import JournalYear from '../components/journal/JournalYear'
 
 type JournalTab = 'tag' | 'woche' | 'monat' | 'quartal' | 'jahr'
 
@@ -18,13 +20,6 @@ const TABS: { id: JournalTab; label: string }[] = [
   { id: 'jahr', label: 'Jahr' },
 ]
 
-function JournalPlaceholder({ label }: { label: string }) {
-  return (
-    <div style={{ padding: '2rem 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-      {label} — folgt in Paket 4B–4D.
-    </div>
-  )
-}
 
 export default function Journal() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -34,6 +29,7 @@ export default function Journal() {
   const legacyType = searchParams.get('type')
 
   const tabParam = searchParams.get('tab') as JournalTab | null
+  const dateParam = searchParams.get('date') ?? undefined
   const [activeTab, setActiveTab] = useState<JournalTab>(tabParam ?? 'tag')
 
   useEffect(() => {
@@ -114,11 +110,11 @@ export default function Journal() {
       </div>
 
       {/* Tab-Inhalte */}
-      {activeTab === 'tag' && <JournalDay />}
+      {activeTab === 'tag' && <JournalDay initialDate={dateParam} />}
       {activeTab === 'woche' && <JournalWeek />}
       {activeTab === 'monat' && <JournalMonth />}
-      {activeTab === 'quartal' && <JournalPlaceholder label="Journal Quartal" />}
-      {activeTab === 'jahr' && <JournalPlaceholder label="Journal Jahr" />}
+      {activeTab === 'quartal' && <JournalQuarter />}
+      {activeTab === 'jahr' && <JournalYear />}
     </div>
   )
 }

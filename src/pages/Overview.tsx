@@ -1,12 +1,48 @@
+import { useState, useCallback } from 'react'
+import OverviewCalendar from '../components/overview/OverviewCalendar'
+import HabitGrid from '../components/overview/HabitGrid'
+import MetricChart from '../components/overview/MetricChart'
+
+function getMonthAtOffset(offset: number): { month: number; year: number } {
+  const now = new Date()
+  const d = new Date(now.getFullYear(), now.getMonth() + offset, 1)
+  return { month: d.getMonth() + 1, year: d.getFullYear() }
+}
+
 export default function Overview() {
+  const [monthOffset, setMonthOffset] = useState(0)
+  const [habitMonthRate, setHabitMonthRate] = useState<number | null>(null)
+
+  const { month, year } = getMonthAtOffset(monthOffset)
+  const isCurrentMonth = monthOffset === 0
+
+  const handleHabitRate = useCallback((rate: number | null) => {
+    setHabitMonthRate(rate)
+  }, [])
+
   return (
-    <div style={{ padding: '1.5rem 0' }}>
-      <h1 style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-        Übersicht
-      </h1>
-      <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-        Kalender, Habit-Grid und Metriken folgen in Paket 4E.
-      </p>
+    <div style={{ paddingTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <OverviewCalendar
+        month={month}
+        year={year}
+        isCurrentMonth={isCurrentMonth}
+        onPrev={() => setMonthOffset((m) => m - 1)}
+        onNext={() => setMonthOffset((m) => m + 1)}
+        onGoToToday={() => setMonthOffset(0)}
+        habitMonthRate={habitMonthRate}
+      />
+
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
+        <HabitGrid
+          month={month}
+          year={year}
+          onRateComputed={handleHabitRate}
+        />
+      </div>
+
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
+        <MetricChart month={month} year={year} />
+      </div>
     </div>
   )
 }

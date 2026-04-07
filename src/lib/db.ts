@@ -119,6 +119,31 @@ export async function getQuarterlyGoals(userId: string): Promise<GoalRow[]> {
   return data ?? []
 }
 
+export async function getYearlyGoals(userId: string, year: number): Promise<GoalRow[]> {
+  const { data, error } = await supabase
+    .from('goals')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('type', 'year')
+    .eq('year', year)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getQuarterlyGoalsByQuarterYear(userId: string, quarter: number, year: number): Promise<GoalRow[]> {
+  const { data, error } = await supabase
+    .from('goals')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('type', 'quarterly')
+    .eq('quarter', quarter)
+    .eq('year', year)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
 export async function createGoal(goal: GoalInsert): Promise<GoalRow> {
   const { data, error } = await supabase.from('goals').insert(goal).select().single()
   if (error) throw error
@@ -173,6 +198,21 @@ export async function getTodayEntries(userId: string): Promise<JournalEntryRow[]
     .select('*')
     .eq('user_id', userId)
     .eq('entry_date', todayISO())
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getEntriesForMonth(userId: string, month: number, year: number): Promise<JournalEntryRow[]> {
+  const from = `${year}-${String(month).padStart(2, '0')}-01`
+  const lastDay = new Date(year, month, 0).getDate()
+  const to = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('entry_date', from)
+    .lte('entry_date', to)
+    .order('entry_date', { ascending: true })
   if (error) throw error
   return data ?? []
 }

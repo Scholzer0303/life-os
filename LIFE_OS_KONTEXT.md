@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md — Projektgedächtnis
 # Wird nach JEDEM abgeschlossenen Schritt von Claude Code aktualisiert.
 # Nach jeder Session: diese Datei ins Claude Project hochladen (ersetzt alte Version).
-# Zuletzt aktualisiert: 2026-04-08 (Paket 4A Schritt 1 abgeschlossen)
+# Zuletzt aktualisiert: 2026-04-08 (Paket 4E Schritt 13 abgeschlossen)
 
 ---
 
@@ -98,7 +98,7 @@ src/
 
 ## Ausstehend — Paket 4
 
-**Nächste Session startet mit: Paket 4D, Schritt 9**
+**Nächste Session startet mit: Paket 4F, Schritt 14**
 Reihenfolge strikt einhalten. Immer nur einen Schritt. Erst testen, dann weiter.
 
 | Nr | Name | Paket | Status |
@@ -111,11 +111,11 @@ Reihenfolge strikt einhalten. Immer nur einen Schritt. Erst testen, dann weiter.
 | 6 | Journal Woche: Planung + Reflexion | 4C | ✅ 2026-04-08 |
 | 7 | Journal Monat: Planung + Ziele + Habits | 4C | ✅ 2026-04-08 |
 | 8 | Habit-Frequenz-Logik + Wochenfortschritt | 4C | ✅ 2026-04-08 |
-| 9 | Journal Quartal: Planung + Reflexion | 4D | ⛔ Nach 4C |
-| 10 | Journal Jahr: Planung + Reflexion + Nordstern | 4D | ⛔ Nach 4C |
-| 11 | Übersicht: Kalender-Monatsansicht | 4E | ⛔ Nach 4D |
-| 12 | Übersicht: Habit-Grid | 4E | ⛔ Nach 4D |
-| 13 | Übersicht: Metriken-Visualisierung | 4E | ⛔ Nach 4D |
+| 9 | Journal Quartal: Planung + Reflexion | 4D | ✅ 2026-04-08 |
+| 10 | Journal Jahr: Planung + Reflexion + Nordstern | 4D | ✅ 2026-04-08 |
+| 11 | Übersicht: Kalender-Monatsansicht | 4E | ✅ 2026-04-08 |
+| 12 | Übersicht: Habit-Grid | 4E | ✅ 2026-04-08 |
+| 13 | Übersicht: Metriken-Visualisierung | 4E | ✅ 2026-04-08 |
 | 14 | Ziele-Tab auflösen | 4F | ⛔ Nach 4E |
 | 15 | Review-Tab auflösen + Profil reparieren | 4F | ⛔ Nach 4E |
 

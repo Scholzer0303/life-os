@@ -243,7 +243,7 @@ Monatsfortschritt:
 
 ---
 
-### Schritt 9 — Journal Quartal: Planung + Reflexion ⚠️ OFFEN
+### Schritt 9 — Journal Quartal: Planung + Reflexion ✅ UMGESETZT (2026-04-08)
 
 **Betroffene Dateien:** `src/components/journal/JournalQuarter.tsx` (NEU)
 **Aufwand:** Klein-Mittel
@@ -264,7 +264,7 @@ Navigation: Q2 2026 · Apr–Jun ← →
 
 ---
 
-### Schritt 10 — Journal Jahr: Planung + Reflexion + Nordstern ⚠️ OFFEN
+### Schritt 10 — Journal Jahr: Planung + Reflexion + Nordstern ✅ UMGESETZT (2026-04-08)
 
 **Betroffene Dateien:** `src/components/journal/JournalYear.tsx` (NEU)
 **Aufwand:** Klein-Mittel
@@ -291,7 +291,7 @@ Navigation: 2026 ← →
 
 ---
 
-### Schritt 11 — Übersicht: Kalender-Monatsansicht ⚠️ OFFEN
+### Schritt 11 — Übersicht: Kalender-Monatsansicht ✅ UMGESETZT (2026-04-08)
 
 **Betroffene Dateien:** `src/pages/Overview.tsx`, `src/components/overview/OverviewCalendar.tsx` (NEU)
 **Aufwand:** Mittel
@@ -310,7 +310,7 @@ Darunter: Monatsstatistiken-Kacheln:
 
 ---
 
-### Schritt 12 — Übersicht: Habit-Grid ⚠️ OFFEN
+### Schritt 12 — Übersicht: Habit-Grid ✅ UMGESETZT (2026-04-08)
 
 **Betroffene Dateien:** `src/pages/Overview.tsx`, `src/components/overview/HabitGrid.tsx` (NEU)
 **Aufwand:** Mittel
@@ -331,7 +331,7 @@ Schlafen <23h   ✓   .   ✓  ...   ✓   80%
 
 ---
 
-### Schritt 13 — Übersicht: Metriken-Visualisierung ⚠️ OFFEN
+### Schritt 13 — Übersicht: Metriken-Visualisierung ✅ UMGESETZT (2026-04-08)
 
 **Betroffene Dateien:** `src/pages/Overview.tsx`, `src/components/overview/MetricChart.tsx` (NEU)
 **Aufwand:** Mittel
