@@ -18,6 +18,8 @@ import MorningCarryOverDialog from './MorningCarryOverDialog'
 interface MorningData {
   feelingScore: number | null
   feelingText: string
+  weight: number | null
+  sleepScore: number | null
   mainGoal: string
   linkedGoalId: string | null
   identityAction: string
@@ -31,9 +33,12 @@ export default function MorningJournal() {
   const { user, goals, profile } = useStore()
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
+  const metricsEnabled = localStorage.getItem('metrics_enabled') !== 'false'
   const [data, setData] = useState<MorningData>({
     feelingScore: null,
     feelingText: '',
+    weight: null,
+    sleepScore: null,
     mainGoal: '',
     linkedGoalId: null,
     identityAction: '',
@@ -75,6 +80,8 @@ export default function MorningJournal() {
         setData({
           feelingScore: existing.feeling_score,
           feelingText: existing.free_text ?? '',
+          weight: (existing as { weight?: number | null }).weight ?? null,
+          sleepScore: (existing as { sleep_score?: number | null }).sleep_score ?? null,
           mainGoal: existing.main_goal_today ?? '',
           linkedGoalId: (existing.linked_goal_ids as string[] | null)?.[0] ?? null,
           identityAction: existing.identity_action ?? '',
@@ -135,6 +142,8 @@ export default function MorningJournal() {
         daily_tasks: unlinkedTasks as unknown as Json,
         linked_goal_ids: data.linkedGoalId ? [data.linkedGoalId] : [],
         calendar_planned: data.calendarPlanned,
+        weight: data.weight,
+        sleep_score: data.sleepScore,
       } as Parameters<typeof createJournalEntry>[0])
 
       // Verknüpfte Tasks als goal_tasks speichern
@@ -338,7 +347,10 @@ export default function MorningJournal() {
             key="ms1"
             initialScore={data.feelingScore}
             initialText={data.feelingText}
-            onNext={(score, text) => next({ feelingScore: score, feelingText: text })}
+            initialWeight={data.weight}
+            initialSleepScore={data.sleepScore}
+            metricsEnabled={metricsEnabled}
+            onNext={(score, text, weight, sleepScore) => next({ feelingScore: score, feelingText: text, weight, sleepScore })}
           />
         )}
         {step === 2 && (

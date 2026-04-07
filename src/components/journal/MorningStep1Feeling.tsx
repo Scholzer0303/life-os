@@ -4,7 +4,10 @@ import { motion } from 'framer-motion'
 interface Props {
   initialScore: number | null
   initialText: string
-  onNext: (score: number, text: string) => void
+  initialWeight: number | null
+  initialSleepScore: number | null
+  metricsEnabled: boolean
+  onNext: (score: number, text: string, weight: number | null, sleepScore: number | null) => void
 }
 
 const FEELINGS = [
@@ -15,9 +18,11 @@ const FEELINGS = [
   { score: 5, emoji: '😄', label: 'Sehr gut' },
 ]
 
-export default function MorningStep1Feeling({ initialScore, initialText, onNext }: Props) {
+export default function MorningStep1Feeling({ initialScore, initialText, initialWeight, initialSleepScore, metricsEnabled, onNext }: Props) {
   const [score, setScore] = useState<number | null>(initialScore)
   const [text, setText] = useState(initialText)
+  const [weight, setWeight] = useState<string>(initialWeight !== null ? String(initialWeight) : '')
+  const [sleepScore, setSleepScore] = useState<string>(initialSleepScore !== null ? String(initialSleepScore) : '')
 
   return (
     <motion.div
@@ -108,8 +113,58 @@ export default function MorningStep1Feeling({ initialScore, initialText, onNext 
         onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
       />
 
+      {/* Metriken — optional, nur wenn aktiviert */}
+      {metricsEnabled && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <p style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 0.75rem' }}>
+            Heutige Metriken <span style={{ fontWeight: 400, textTransform: 'none' }}>(optional)</span>
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
+                ⚖️ Gewicht (kg)
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                min="30"
+                max="300"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                placeholder="z.B. 82.5"
+                style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
+                😴 Schlafscore (/100)
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max="100"
+                value={sleepScore}
+                onChange={(e) => setSleepScore(e.target.value)}
+                placeholder="z.B. 78"
+                style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <button
-        onClick={() => score && onNext(score, text)}
+        onClick={() => {
+          if (!score) return
+          const w = weight !== '' ? parseFloat(weight) : null
+          const s = sleepScore !== '' ? parseInt(sleepScore) : null
+          onNext(score, text, w, s)
+        }}
         disabled={!score}
         style={{
           width: '100%',

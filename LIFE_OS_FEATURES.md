@@ -244,7 +244,7 @@ Wie soll ich heute mit dir reden?
 
 ---
 
-### Schritt 13 — Morgenjournal: Metriken-Felder ⚠️ OFFEN
+### Schritt 13 — Morgenjournal: Metriken-Felder ✅ UMGESETZT (2026-04-07)
 
 **Betroffene Dateien:** `src/components/journal/MorningJournal.tsx`, `src/pages/Settings.tsx`
 **Aufwand:** Klein

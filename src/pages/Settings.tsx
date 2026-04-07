@@ -200,6 +200,17 @@ export default function Settings() {
   const [journalCount, setJournalCount] = useState<number | null>(null)
   const [goalCount, setGoalCount] = useState<number | null>(null)
 
+  // Journal-Einstellungen
+  const [metricsEnabled, setMetricsEnabled] = useState(
+    () => localStorage.getItem('metrics_enabled') !== 'false'
+  )
+
+  function toggleMetrics() {
+    const next = !metricsEnabled
+    setMetricsEnabled(next)
+    localStorage.setItem('metrics_enabled', String(next))
+  }
+
   // Modals
   const [showOnboardingModal, setShowOnboardingModal] = useState(false)
   const [showDeleteJournalModal, setShowDeleteJournalModal] = useState(false)
@@ -801,7 +812,37 @@ export default function Settings() {
           )}
         </SectionCard>
 
-        {/* ── Sektion 4: Onboarding ── */}
+        {/* ── Sektion 4: Journal-Einstellungen ── */}
+        <SectionCard title="Journal">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <p style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-primary)', margin: '0 0 0.2rem' }}>
+                Morgenmetriken
+              </p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+                Gewicht und Schlafscore im Morgenjournal erfassen
+              </p>
+            </div>
+            <button
+              onClick={toggleMetrics}
+              style={{
+                width: '44px', height: '24px', borderRadius: '12px', border: 'none', cursor: 'pointer', flexShrink: 0,
+                background: metricsEnabled ? 'var(--accent)' : 'var(--border)',
+                position: 'relative', transition: 'background 0.2s',
+              }}
+              aria-label="Morgenmetriken umschalten"
+            >
+              <span style={{
+                position: 'absolute', top: '3px',
+                left: metricsEnabled ? '23px' : '3px',
+                width: '18px', height: '18px', borderRadius: '50%',
+                background: '#fff', transition: 'left 0.2s',
+              }} />
+            </button>
+          </div>
+        </SectionCard>
+
+        {/* ── Sektion 5: Onboarding ── */}
         <SectionCard title="Onboarding">
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.875rem', lineHeight: 1.5 }}>
             Starte das Onboarding erneut, um deine Werte und deinen Nordstern zu überarbeiten. Dein Name und deine E-Mail bleiben erhalten.

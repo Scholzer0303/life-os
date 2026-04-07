@@ -119,6 +119,8 @@ export interface Database {
           identity_action: string | null
           calendar_planned: boolean | null
           gratitude: string | null
+          weight: number | null
+          sleep_score: number | null
         }
         Insert: {
           id?: string
@@ -142,6 +144,8 @@ export interface Database {
           identity_action?: string | null
           calendar_planned?: boolean | null
           gratitude?: string | null
+          weight?: number | null
+          sleep_score?: number | null
         }
         Update: {
           entry_date?: string
@@ -162,6 +166,8 @@ export interface Database {
           identity_action?: string | null
           calendar_planned?: boolean | null
           gratitude?: string | null
+          weight?: number | null
+          sleep_score?: number | null
         }
         Relationships: []
       }

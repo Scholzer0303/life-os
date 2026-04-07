@@ -87,7 +87,7 @@ src/
 
 ## Ausstehend — Paket 3
 
-**Nächste Session startet mit: Paket 3C, Schritt 13**
+**Nächste Session startet mit: Paket 3C, Schritt 14**
 Bearbeitungsreihenfolge strikt einhalten. Immer nur einen Schritt. Erst testen, dann "weiter".
 
 | Nr | Name | Paket | Status |
@@ -97,6 +97,7 @@ Bearbeitungsreihenfolge strikt einhalten. Immer nur einen Schritt. Erst testen, 
 | 10 | Ziele: Hierarchie visuell | 3B | ✅ 2026-04-07 |
 | 11 | Ziele: Tasks nur auf Monat/Woche | 3B | ✅ 2026-04-07 |
 | 12 | Coach: Ton-Auswahl | 3B | ✅ 2026-04-07 |
+| 13 | Morgenjournal: Metriken-Felder | 3C | ✅ 2026-04-07 |
 | 9 | Ziele: Periodenübergang-Flow | 3B | ⚠️ OFFEN |
 | 10 | Ziele: Hierarchie visuell | 3B | ⚠️ OFFEN |
 | 11 | Ziele: Tasks nur auf Monat/Woche | 3B | ⚠️ OFFEN |
@@ -131,3 +132,4 @@ Schritt 9: Periodenübergang-Modal in `Goals.tsx`. Zeigt beim ersten Tab-Öffnen
 Schritt 10: Hierarchie visuell. `GoalDetailCard.tsx` berechnet Kinder jetzt selbst via `treeGoals`-Prop. Expand-Standard auf 2 Ebenen. Fortschritt zeigt Durchschnitt der Unterziele. "Alle"-Tab in `Goals.tsx` rendert Baumstruktur mit Waisen-Fallback pro Ebene.
 Schritt 11: Tasks nur bei `monthly`/`weekly`. Ausgeblendet bei höheren Ebenen.
 Schritt 12: Coach Ton-Auswahl. Neuer `CoachTone`-Typ in `claude.ts` (sachlich/arschtritt/anerkennend). Ton-Selector in `Coach.tsx` über den Modi-Karten. Ton-Badge im Chat-Header. localStorage-Persistenz. Ton fließt als Parameter in System-Prompt.
+Schritt 13: Morgenjournal Metriken. DB-Spalten `weight` + `sleep_score` migriert. Typen in `database.ts` ergänzt. Felder in `MorningStep1Feeling.tsx` unterhalb Textarea. Toggle "Morgenmetriken" in `Settings.tsx` (localStorage, Standard: AN). Felder werden gespeichert und beim Re-Open vorgeladen.
