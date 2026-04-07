@@ -42,7 +42,7 @@ function NewTaskInput({ onAdd, typeColor }: { onAdd: (title: string) => void; ty
 interface Props {
   goal: GoalRow
   parentGoal?: GoalRow
-  children?: GoalRow[]
+  treeGoals?: GoalRow[]   // alle Ziele für Baum-Expansion (ersetzt children-Prop)
   linkedEntryCount?: number
   onEdit: (goal: GoalRow) => void
   onDelete: (id: string) => void
@@ -72,11 +72,22 @@ const STATUS_STYLE: Record<string, React.CSSProperties> = {
 }
 const STATUS_LABEL: Record<string, string> = { active: 'Aktiv', completed: 'Abgeschlossen', paused: 'Pausiert' }
 
-export default function GoalDetailCard({ goal, parentGoal, children = [], linkedEntryCount = 0, onEdit, onDelete, onUpdateProgress, onAddChild, indentLevel = 0 }: Props) {
+export default function GoalDetailCard({ goal, parentGoal, treeGoals, linkedEntryCount = 0, onEdit, onDelete, onUpdateProgress, onAddChild, indentLevel = 0 }: Props) {
   const { profile, recentEntries, goals } = useStore()
   const user = useStore((s) => s.user)
 
-  const [expanded, setExpanded] = useState(indentLevel < 1)
+  // Kinder aus treeGoals berechnen
+  const children = treeGoals ? treeGoals.filter((g) => g.parent_id === goal.id) : []
+
+  // Elternziel aus treeGoals auflösen falls nicht explizit übergeben
+  const resolvedParentGoal = parentGoal ?? treeGoals?.find((g) => g.id === goal.parent_id)
+
+  // Angezeigter Fortschritt = Durchschnitt der Kinder (wenn vorhanden)
+  const computedProgress = children.length > 0
+    ? Math.round(children.reduce((sum, c) => sum + c.progress, 0) / children.length)
+    : goal.progress
+
+  const [expanded, setExpanded] = useState(indentLevel < 2)
   const [aiCheck, setAiCheck] = useState<string | null>(null)
   const [isCheckLoading, setIsCheckLoading] = useState(false)
   const [checkError, setCheckError] = useState<string | null>(null)
@@ -223,6 +234,7 @@ export default function GoalDetailCard({ goal, parentGoal, children = [], linked
                 key={child.id}
                 goal={child}
                 parentGoal={goal}
+                treeGoals={treeGoals}
                 indentLevel={indentLevel + 1}
                 onEdit={onEdit}
                 onDelete={onDelete}
@@ -258,8 +270,8 @@ export default function GoalDetailCard({ goal, parentGoal, children = [], linked
           </div>
         </div>
 
-        {parentGoal && (
-          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '0 0 0.4rem' }}>↑ {parentGoal.title}</p>
+        {resolvedParentGoal && (
+          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '0 0 0.4rem' }}>↑ {resolvedParentGoal.title}</p>
         )}
         {goal.description && (
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 0.6rem', lineHeight: 1.4 }}>{goal.description}</p>
@@ -268,18 +280,20 @@ export default function GoalDetailCard({ goal, parentGoal, children = [], linked
         {/* Fortschrittsbalken — kein Slider */}
         <div style={{ marginBottom: '0.75rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.75rem' }}>
-            <span style={{ color: 'var(--text-muted)' }}>Fortschritt</span>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, color: goal.progress >= 100 ? 'var(--accent-green)' : typeColor }}>
-              {goal.progress}%
+            <span style={{ color: 'var(--text-muted)' }}>
+              Fortschritt{children.length > 0 ? <span style={{ fontSize: '0.65rem', marginLeft: '0.3rem', opacity: 0.6 }}>⌀ Unterziele</span> : null}
+            </span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, color: computedProgress >= 100 ? 'var(--accent-green)' : typeColor }}>
+              {computedProgress}%
             </span>
           </div>
           <div style={{ height: '4px', background: 'var(--bg-secondary)', borderRadius: '2px', overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${goal.progress}%`, background: goal.progress >= 100 ? 'var(--accent-green)' : typeColor, borderRadius: '2px', transition: 'width 0.3s ease' }} />
+            <div style={{ height: '100%', width: `${computedProgress}%`, background: computedProgress >= 100 ? 'var(--accent-green)' : typeColor, borderRadius: '2px', transition: 'width 0.3s ease' }} />
           </div>
         </div>
 
-        {/* Tasks */}
-        <div style={{ marginBottom: '0.5rem' }}>
+        {/* Tasks — nur bei Monat und Woche */}
+        {(goal.type === 'monthly' || goal.type === 'weekly') && <div style={{ marginBottom: '0.5rem' }}>
           <button
             onClick={() => setShowTasks((v) => !v)}
             style={{ fontSize: '0.75rem', color: showTasks ? typeColor : 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.25rem', padding: 0 }}
@@ -336,10 +350,10 @@ export default function GoalDetailCard({ goal, parentGoal, children = [], linked
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </div>}
 
-        {/* "Als erledigt markieren" — nur wenn keine Tasks vorhanden */}
-        {tasksLoaded && tasks.length === 0 && (
+        {/* "Als erledigt markieren" — nur bei Monat/Woche, nur ohne Tasks */}
+        {(goal.type === 'monthly' || goal.type === 'weekly') && tasksLoaded && tasks.length === 0 && (
           <button
             onClick={handleMarkComplete}
             style={{ fontSize: '0.78rem', color: goal.progress >= 100 ? 'var(--accent-green)' : 'var(--text-muted)', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '0.3rem 0.65rem', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.5rem' }}

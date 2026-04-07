@@ -4,6 +4,14 @@ import type { Profile, JournalEntry, Goal, CoachMessage, PatternAnalysis } from 
 const MODEL = 'claude-sonnet-4-6'
 const MAX_TOKENS = 1024
 
+export type CoachTone = 'sachlich' | 'arschtritt' | 'anerkennend'
+
+const TONE_INSTRUCTIONS: Record<CoachTone, string> = {
+  sachlich:     'TON: Sachlich, klar, lösungsorientiert. Standard-Modus.',
+  arschtritt:   'TON: ARSCHTRITT-Modus. Direkt, fordernd, ohne Beschönigung. Nenne Ausreden beim Namen. Kurze, harte Antworten. Unbequeme Fragen. Kein Mitleid mit Selbstsabotage — aber kein Beschämen.',
+  anerkennend:  'TON: Anerkennend. Erkenne Fortschritte aktiv an. Betone was gut läuft — aber bleib ehrlich, nicht hohlloben.',
+}
+
 // Rate limiting: max 1 request per 10 seconds
 let lastRequestTime = 0
 const MIN_INTERVAL_MS = 10_000
@@ -32,7 +40,7 @@ function summarizeEntries(entries: JournalEntry[]): string {
     .join('\n')
 }
 
-function buildSystemPrompt(profile: Profile, recentEntries: JournalEntry[], goals: Goal[]): string {
+function buildSystemPrompt(profile: Profile, recentEntries: JournalEntry[], goals: Goal[], tone: CoachTone = 'sachlich'): string {
   const name = profile.name ?? 'Unbekannt'
   const activeGoals = goals.filter((g) => g.status === 'active')
 
@@ -67,7 +75,9 @@ VERBOTEN:
 - Generische Motivation ("Du schaffst das!")
 - Lange Aufzählungen mit Ratschlägen
 - Mehr als eine Frage stellen
-- Beschämen oder Vorwürfe`
+- Beschämen oder Vorwürfe
+
+${TONE_INSTRUCTIONS[tone]}`
 }
 
 // The client is created lazily so it picks up the env var at runtime
@@ -84,12 +94,13 @@ export async function sendCoachMessage(
   messages: CoachMessage[],
   profile: Profile,
   recentEntries: JournalEntry[],
-  goals: Goal[]
+  goals: Goal[],
+  tone: CoachTone = 'sachlich'
 ): Promise<string> {
   checkRateLimit()
 
   const client = getClient()
-  const systemPrompt = buildSystemPrompt(profile, recentEntries, goals)
+  const systemPrompt = buildSystemPrompt(profile, recentEntries, goals, tone)
 
   const response = await client.messages.create({
     model: MODEL,

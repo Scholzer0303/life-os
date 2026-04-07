@@ -159,7 +159,7 @@ Kopf ist frei.
 
 ---
 
-### Schritt 8 — Ziele: Datum-Logik dynamisch ⚠️ OFFEN
+### Schritt 8 — Ziele: Datum-Logik dynamisch ✅ UMGESETZT (2026-04-07)
 
 **Betroffene Dateien:** `src/pages/Goals.tsx`, `src/lib/utils.ts`
 **Aufwand:** Mittel
@@ -178,7 +178,7 @@ getCurrentYearLabel()    // → "2026"
 
 ---
 
-### Schritt 9 — Ziele: Periodenübergang-Flow ⚠️ OFFEN
+### Schritt 9 — Ziele: Periodenübergang-Flow ✅ UMGESETZT (2026-04-07)
 
 **Betroffene Dateien:** `src/pages/Goals.tsx`
 **Aufwand:** Mittel
@@ -196,7 +196,7 @@ Erreicht? [Ja ✓] [Teilweise ~] [Nein ✗]
 
 ---
 
-### Schritt 10 — Ziele: Hierarchie visuell ⚠️ OFFEN
+### Schritt 10 — Ziele: Hierarchie visuell ✅ UMGESETZT (2026-04-07)
 
 **Betroffene Dateien:** `src/pages/Goals.tsx`, `src/components/goals/GoalDetailCard.tsx`
 **Aufwand:** Mittel
@@ -209,7 +209,7 @@ Erreicht? [Ja ✓] [Teilweise ~] [Nein ✗]
 
 ---
 
-### Schritt 11 — Ziele: Tasks nur auf sinnvollen Ebenen ⚠️ OFFEN
+### Schritt 11 — Ziele: Tasks nur auf sinnvollen Ebenen ✅ UMGESETZT (2026-04-07)
 
 **Betroffene Dateien:** `src/components/goals/GoalDetailCard.tsx`
 **Aufwand:** Klein
@@ -221,7 +221,7 @@ Erreicht? [Ja ✓] [Teilweise ~] [Nein ✗]
 
 ---
 
-### Schritt 12 — Coach: Ton-Auswahl ⚠️ OFFEN
+### Schritt 12 — Coach: Ton-Auswahl ✅ UMGESETZT (2026-04-07)
 
 **Betroffene Dateien:** `src/pages/Coach.tsx`
 **Aufwand:** Klein

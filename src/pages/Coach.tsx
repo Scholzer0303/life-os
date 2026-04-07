@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../store/useStore'
 import { sendCoachMessage } from '../lib/claude'
+import type { CoachTone } from '../lib/claude'
 import { createCoachSession, updateCoachSession, getCoachSessions, deleteCoachSession } from '../lib/db'
 import type { CoachMessage, CoachMode } from '../types'
 import type { CoachSessionRow } from '../types/database'
@@ -48,6 +49,13 @@ const MODES: { value: CoachMode; label: string; icon: React.ReactNode; starter: 
 const SESSION_MODE_KEY = 'coach_session_mode'
 const SESSION_MESSAGES_KEY = 'coach_session_messages'
 const SESSION_ID_KEY = 'coach_session_id'
+const TONE_KEY = 'coach_tone'
+
+const TONE_OPTIONS: { value: CoachTone; label: string }[] = [
+  { value: 'sachlich',    label: '💡 Sachlich' },
+  { value: 'arschtritt',  label: '🔥 Arschtritt' },
+  { value: 'anerkennend', label: '🙌 Anerkennend' },
+]
 
 export default function Coach() {
   const { user, profile, goals, recentEntries } = useStore()
@@ -71,6 +79,10 @@ export default function Coach() {
     const savedId = localStorage.getItem(SESSION_ID_KEY)
     return savedId ? { id: savedId } as CoachSessionRow : null
   })
+
+  const [tone, setTone] = useState<CoachTone>(
+    () => (localStorage.getItem(TONE_KEY) as CoachTone) ?? 'sachlich'
+  )
 
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -123,6 +135,9 @@ export default function Coach() {
     if (session?.id) localStorage.setItem(SESSION_ID_KEY, session.id)
   }, [session])
 
+  // Ton persistieren
+  useEffect(() => { localStorage.setItem(TONE_KEY, tone) }, [tone])
+
   // Bei Abmelden: Session-Daten aus localStorage löschen
   useEffect(() => {
     if (!user) {
@@ -159,7 +174,7 @@ export default function Coach() {
 
       // Get first AI response
       setIsLoading(true)
-      const reply = await sendCoachMessage([starterMessage], profile, recentEntries, goals)
+      const reply = await sendCoachMessage([starterMessage], profile, recentEntries, goals, tone)
       const assistantMsg: CoachMessage = {
         role: 'assistant',
         content: reply,
@@ -190,7 +205,7 @@ export default function Coach() {
     setIsLoading(true)
 
     try {
-      const reply = await sendCoachMessage(updatedMessages, profile, recentEntries, goals)
+      const reply = await sendCoachMessage(updatedMessages, profile, recentEntries, goals, tone)
       const assistantMsg: CoachMessage = {
         role: 'assistant',
         content: reply,
@@ -423,9 +438,24 @@ export default function Coach() {
             <Clock size={13} /> Vergangene Sessions
           </button>
         </div>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
           Was brauchst du gerade?
         </p>
+
+        {/* Ton-Auswahl */}
+        <div style={{ marginBottom: '1.5rem' }}>
+          <p style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 0.5rem' }}>
+            Wie soll ich heute mit dir reden?
+          </p>
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            {TONE_OPTIONS.map((t) => (
+              <button key={t.value} onClick={() => setTone(t.value)}
+                style={{ flex: 1, padding: '0.5rem 0.25rem', background: tone === t.value ? 'var(--accent)' : 'var(--bg-card)', color: tone === t.value ? '#fff' : 'var(--text-secondary)', border: `1.5px solid ${tone === t.value ? 'var(--accent)' : 'var(--border)'}`, borderRadius: '8px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: '0.78rem', fontWeight: tone === t.value ? 600 : 400, transition: 'all 0.12s' }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {MODES.map((m) => (
@@ -501,14 +531,11 @@ export default function Coach() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span style={{ color: 'var(--accent)' }}>{currentMode.icon}</span>
-          <span
-            style={{
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              fontSize: '0.95rem',
-            }}
-          >
+          <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
             {currentMode.label}
+          </span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '0.15rem 0.5rem', borderRadius: '999px', marginLeft: '0.15rem' }}>
+            {TONE_OPTIONS.find((t) => t.value === tone)?.label}
           </span>
         </div>
         <button

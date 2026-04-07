@@ -37,6 +37,48 @@ export function getCurrentQuarter(): number {
   return Math.ceil((new Date().getMonth() + 1) / 3)
 }
 
+function getMondayOfCurrentWeek(): Date {
+  const now = new Date()
+  const day = now.getDay() // 0=So, 1=Mo, ...6=Sa
+  const diff = day === 0 ? -6 : 1 - day
+  const monday = new Date(now)
+  monday.setDate(now.getDate() + diff)
+  monday.setHours(0, 0, 0, 0)
+  return monday
+}
+
+export function getCurrentWeekLabel(): string {
+  const week = getCurrentWeek()
+  const monday = getMondayOfCurrentWeek()
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const year = sunday.getFullYear()
+
+  if (monday.getMonth() === sunday.getMonth()) {
+    const month = new Intl.DateTimeFormat('de-DE', { month: 'long' }).format(monday)
+    return `KW ${week} · ${monday.getDate()}.–${sunday.getDate()}. ${month} ${year}`
+  } else {
+    const monStr = `${monday.getDate()}. ${new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(monday)}`
+    const sunStr = `${sunday.getDate()}. ${new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(sunday)} ${year}`
+    return `KW ${week} · ${monStr}–${sunStr}`
+  }
+}
+
+export function getCurrentMonthLabel(): string {
+  return new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date())
+}
+
+export function getCurrentQuarterLabel(): string {
+  const quarter = getCurrentQuarter()
+  const year = new Date().getFullYear()
+  const labels: Record<number, string> = { 1: 'Jan–Mär', 2: 'Apr–Jun', 3: 'Jul–Sep', 4: 'Okt–Dez' }
+  return `Q${quarter} ${year} · ${labels[quarter]}`
+}
+
+export function getCurrentYearLabel(): string {
+  return String(new Date().getFullYear())
+}
+
 export function daysSince(dateStr: string): number {
   const date = new Date(dateStr)
   const now = new Date()

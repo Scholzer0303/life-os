@@ -87,12 +87,16 @@ src/
 
 ## Ausstehend — Paket 3
 
-**Nächste Session startet mit: Paket 3B, Schritt 8**
+**Nächste Session startet mit: Paket 3C, Schritt 13**
 Bearbeitungsreihenfolge strikt einhalten. Immer nur einen Schritt. Erst testen, dann "weiter".
 
 | Nr | Name | Paket | Status |
 |----|------|-------|--------|
-| 8 | Ziele: Datum-Logik dynamisch | 3B | ⚠️ OFFEN |
+| 8 | Ziele: Datum-Logik dynamisch | 3B | ✅ 2026-04-07 |
+| 9 | Ziele: Periodenübergang-Flow | 3B | ✅ 2026-04-07 |
+| 10 | Ziele: Hierarchie visuell | 3B | ✅ 2026-04-07 |
+| 11 | Ziele: Tasks nur auf Monat/Woche | 3B | ✅ 2026-04-07 |
+| 12 | Coach: Ton-Auswahl | 3B | ✅ 2026-04-07 |
 | 9 | Ziele: Periodenübergang-Flow | 3B | ⚠️ OFFEN |
 | 10 | Ziele: Hierarchie visuell | 3B | ⚠️ OFFEN |
 | 11 | Ziele: Tasks nur auf Monat/Woche | 3B | ⚠️ OFFEN |
@@ -120,3 +124,10 @@ Fix 1–4, Feature 5–9 (Review-Archiv, Task-Kaskade, Kalender Woche/Monat, Cus
 
 **Paket 3A — April 2026 ✅**
 Schritte 1–7: Morgenjournal (Zeitblock→Kalender-Check, Abschluss-Seite, Tasks max. 4), Abendjournal (Energie-Farben, Dankbarkeit, Abschluss-Seite), Kalender-Tab entfernt. Neue DB-Felder: `calendar_planned`, `gratitude`.
+
+**Paket 3B (Schritte 8–9) — April 2026 ✅**
+Schritt 8: Dynamische Datum-Logik. Neue Funktionen in `utils.ts`. Perioden-Label tab-abhängig. Wochenwechsel- + Monatswechsel-Banner.
+Schritt 9: Periodenübergang-Modal in `Goals.tsx`. Zeigt beim ersten Tab-Öffnen nach Periodenende die abgelaufenen Ziele (Monat > Quartal > Woche). Entscheidung Ja/Teilweise/Nein + Navigation zu Review oder neuem Ziel. localStorage verhindert doppeltes Erscheinen.
+Schritt 10: Hierarchie visuell. `GoalDetailCard.tsx` berechnet Kinder jetzt selbst via `treeGoals`-Prop. Expand-Standard auf 2 Ebenen. Fortschritt zeigt Durchschnitt der Unterziele. "Alle"-Tab in `Goals.tsx` rendert Baumstruktur mit Waisen-Fallback pro Ebene.
+Schritt 11: Tasks nur bei `monthly`/`weekly`. Ausgeblendet bei höheren Ebenen.
+Schritt 12: Coach Ton-Auswahl. Neuer `CoachTone`-Typ in `claude.ts` (sachlich/arschtritt/anerkennend). Ton-Selector in `Coach.tsx` über den Modi-Karten. Ton-Badge im Chat-Header. localStorage-Persistenz. Ton fließt als Parameter in System-Prompt.
