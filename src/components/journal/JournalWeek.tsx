@@ -1,21 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Plus, Trash2, Loader } from 'lucide-react'
 import { useStore } from '../../store/useStore'
-import { getJournalPeriod, upsertJournalPeriod } from '../../lib/db'
+import { getJournalPeriod, upsertJournalPeriod, getWeeklyGoalsByWeekYear, createGoal, updateGoal, deleteGoal } from '../../lib/db'
 import { generatePeriodSummary } from '../../lib/claude'
-import type { JournalPeriod } from '../../types'
+import type { GoalRow } from '../../types/database'
 
 // ─── Typen ───────────────────────────────────────────────────────────────────
 
-interface WeekGoal {
-  id: string
-  title: string
-  completed: boolean
-}
-
 interface WeekPlanningData {
   identity_statement?: string
-  goals?: WeekGoal[]
 }
 
 interface WeekReflectionData {
@@ -72,10 +65,6 @@ function getWeekLabel(monday: Date): string {
   }
 }
 
-function newGoalId() {
-  return Math.random().toString(36).slice(2)
-}
-
 // ─── Haupt-Komponente ─────────────────────────────────────────────────────────
 
 export default function JournalWeek() {
@@ -83,57 +72,65 @@ export default function JournalWeek() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [activeSubTab, setActiveSubTab] = useState<'planung' | 'reflexion'>('planung')
 
-  const [_period, setPeriod] = useState<JournalPeriod | null>(null)
-  const [planning, setPlanning] = useState<WeekPlanningData>({ identity_statement: '', goals: [] })
+  const [planning, setPlanning] = useState<WeekPlanningData>({ identity_statement: '' })
   const [reflection, setReflection] = useState<WeekReflectionData>({})
   const [aiSummary, setAiSummary] = useState<string | null>(null)
+
+  // Wochenziele aus goals-Tabelle
+  const [goals, setGoals] = useState<GoalRow[]>([])
+  const [goalsLoading, setGoalsLoading] = useState(false)
+  const [newGoalTitle, setNewGoalTitle] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
-  const [newGoalTitle, setNewGoalTitle] = useState('')
 
   const monday = getMondayAtOffset(weekOffset)
   const periodKey = getWeekPeriodKey(monday)
   const weekLabel = getWeekLabel(monday)
   const isCurrentWeek = weekOffset === 0
+  const { week, year } = getISOWeekYear(monday)
 
-  const hasNoPlanning = isCurrentWeek && (!planning.identity_statement?.trim()) && (!planning.goals?.length)
+  const hasNoPlanning = isCurrentWeek && !planning.identity_statement?.trim() && goals.length === 0
 
-  // Periode laden wenn sich die Woche ändert
-  const loadPeriod = useCallback(async () => {
+  // Periode + Ziele laden wenn sich die Woche ändert
+  const loadData = useCallback(async () => {
     if (!user) return
     setLoading(true)
+    setGoalsLoading(true)
     try {
-      const p = await getJournalPeriod(user.id, 'week', periodKey)
-      setPeriod(p)
+      const [p, g] = await Promise.all([
+        getJournalPeriod(user.id, 'week', periodKey),
+        getWeeklyGoalsByWeekYear(user.id, week, year),
+      ])
       if (p) {
-        setPlanning((p.planning_data as WeekPlanningData) ?? { identity_statement: '', goals: [] })
+        setPlanning((p.planning_data as WeekPlanningData) ?? { identity_statement: '' })
         setReflection((p.reflection_data as WeekReflectionData) ?? {})
         setAiSummary(p.ai_summary ?? null)
       } else {
-        setPlanning({ identity_statement: '', goals: [] })
+        setPlanning({ identity_statement: '' })
         setReflection({})
         setAiSummary(null)
       }
+      setGoals(g)
     } catch (err) {
       console.error('JournalWeek laden:', err)
     } finally {
       setLoading(false)
+      setGoalsLoading(false)
     }
-  }, [user, periodKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, periodKey, week, year]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { loadPeriod() }, [loadPeriod])
+  useEffect(() => { loadData() }, [loadData])
 
-  // Planung speichern
+  // Planung speichern (nur identity_statement — Ziele direkt in goals-Tabelle)
   async function savePlanning() {
     if (!user) return
     setSaving(true); setSaveSuccess(false)
     try {
-      const p = await upsertJournalPeriod(user.id, 'week', periodKey, { planning_data: planning as Record<string, unknown> })
-      setPeriod(p)
+      await upsertJournalPeriod(user.id, 'week', periodKey, { planning_data: planning as Record<string, unknown> })
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 2000)
     } catch (err) {
@@ -143,16 +140,14 @@ export default function JournalWeek() {
     }
   }
 
-  // Reflexion speichern (inkl. aktualisierter Goal-Status aus Planung)
+  // Reflexion speichern
   async function saveReflection() {
     if (!user) return
     setSaving(true); setSaveSuccess(false)
     try {
-      const p = await upsertJournalPeriod(user.id, 'week', periodKey, {
-        planning_data: planning as Record<string, unknown>,
+      await upsertJournalPeriod(user.id, 'week', periodKey, {
         reflection_data: reflection as Record<string, unknown>,
       })
-      setPeriod(p)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 2000)
     } catch (err) {
@@ -167,9 +162,13 @@ export default function JournalWeek() {
     if (!user) return
     setAiLoading(true); setAiError(null)
     try {
+      const planData = {
+        ...planning,
+        goals: goals.map((g) => `${g.title} (${g.status})`),
+      }
       const summary = await generatePeriodSummary(
         'week', weekLabel,
-        planning as Record<string, unknown>,
+        planData as Record<string, unknown>,
         reflection as Record<string, unknown>,
         profile ?? null
       )
@@ -182,23 +181,43 @@ export default function JournalWeek() {
     }
   }
 
-  // Goal-Aktionen
-  function addGoal() {
-    const title = newGoalTitle.trim()
-    if (!title) return
-    setPlanning((prev) => ({ ...prev, goals: [...(prev.goals ?? []), { id: newGoalId(), title, completed: false }] }))
-    setNewGoalTitle('')
+  // Ziel-Aktionen (direkt in goals-Tabelle)
+  async function addGoal() {
+    if (!user || !newGoalTitle.trim()) return
+    try {
+      const goal = await createGoal({
+        user_id: user.id,
+        title: newGoalTitle.trim(),
+        type: 'weekly',
+        week,
+        year,
+        status: 'active',
+        progress: 0,
+      })
+      setGoals((prev) => [...prev, goal])
+      setNewGoalTitle('')
+    } catch (err) {
+      console.error('Ziel erstellen:', err)
+    }
   }
 
-  function removeGoal(id: string) {
-    setPlanning((prev) => ({ ...prev, goals: (prev.goals ?? []).filter((g) => g.id !== id) }))
+  async function removeGoal(id: string) {
+    try {
+      await deleteGoal(id)
+      setGoals((prev) => prev.filter((g) => g.id !== id))
+    } catch (err) {
+      console.error('Ziel löschen:', err)
+    }
   }
 
-  function toggleGoalCompleted(id: string) {
-    setPlanning((prev) => ({
-      ...prev,
-      goals: (prev.goals ?? []).map((g) => g.id === id ? { ...g, completed: !g.completed } : g),
-    }))
+  async function toggleGoalStatus(goal: GoalRow) {
+    const nextStatus = goal.status === 'completed' ? 'active' : 'completed'
+    try {
+      const updated = await updateGoal(goal.id, { status: nextStatus })
+      setGoals((prev) => prev.map((g) => g.id === goal.id ? updated : g))
+    } catch (err) {
+      console.error('Ziel-Status:', err)
+    }
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -251,7 +270,7 @@ export default function JournalWeek() {
           }}
         >
           <span style={{ fontSize: '0.9rem', color: 'var(--accent)', fontWeight: 500 }}>
-            {getISOWeekYear(monday).week > 1 ? `KW ${getISOWeekYear(monday).week}` : 'Diese Woche'} startet — Planung ausstehend
+            KW {week} startet — Planung ausstehend
           </span>
           <span style={{ color: 'var(--accent)', fontSize: '0.9rem' }}>→</span>
         </div>
@@ -306,43 +325,48 @@ export default function JournalWeek() {
             <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.6rem' }}>
               Wochenziele
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
-              {(planning.goals ?? []).map((goal) => (
-                <div key={goal.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.6rem 0.75rem' }}>
-                  <span style={{ flex: 1, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{goal.title}</span>
+            {goalsLoading ? (
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Lade…</div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  {goals.map((goal) => (
+                    <div key={goal.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.6rem 0.75rem' }}>
+                      <span style={{ flex: 1, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{goal.title}</span>
+                      <button
+                        onClick={() => removeGoal(goal.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', display: 'flex', alignItems: 'center' }}
+                        aria-label="Ziel entfernen"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    value={newGoalTitle}
+                    onChange={(e) => setNewGoalTitle(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGoal() } }}
+                    placeholder="Neues Ziel…"
+                    style={{ flex: 1, padding: '0.7rem 0.9rem', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
+                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                    onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+                  />
                   <button
-                    onClick={() => removeGoal(goal.id)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', display: 'flex', alignItems: 'center' }}
-                    aria-label="Ziel entfernen"
+                    onClick={addGoal}
+                    disabled={!newGoalTitle.trim()}
+                    style={{ padding: '0.7rem 0.9rem', background: newGoalTitle.trim() ? 'var(--accent)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: '8px', cursor: newGoalTitle.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center' }}
+                    aria-label="Ziel hinzufügen"
                   >
-                    <Trash2 size={14} />
+                    <Plus size={16} />
                   </button>
                 </div>
-              ))}
-            </div>
-            {/* Neues Ziel hinzufügen */}
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <input
-                value={newGoalTitle}
-                onChange={(e) => setNewGoalTitle(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGoal() } }}
-                placeholder="Neues Ziel…"
-                style={{ flex: 1, padding: '0.7rem 0.9rem', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
-                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-              />
-              <button
-                onClick={addGoal}
-                disabled={!newGoalTitle.trim()}
-                style={{ padding: '0.7rem 0.9rem', background: newGoalTitle.trim() ? 'var(--accent)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: '8px', cursor: newGoalTitle.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center' }}
-                aria-label="Ziel hinzufügen"
-              >
-                <Plus size={16} />
-              </button>
-            </div>
+              </>
+            )}
           </div>
 
-          {/* Speichern */}
+          {/* Speichern (nur Identitätssatz — Ziele direkt gespeichert) */}
           <button
             onClick={savePlanning}
             disabled={saving}
@@ -357,22 +381,22 @@ export default function JournalWeek() {
       {!loading && activeSubTab === 'reflexion' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* Wochenziele-Status */}
-          {(planning.goals ?? []).length > 0 && (
+          {goals.length > 0 && (
             <div>
               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.6rem' }}>
                 Wochenziele
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                {(planning.goals ?? []).map((goal) => (
+                {goals.map((goal) => (
                   <button
                     key={goal.id}
-                    onClick={() => toggleGoalCompleted(goal.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', background: goal.completed ? '#22c55e14' : 'var(--bg-card)', border: `1px solid ${goal.completed ? '#22c55e40' : 'var(--border)'}`, borderRadius: '8px', padding: '0.65rem 0.75rem', cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s' }}
+                    onClick={() => toggleGoalStatus(goal)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', background: goal.status === 'completed' ? '#22c55e14' : 'var(--bg-card)', border: `1px solid ${goal.status === 'completed' ? '#22c55e40' : 'var(--border)'}`, borderRadius: '8px', padding: '0.65rem 0.75rem', cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s' }}
                   >
-                    <span style={{ fontSize: '1rem', color: goal.completed ? '#22c55e' : 'var(--border)', flexShrink: 0 }}>
-                      {goal.completed ? '✓' : '○'}
+                    <span style={{ fontSize: '1rem', color: goal.status === 'completed' ? '#22c55e' : 'var(--border)', flexShrink: 0 }}>
+                      {goal.status === 'completed' ? '✓' : '○'}
                     </span>
-                    <span style={{ fontSize: '0.9rem', color: goal.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: goal.completed ? 'line-through' : 'none' }}>
+                    <span style={{ fontSize: '0.9rem', color: goal.status === 'completed' ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: goal.status === 'completed' ? 'line-through' : 'none' }}>
                       {goal.title}
                     </span>
                   </button>
@@ -380,7 +404,7 @@ export default function JournalWeek() {
               </div>
             </div>
           )}
-          {(planning.goals ?? []).length === 0 && (
+          {goals.length === 0 && (
             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', padding: '0.5rem 0' }}>
               Keine Wochenziele geplant. Ziele in der Planung definieren.
             </div>

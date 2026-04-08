@@ -188,6 +188,7 @@ export default function Settings() {
   const [name, setName] = useState(profile?.name ?? '')
   const [email, setEmail] = useState('')
   const [northStar, setNorthStar] = useState(profile?.north_star ?? '')
+  const [identityStatement, setIdentityStatement] = useState(profile?.identity_statement ?? '')
   const [values, setValues] = useState<string[]>(profile?.values ?? [])
   const [stopList, setStopList] = useState<string[]>(profile?.stop_list ?? [])
   const [newValue, setNewValue] = useState('')
@@ -234,6 +235,7 @@ export default function Settings() {
   useEffect(() => {
     setName(profile?.name ?? '')
     setNorthStar(profile?.north_star ?? '')
+    setIdentityStatement(profile?.identity_statement ?? '')
     setValues(profile?.values ?? [])
     setStopList(profile?.stop_list ?? [])
   }, [profile])
@@ -247,6 +249,7 @@ export default function Settings() {
       const updated = await updateProfile(user.id, {
         name: name.trim() || null,
         north_star: northStar.trim() || null,
+        identity_statement: identityStatement.trim() || null,
         values,
         stop_list: stopList,
       })
@@ -486,6 +489,34 @@ export default function Settings() {
                   boxSizing: 'border-box',
                   lineHeight: 1.5,
                 }}
+              />
+            </div>
+
+            {/* Identitätssatz */}
+            <div>
+              <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem' }}>
+                Identitätssatz
+              </label>
+              <textarea
+                value={identityStatement}
+                onChange={(e) => setIdentityStatement(e.target.value)}
+                rows={3}
+                placeholder="Ich bin jemand der…"
+                style={{
+                  width: '100%',
+                  padding: '0.65rem 0.875rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-primary)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem',
+                  resize: 'vertical',
+                  boxSizing: 'border-box',
+                  lineHeight: 1.5,
+                  outline: 'none',
+                }}
+                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
               />
             </div>
 
@@ -842,10 +873,10 @@ export default function Settings() {
           </div>
         </SectionCard>
 
-        {/* ── Sektion 5: Onboarding ── */}
-        <SectionCard title="Onboarding">
+        {/* ── Sektion 5: Profil einrichten ── */}
+        <SectionCard title="Profil einrichten">
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.875rem', lineHeight: 1.5 }}>
-            Starte das Onboarding erneut, um deine Werte und deinen Nordstern zu überarbeiten. Dein Name und deine E-Mail bleiben erhalten.
+            Starte den Einrichtungs-Assistenten erneut, um Nordstern, Werte und Identität geführt neu zu setzen. Journal-Einträge und Ziele bleiben erhalten.
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <button
@@ -864,9 +895,9 @@ export default function Settings() {
               }}
             >
               <RefreshCw size={15} />
-              Onboarding neu starten
+              Profil-Einrichtung neu starten
             </button>
-            <InfoTooltip text="Setzt deinen Onboarding-Status zurück. Dein Name und alle Journal-Einträge bleiben erhalten." />
+            <InfoTooltip text="Startet den Einrichtungs-Assistenten neu. Alle Journal-Einträge und Ziele bleiben unberührt." />
           </div>
         </SectionCard>
 
@@ -1024,12 +1055,12 @@ export default function Settings() {
 
       {/* ─── Modals ─── */}
       <AnimatePresence>
-        {/* Onboarding-Bestätigung */}
+        {/* Profil-Einrichtung neu starten */}
         {showOnboardingModal && (
           <ConfirmModal
             isOpen={true}
-            title="Onboarding neu starten?"
-            body="Dein Name und deine E-Mail bleiben erhalten. Alle anderen Daten (Nordstern, Werte, Stopp-Liste) können neu gesetzt werden."
+            title="Profil-Einrichtung neu starten?"
+            body="Der Einrichtungs-Assistent wird neu gestartet. Alle Journal-Einträge, Ziele und Habits bleiben vollständig erhalten."
             confirmLabel="Neu starten"
             confirmColor="var(--accent)"
             onConfirm={handleOnboardingRestart}

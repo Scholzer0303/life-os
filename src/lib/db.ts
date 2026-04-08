@@ -144,6 +144,19 @@ export async function getQuarterlyGoalsByQuarterYear(userId: string, quarter: nu
   return data ?? []
 }
 
+export async function getWeeklyGoalsByWeekYear(userId: string, week: number, year: number): Promise<GoalRow[]> {
+  const { data, error } = await supabase
+    .from('goals')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('type', 'weekly')
+    .eq('week', week)
+    .eq('year', year)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
 export async function createGoal(goal: GoalInsert): Promise<GoalRow> {
   const { data, error } = await supabase.from('goals').insert(goal).select().single()
   if (error) throw error

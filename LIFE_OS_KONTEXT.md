@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md — Projektgedächtnis
 # Wird nach JEDEM abgeschlossenen Schritt von Claude Code aktualisiert.
 # Nach jeder Session: diese Datei ins Claude Project hochladen (ersetzt alte Version).
-# Zuletzt aktualisiert: 2026-04-08 (Paket 4E Schritt 13 abgeschlossen)
+# Zuletzt aktualisiert: 2026-04-08 (Paket 4F Schritt 15 abgeschlossen — Paket 4 komplett)
 
 ---
 
@@ -98,7 +98,7 @@ src/
 
 ## Ausstehend — Paket 4
 
-**Nächste Session startet mit: Paket 4F, Schritt 14**
+**Paket 4 vollständig abgeschlossen. Nächste Session: Paket 5 planen.**
 Reihenfolge strikt einhalten. Immer nur einen Schritt. Erst testen, dann weiter.
 
 | Nr | Name | Paket | Status |
@@ -116,8 +116,8 @@ Reihenfolge strikt einhalten. Immer nur einen Schritt. Erst testen, dann weiter.
 | 11 | Übersicht: Kalender-Monatsansicht | 4E | ✅ 2026-04-08 |
 | 12 | Übersicht: Habit-Grid | 4E | ✅ 2026-04-08 |
 | 13 | Übersicht: Metriken-Visualisierung | 4E | ✅ 2026-04-08 |
-| 14 | Ziele-Tab auflösen | 4F | ⛔ Nach 4E |
-| 15 | Review-Tab auflösen + Profil reparieren | 4F | ⛔ Nach 4E |
+| 14 | Ziele-Tab auflösen | 4F | ✅ 2026-04-08 |
+| 15 | Review-Tab auflösen + Profil reparieren | 4F | ✅ 2026-04-08 |
 
 ---
 

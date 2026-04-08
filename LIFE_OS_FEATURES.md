@@ -352,7 +352,7 @@ Bibliothek: Recharts (bereits im Projekt vorhanden).
 
 ---
 
-### Schritt 14 — Ziele-Tab auflösen ⚠️ OFFEN
+### Schritt 14 — Ziele-Tab auflösen ✅ UMGESETZT (2026-04-08)
 
 **Betroffene Dateien:** Navigation (bereits in Schritt 1 entfernt), `src/pages/Goals.tsx`
 **Aufwand:** Klein
@@ -365,7 +365,7 @@ Bibliothek: Recharts (bereits im Projekt vorhanden).
 
 ---
 
-### Schritt 15 — Review-Tab auflösen + Profil reparieren ⚠️ OFFEN
+### Schritt 15 — Review-Tab auflösen + Profil reparieren ✅ UMGESETZT (2026-04-08)
 
 **Betroffene Dateien:** `src/pages/Review.tsx`, `src/pages/Settings.tsx`
 **Aufwand:** Klein-Mittel
