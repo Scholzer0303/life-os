@@ -36,7 +36,8 @@ export default function AIFeedbackCard({ entry, onFeedbackSaved }: Props) {
       })
       onFeedbackSaved?.(text)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Laden des Feedbacks.')
+      console.error('AIFeedbackCard Fehler:', err)
+      setError('KI momentan nicht verfügbar — bitte erneut versuchen.')
     } finally {
       setIsLoading(false)
     }

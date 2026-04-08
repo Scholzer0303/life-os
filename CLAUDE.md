@@ -1,7 +1,7 @@
 # CLAUDE.md — Life OS Entwicklungsregeln
 # Liegt im Stammverzeichnis von Desktop/life-os/
 # Claude Code liest diese Datei automatisch bei jedem Start.
-# Zuletzt aktualisiert: 2026-04-07 (Paket 4 — Journal als Herzstück)
+# Zuletzt aktualisiert: 2026-04-08 (Paket 5+6 — Vision & Identitätssystem)
 
 ---
 
@@ -50,6 +50,7 @@ Nach JEDER Änderung:
 ### 2.4 Fehler beheben, nicht verstecken
 - Keine leeren try/catch ohne Fehlerausgabe
 - Alle Supabase-Fehler: `console.error('Kontext:', error)` + UI-Fehlermeldung
+- KI-Fehler (Anthropic API): NIEMALS rohen JSON anzeigen — immer lesbare Fehlermeldung
 - Wenn etwas nicht funktioniert: stoppen und Lukas erklären — nicht weiterbauen
 
 ### 2.5 Vision vor Technik
@@ -63,9 +64,14 @@ unnötig komplex oder mit besserer Methode lösbar sind:
 → Nicht blind umsetzen
 
 ### 2.7 Bestehende Daten schützen
-Beim großen Umbau (Paket 4): Keine Supabase-Tabellen löschen.
-Keine bestehenden Daten vernichten. Nur neue Tabellen/Spalten hinzufügen,
-bestehende umnutzen. Code deaktivieren statt löschen.
+Keine Supabase-Tabellen löschen. Keine bestehenden Daten vernichten.
+Nur neue Tabellen/Spalten hinzufügen, bestehende umnutzen.
+Code deaktivieren statt löschen.
+
+### 2.8 Begriff: "Vision" nicht "Nordstern"
+Ab Paket 5 gilt: In der UI heißt es überall "Vision" oder "Meine Vision".
+Der DB-Feldname `north_star` in der profiles-Tabelle bleibt unverändert (kein breaking change).
+Nur UI-Labels, Platzhaltertexte und Coach-Kontext-Strings ändern sich.
 
 ---
 
@@ -79,31 +85,34 @@ src/types/index.ts    → Neue Interfaces und Types
 src/store/useStore.ts → Globaler State (Zustand)
 ```
 
-### 3.2 Neue Seitenstruktur (Paket 4)
+### 3.2 Seitenstruktur
 ```
 src/pages/
-  Dashboard.tsx       → bleibt weitgehend wie jetzt
-  Journal.tsx         → NEU: Herzstück, Tab-Navigation Tag/Woche/Monat/Quartal/Jahr
-  Coach.tsx           → bleibt, erhält mehr Kontext
-  Overview.tsx        → NEU: Kalender + Habit-Grid + Metriken-Visualisierung
-  Settings.tsx        → bleibt, Profil-Bereiche einzeln bearbeitbar
+  Dashboard.tsx       → aktiv
+  Journal.tsx         → Herzstück, Tab-Navigation Tag/Woche/Monat/Quartal/Jahr
+  Coach.tsx           → aktiv, erhält in Paket 6 vollständigen Kontext
+  Overview.tsx        → aktiv (Kalender + Habit-Grid + Metriken)
+  Settings.tsx        → wird in Paket 5 neu strukturiert
+  Goals.tsx           → deaktiviert (Code bleibt)
+  Review.tsx          → deaktiviert (Code bleibt)
 
 src/components/journal/
-  JournalDay.tsx          → Tag: Morgen + Abend (Inhalt aus altem MorningJournal/EveningJournal)
+  JournalDay.tsx          → Tag: Morgen + Abend
   JournalWeek.tsx         → Woche: Planung + Reflexion
   JournalMonth.tsx        → Monat: Planung (Ziele + Habits) + Reflexion
   JournalQuarter.tsx      → Quartal: Planung + Reflexion
-  JournalYear.tsx         → Jahr: Planung (Nordstern + Jahresziel) + Reflexion
-
-src/components/habits/
-  HabitManager.tsx        → Habits anlegen/bearbeiten/löschen
-  HabitChecklist.tsx      → Abendjournal: Habits abhaken
-  HabitGrid.tsx           → Monatsübersicht: Grid aller Habits × Tage
+  JournalYear.tsx         → Jahr: Planung (Vision + Jahresziel) + Reflexion
 
 src/components/overview/
   OverviewCalendar.tsx    → Kalender-Monatsansicht
-  OverviewStats.tsx       → Monatsstatistiken-Kacheln
-  MetricChart.tsx         → Kurven: Energie / Gewicht / Schlaf
+  HabitGrid.tsx           → Habit-Grid
+  MetricChart.tsx         → Metriken-Charts
+
+src/components/vision/
+  VisionFlow.tsx          → NEU in Paket 6: geführter Vision-Erstellungs-Flow
+
+src/components/identity/
+  IdentityFlow.tsx        → NEU in Paket 6: geführter Identitäts-Flow
 ```
 
 ### 3.3 Supabase-Calls — Pflichtregeln
@@ -129,10 +138,11 @@ journal_entries:
   ✅ main_goal_today     ✅ what_blocked       ✅ entry_date
   ✅ feeling_score       ✅ calendar_planned   ✅ gratitude
   ✅ weight              ✅ sleep_score
+  ✅ identity_check      ✅ identity_note      (NEU in Paket 6B)
 
 goals:
   ✅ type: 'three_year' | 'year' | 'quarterly' | 'monthly' | 'weekly'
-  ✅ parent_id (UUID, nullable)
+  ✅ parent_id (UUID, nullable) — für Ziel-Hierarchie-Verknüpfung
 
 habits:
   ✅ frequency_type: 'daily' | 'weekly'
@@ -140,9 +150,14 @@ habits:
   ✅ month, year (INT)
 
 profiles:
-  ✅ ai_profile (jsonb)
+  ✅ north_star (text) — UI-Label: "Vision" (NICHT "Nordstern")
   ✅ identity_statement (text)
+  ✅ ai_profile (jsonb)
   ✅ ikigai (jsonb)
+
+journal_periods:
+  ✅ period_type: 'week' | 'month' | 'quarter' | 'year'
+  ✅ period_key: z.B. '2026-W15', '2026-04', '2026-Q2', '2026'
 ```
 
 ---
@@ -160,25 +175,39 @@ profiles:
 ### 5.1 Bestehende Tabellen (nicht löschen!)
 `profiles`, `goals`, `journal_entries`, `coach_sessions`, `pattern_events`,
 `goal_tasks`, `recurring_blocks`, `recurring_block_exceptions`,
-`habits`, `habit_logs`
+`habits`, `habit_logs`, `journal_periods`
 
-### 5.2 Neue Tabellen in Paket 4
-```
-journal_periods   → Planung + Reflexion für Woche/Monat/Quartal/Jahr
-                    (period_type: 'week'|'month'|'quarter'|'year', period_key: z.B. '2026-W15')
-```
+### 5.2 SQL-Migration Workflow
+Claude Code identifiziert → SQL ausgeben → auf Lukas' "weiter" warten →
+Lukas führt manuell im Supabase SQL Editor aus → bestätigt → Claude Code testet
 
-### 5.3 SQL-Migration Workflow
-Claude Code identifiziert → Lukas führt manuell im Supabase SQL Editor aus → bestätigt → Claude Code testet
-
-### 5.4 journal_entries Unique Constraint
+### 5.3 journal_entries Unique Constraint
 ```sql
 UNIQUE (user_id, entry_date, type)
 ```
 
 ---
 
-## 6. DEPLOYMENT
+## 6. KI-FEHLERBEHANDLUNG — PFLICHT
+
+Jeder Claude-API-Aufruf muss Fehler sauber abfangen:
+```typescript
+try {
+  const response = await callClaude(prompt);
+  // ...
+} catch (error) {
+  // NIEMALS rohen JSON/Error-Objekt anzeigen
+  setErrorMessage('KI momentan nicht verfügbar — bitte erneut versuchen.');
+  console.error('Claude API Fehler:', error);
+}
+```
+
+Gilt für: Mentor-Impuls, KI-Zusammenfassungen, Ziel-Feedback, Vision-Flow, Identitäts-Flow,
+Habit-Vorschläge, Coach.
+
+---
+
+## 7. DEPLOYMENT
 
 ```bash
 npm run build   # lokal testen — muss fehlerfrei sein
@@ -190,7 +219,7 @@ git add -A && git commit -m "feat: [was]" && git push origin master
 
 ---
 
-## 7. NPM BESONDERHEITEN
+## 8. NPM BESONDERHEITEN
 
 ```bash
 npm install [paket] --legacy-peer-deps   # IMMER diesen Flag
@@ -198,7 +227,7 @@ npm install [paket] --legacy-peer-deps   # IMMER diesen Flag
 
 ---
 
-## 8. KOMMUNIKATION MIT LUKAS
+## 9. KOMMUNIKATION MIT LUKAS
 
 - Alles auf Deutsch erklären
 - Nach jedem Teilschritt: kurze Beschreibung, dann warten
@@ -208,14 +237,14 @@ npm install [paket] --legacy-peer-deps   # IMMER diesen Flag
 
 ---
 
-## 9. KONTEXT-LOGBUCH — AUTOMATISCHE PFLICHT
+## 10. KONTEXT-LOGBUCH — AUTOMATISCHE PFLICHT
 
 LIFE_OS_KONTEXT.md wird nach JEDEM abgeschlossenen Schritt aktualisiert.
 "Abgeschlossen" = Code ✓ + Build fehlerfrei ✓ + App getestet ✓
 
 ---
 
-## 10. SESSION-START CHECKLISTE
+## 11. SESSION-START CHECKLISTE
 
 1. VISION.md lesen
 2. LIFE_OS_KONTEXT.md lesen
@@ -226,7 +255,7 @@ LIFE_OS_KONTEXT.md wird nach JEDEM abgeschlossenen Schritt aktualisiert.
 
 ---
 
-## 11. DATEI-ÜBERSICHT
+## 12. DATEI-ÜBERSICHT
 
 | Datei | Zweck | Wer aktualisiert |
 |---|---|---|

@@ -178,7 +178,8 @@ export default function MorningJournal() {
       const result = await getMorningImpulse(data.mainGoal, taskTitles, profile ?? null)
       setImpulse(result)
     } catch (err) {
-      setImpulseError(err instanceof Error ? err.message : 'Fehler beim Laden.')
+      console.error('getMorningImpulse Fehler:', err)
+      setImpulseError('KI momentan nicht verfügbar — bitte erneut versuchen.')
     } finally {
       setImpulseLoading(false)
     }

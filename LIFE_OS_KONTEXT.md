@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md — Projektgedächtnis
 # Wird nach JEDEM abgeschlossenen Schritt von Claude Code aktualisiert.
 # Nach jeder Session: diese Datei ins Claude Project hochladen (ersetzt alte Version).
-# Zuletzt aktualisiert: 2026-04-08 (Paket 4F Schritt 15 abgeschlossen — Paket 4 komplett)
+# Zuletzt aktualisiert: 2026-04-08 (Paket 5B Schritt 3 — Ziel-Hierarchie UI)
 
 ---
 
@@ -14,19 +14,25 @@ VISION.md → LIFE_OS_KONTEXT.md → LIFE_OS_FEATURES.md
 
 Life OS ist eine vollständig funktionsfähige PWA, live auf https://life-os-henna-xi.vercel.app
 
-**Was die App aktuell kann (Stand nach Paket 3C):**
-- Onboarding (9 Schritte): Name → Lebensrad → Ikigai → Werte → 5-Warum → Nordstern → Identität → Stopp-Liste → Ziele
-- Journal: Morgen (5 Schritte inkl. Metriken + Kalender-Check), Abend (Energie-Farben + Dankbarkeit + Abschluss-Seite), Freeform
-- Ziele: Hierarchie three_year → year → quarterly → monthly → weekly, Tasks + Habits auf Monatsebene
-- Habits: Tabellen `habits` + `habit_logs` in Supabase vorhanden. Habits können bei Monatszielen angelegt werden.
-- Dashboard: Nordstern, Identitäts-Banner, heutiger Fokus, Tasks, Wochenziele, Heatmap, Streak
-- Coach: 4 Modi, Ton-Auswahl (sachlich/arschtritt/anerkennend), Vergangene Sessions, Nordstern als Kontext
-- Review: Woche/Monat/Quartal/Jahr, KI-Zusammenfassung, Archiv (wird in Paket 4 aufgelöst)
-- Einstellungen: Profil, Werte, Stopp-Liste, Ikigai, KI-Profil, Onboarding neu starten, Datenverwaltung
+**Was die App aktuell kann (Stand nach Paket 4 komplett):**
+- Navigation: Dashboard · Journal · Coach · Übersicht · Einstellungen
+- Journal: Tag (Morgen/Abend), Woche, Monat, Quartal, Jahr — alle mit Planung + Reflexion
+- Morgenjournal: Metriken (Energie, Gewicht, Schlaf), 0–4 Tasks, Kalender-Check, KI-Impuls
+- Abendjournal: Reflexion, Habits abhaken (mit Frequenz-Logik), Energie-Farben, Abschluss
+- Ziele: Hierarchie in goals-Tabelle (parent_id vorhanden aber UI noch nicht gebaut)
+- Habits: Tabellen habits + habit_logs, frequency_type + frequency_value, Monatsübergang-Dialog
+- Übersicht: Kalender-Monatsansicht, Habit-Grid, Metriken-Charts (Recharts)
+- Coach: 4 Modi, Ton-Auswahl (sachlich/arschtritt/anerkennend), vergangene Sessions
+- Einstellungen: Profil, Werte, Stopp-Liste, Ikigai, Morgenmetriken-Toggle, Gefahrenzone
+- Dashboard: Vision-Banner (heißt noch "Nordstern" in UI), Streak, Tasks, Wochenziele, Heatmap
 
-**Navigation aktuell:** Dashboard | Journal | Coach | Übersicht | Einstellungen (seit Paket 4A Schritt 1)
+**Bekannte offene Bugs:**
+- keine bekannten Bugs mehr
 
-**Navigation vorher:** Dashboard | Journal | Coach | Ziele | Review | Einstellungen
+**Behobene Bugs (Paket 5A Schritt 1):**
+- ✅ Abhak-Sync Dashboard↔Wochenziele: handleToggleTask aktualisiert jetzt auch dailyTasks-State
+- ✅ Supabase-Link 404 in Einstellungen entfernt (Info-Text bleibt)
+- ✅ KI-Fehler zeigen jetzt immer "KI momentan nicht verfügbar — bitte erneut versuchen." (MorningJournal, EveningJournal, JournalWeek/Month/Quarter/Year, Coach, AIFeedbackCard)
 
 ---
 
@@ -45,17 +51,25 @@ Life OS ist eine vollständig funktionsfähige PWA, live auf https://life-os-hen
 
 | Tabelle | Zweck | Status |
 |---|---|---|
-| `profiles` | User-Profil, Nordstern, Werte, Ikigai, Identität | aktiv |
-| `goals` | Ziel-Hierarchie (three_year/year/quarterly/monthly/weekly) | aktiv, wird von Journal genutzt |
+| `profiles` | User-Profil, Vision (Feld: north_star), Werte, Ikigai, Identität | aktiv |
+| `goals` | Ziel-Hierarchie (three_year/year/quarterly/monthly/weekly), parent_id vorhanden | aktiv |
 | `journal_entries` | Morgen/Abend/Freeform-Einträge | aktiv |
 | `coach_sessions` | KI-Coach + Reviews | aktiv |
 | `pattern_events` | Pattern-Interrupt-Logs | aktiv |
 | `goal_tasks` | Tasks pro Ziel | aktiv |
-| `habits` | Habits pro Monat (inkl. frequency_type + frequency_value nach Schritt 3) | aktiv |
+| `habits` | Habits pro Monat (inkl. frequency_type + frequency_value) | aktiv |
 | `habit_logs` | Tägliche Habit-Abhakungen | aktiv |
 | `recurring_blocks` | Kalender-Zeitblöcke (deaktiviert, Code bleibt) | inaktiv |
 | `recurring_block_exceptions` | Ausnahmen Serientermine (deaktiviert) | inaktiv |
-| `journal_periods` | Planung + Reflexion für Woche/Monat/Quartal/Jahr | NEU in Paket 4 Schritt 2 |
+| `journal_periods` | Planung + Reflexion für Woche/Monat/Quartal/Jahr | aktiv |
+
+**Geplante Migrations in Paket 6 (noch nicht ausgeführt):**
+```sql
+-- Paket 6B Schritt 4:
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS identity_check TEXT
+  CHECK (identity_check IN ('yes', 'partly', 'no'));
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS identity_note TEXT;
+```
 
 ---
 
@@ -64,81 +78,70 @@ Life OS ist eine vollständig funktionsfähige PWA, live auf https://life-os-hen
 ```
 src/
   pages/
-    Dashboard.tsx         → bleibt wie jetzt (wird ggf. in Paket 5 überarbeitet)
-    Journal.tsx           → wird in Paket 4 zum Herzstück umgebaut
-    Coach.tsx             → bleibt, erhält mehr Kontext
-    Overview.tsx          → NEU in Paket 4
-    Goals.tsx             → wird deaktiviert (Code bleibt)
-    Review.tsx            → wird deaktiviert (Code bleibt)
-    Settings.tsx          → Profil-Bereiche werden einzeln bearbeitbar
+    Dashboard.tsx         → aktiv, Umbenennung Nordstern→Vision in Paket 5
+    Journal.tsx           → aktiv, Herzstück
+    Coach.tsx             → aktiv, erhält erweiterten Kontext in Paket 6
+    Overview.tsx          → aktiv
+    Goals.tsx             → deaktiviert (Code bleibt, nicht navigierbar)
+    Review.tsx            → deaktiviert (Code bleibt, nicht navigierbar)
+    Settings.tsx          → wird in Paket 5 neu strukturiert
   components/
     journal/
-      MorningJournal.tsx  → Inhalt wird nach JournalDay.tsx übernommen
-      EveningJournal.tsx  → Inhalt wird nach JournalDay.tsx übernommen
-      JournalDay.tsx      → NEU (Paket 4B)
-      JournalWeek.tsx     → NEU (Paket 4C)
-      JournalMonth.tsx    → NEU (Paket 4C)
-      JournalQuarter.tsx  → NEU (Paket 4D)
-      JournalYear.tsx     → NEU (Paket 4D)
-    habits/
-      HabitManager.tsx    → NEU (Paket 4C)
-      HabitChecklist.tsx  → NEU (Paket 4B)
-      HabitGrid.tsx       → NEU (Paket 4E)
+      JournalDay.tsx      → aktiv (Morgen + Abend)
+      JournalWeek.tsx     → aktiv
+      JournalMonth.tsx    → aktiv
+      JournalQuarter.tsx  → aktiv
+      JournalYear.tsx     → aktiv
+      MorningJournal.tsx  → alt, bleibt im Code (wird später entfernt)
+      EveningJournal.tsx  → alt, bleibt im Code (wird später entfernt)
     overview/
-      OverviewCalendar.tsx → NEU (Paket 4E)
-      OverviewStats.tsx    → NEU (Paket 4E)
-      MetricChart.tsx      → NEU (Paket 4E)
+      OverviewCalendar.tsx → aktiv
+      HabitGrid.tsx        → aktiv
+      MetricChart.tsx      → aktiv
+    vision/
+      VisionFlow.tsx      → NEU in Paket 6
+    identity/
+      IdentityFlow.tsx    → NEU in Paket 6
   lib/
-    db.ts                 → neue Funktionen für journal_periods, habit-Frequenz
-    claude.ts             → Coach erhält vollständigen Kontext
-    utils.ts              → Perioden-Hilfsfunktionen (bereits vorhanden)
+    db.ts                 → alle Supabase-Operationen
+    claude.ts             → alle Claude-API-Aufrufe
+    utils.ts              → Perioden-Hilfsfunktionen
 ```
 
 ---
 
-## Ausstehend — Paket 4
-
-**Paket 4 vollständig abgeschlossen. Nächste Session: Paket 5 planen.**
-Reihenfolge strikt einhalten. Immer nur einen Schritt. Erst testen, dann weiter.
+## Ausstehend — Paket 5 + 6
 
 | Nr | Name | Paket | Status |
 |----|------|-------|--------|
-| 1 | Navigation + neue Seiten anlegen | 4A | ✅ 2026-04-08 |
-| 2 | DB: journal_periods Tabelle | 4A | ✅ 2026-04-08 |
-| 3 | DB: habits um frequency erweitern | 4A | ✅ 2026-04-08 |
-| 4 | Journal Tag: Morgen-Eintrag | 4B | ✅ 2026-04-08 |
-| 5 | Journal Tag: Abend-Eintrag + Habits | 4B | ✅ 2026-04-08 |
-| 6 | Journal Woche: Planung + Reflexion | 4C | ✅ 2026-04-08 |
-| 7 | Journal Monat: Planung + Ziele + Habits | 4C | ✅ 2026-04-08 |
-| 8 | Habit-Frequenz-Logik + Wochenfortschritt | 4C | ✅ 2026-04-08 |
-| 9 | Journal Quartal: Planung + Reflexion | 4D | ✅ 2026-04-08 |
-| 10 | Journal Jahr: Planung + Reflexion + Nordstern | 4D | ✅ 2026-04-08 |
-| 11 | Übersicht: Kalender-Monatsansicht | 4E | ✅ 2026-04-08 |
-| 12 | Übersicht: Habit-Grid | 4E | ✅ 2026-04-08 |
-| 13 | Übersicht: Metriken-Visualisierung | 4E | ✅ 2026-04-08 |
-| 14 | Ziele-Tab auflösen | 4F | ✅ 2026-04-08 |
-| 15 | Review-Tab auflösen + Profil reparieren | 4F | ✅ 2026-04-08 |
+| 5-1 | Bugs beheben (Sync, 404, KI-Fehler) | 5A | ✅ 2026-04-08 |
+| 5-2 | PWA Session Persistence | 5A | ✅ 2026-04-08 |
+| 5-3 | Ziel-Hierarchie UI (Verknüpfung) | 5B | ✅ 2026-04-08 |
+| 5-4 | "Nordstern" → "Vision" überall ersetzen | 5C | ⬜ OFFEN |
+| 5-5 | Einstellungen neu strukturieren | 5C | ⬜ OFFEN |
+| 5-6 | KI-Ziel-Feedback kontextuell | 5D | ⬜ OFFEN |
+| 6-1 | Vision: Geführter Erstellungs-Flow | 6A | ⬜ OFFEN |
+| 6-2 | Vision als oberste Ebene in Kaskade | 6A | ⬜ OFFEN |
+| 6-3 | Soll-Identität: Erstellung + Verwaltung | 6B | ⬜ OFFEN |
+| 6-4 | Identität im täglichen Flow (Morgen/Abend) | 6B | ⬜ OFFEN |
+| 6-5 | Habit-KI: Bewertung + Vorschläge | 6C | ⬜ OFFEN |
+| 6-6 | Coach erhält vollständigen Kontext | 6D | ⬜ OFFEN |
 
 ---
 
-## Wichtige Hinweise für Claude Code (Paket 4)
+## Wichtige Designentscheidungen (Paket 5+6)
 
-1. **Bestehende Inhalte übernehmen, nicht neu erfinden:**
-   Der Inhalt von MorningJournal.tsx und EveningJournal.tsx ist gut — nur die Struktur ändert sich.
-   Felder, Speicher-Logik, Validierung: übernehmen.
+1. **"Nordstern" heißt ab Paket 5 überall "Vision"** — DB-Feldname `north_star` bleibt, nur UI-Labels ändern sich.
 
-2. **Goals-Daten bleiben erhalten:**
-   Die goals-Tabelle wird weiterhin genutzt. Monatsziele die bisher in Goals.tsx erstellt wurden,
-   müssen in JournalMonth.tsx sichtbar und bearbeitbar sein.
+2. **Ziel-Hierarchie ist optional** — Keine Pflichtverknüpfung. Lukas entscheidet ob er verknüpft oder nicht.
 
-3. **Habits-Tabelle bereits vorhanden:**
-   habits + habit_logs wurden in Paket 3C angelegt. Nur frequency-Felder fehlen noch (Schritt 3).
+3. **KI direkt an Zielen** — Nicht im Coach-Tab, sondern kontextuell als kleines Panel direkt beim Ziel.
 
-4. **Kein Big Bang — schrittweise:**
-   Nach jedem Schritt muss die App vollständig funktionieren. Keine halbfertigen Zustände committen.
+4. **Vision-Flow und Identitäts-Flow sind geführte Dialoge** — KI hilft beim Formulieren, Lukas entscheidet was gespeichert wird.
 
-5. **SQL immer zuerst zeigen:**
-   Vor jeder DB-Migration: SQL ausgeben, auf Lukas' "weiter" warten, dann erst weitermachen.
+5. **Habit-Vorschläge sind übernehmbar** — Ein-Klick-Übernahme, Habit wird identisch zu manuell erstellten Habits.
+
+6. **Identitäts-Abgleich abends ist dreistufig** — Ja / Teilweise / Nein. Textfeld öffnet sich nur bei Teilweise/Nein.
 
 ---
 
@@ -153,15 +156,19 @@ Fix 1–4, Feature 5–9 (Review-Archiv, Task-Kaskade, Kalender, Custom-Wochenta
 **Paket 3A — April 2026 ✅**
 Schritte 1–7: Morgenjournal (Zeitblock→Kalender-Check, Abschluss-Seite, Tasks max. 4),
 Abendjournal (Energie-Farben, Dankbarkeit, Abschluss-Seite), Kalender-Tab entfernt.
-Neue DB-Felder: calendar_planned, gratitude.
 
 **Paket 3B — April 2026 ✅**
 Schritte 8–12: Dynamische Datum-Logik, Periodenübergang-Modal, Hierarchie visuell,
-Tasks nur Monat/Woche, Coach Ton-Auswahl (sachlich/arschtritt/anerkennend).
+Tasks nur Monat/Woche, Coach Ton-Auswahl.
 
-**Paket 3C (Schritt 13) — April 2026 ✅**
-Morgenjournal Metriken: weight + sleep_score in DB, Toggle in Settings, Felder in MorningStep1.
+**Paket 3C — April 2026 ✅**
+Schritt 13: Morgenjournal Metriken (weight + sleep_score).
+Schritte 14–15: Habit-Tracker Datenbank (habits + habit_logs).
 
-**Paket 3C (Schritte 14–15) — April 2026 ✅**
-Habit-Tracker Datenbank (habits + habit_logs), Habits bei Monatszielen definierbar.
-Schritte 16–20 aus Paket 3C/3D wurden obsolet durch Neuplanung (Paket 4).
+**Paket 4 (alle 15 Schritte) — April 2026 ✅**
+4A: Navigation + journal_periods DB + habits frequency.
+4B: JournalDay (Morgen + Abend).
+4C: JournalWeek + JournalMonth + Habit-Frequenz-Logik.
+4D: JournalQuarter + JournalYear.
+4E: Übersicht (Kalender + Habit-Grid + Metriken-Charts).
+4F: Ziele-Tab + Review-Tab aufgelöst, Profil repariert, Onboarding → Profil einrichten.

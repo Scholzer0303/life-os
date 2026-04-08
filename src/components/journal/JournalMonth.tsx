@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
-import { getJournalPeriod, upsertJournalPeriod, getMonthlyGoals, createGoal, updateGoal, deleteGoal } from '../../lib/db'
+import { getJournalPeriod, upsertJournalPeriod, getMonthlyGoals, getQuarterlyGoalsByQuarterYear, createGoal, updateGoal, deleteGoal } from '../../lib/db'
 import { generatePeriodSummary } from '../../lib/claude'
 import HabitManager from '../habits/HabitManager'
 import type { GoalRow } from '../../types/database'
@@ -66,6 +66,8 @@ export default function JournalMonth() {
   const [goals, setGoals] = useState<GoalRow[]>([])
   const [goalsLoading, setGoalsLoading] = useState(false)
   const [newGoalTitle, setNewGoalTitle] = useState('')
+  const [newGoalParentId, setNewGoalParentId] = useState('')
+  const [parentGoals, setParentGoals] = useState<GoalRow[]>([])
 
   // Laden
   const loadData = useCallback(async () => {
@@ -73,9 +75,11 @@ export default function JournalMonth() {
     setLoading(true)
     setGoalsLoading(true)
     try {
-      const [p, g] = await Promise.all([
+      const quarter = Math.ceil(month / 3)
+      const [p, g, pg] = await Promise.all([
         getJournalPeriod(user.id, 'month', periodKey),
         getMonthlyGoals(user.id, month, year),
+        getQuarterlyGoalsByQuarterYear(user.id, quarter, year),
       ])
       if (p) {
         setPlanning((p.planning_data as MonthPlanningData) ?? {})
@@ -87,6 +91,8 @@ export default function JournalMonth() {
         setAiSummary(null)
       }
       setGoals(g)
+      setParentGoals(pg)
+      setNewGoalParentId('')
     } catch (err) {
       console.error('JournalMonth laden:', err)
     } finally {
@@ -142,7 +148,8 @@ export default function JournalMonth() {
       setAiSummary(summary)
       await upsertJournalPeriod(user.id, 'month', periodKey, { ai_summary: summary })
     } catch (err) {
-      setAiError(err instanceof Error ? err.message : 'Fehler beim Generieren.')
+      console.error('generatePeriodSummary (Monat) Fehler:', err)
+      setAiError('KI momentan nicht verfügbar — bitte erneut versuchen.')
     } finally {
       setAiLoading(false)
     }
@@ -159,12 +166,22 @@ export default function JournalMonth() {
         month,
         year,
         status: 'active',
+        parent_id: newGoalParentId || null,
         progress: 0,
       })
       setGoals((prev) => [...prev, goal])
       setNewGoalTitle('')
     } catch (err) {
       console.error('Ziel erstellen:', err)
+    }
+  }
+
+  async function updateGoalParent(goalId: string, parentId: string | null) {
+    try {
+      const updated = await updateGoal(goalId, { parent_id: parentId })
+      setGoals((prev) => prev.map((g) => g.id === goalId ? updated : g))
+    } catch (err) {
+      console.error('Parent update:', err)
     }
   }
 
@@ -262,14 +279,40 @@ export default function JournalMonth() {
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
                   {goals.map((goal) => (
-                    <div key={goal.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.6rem 0.75rem' }}>
-                      <span style={{ flex: 1, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{goal.title}</span>
-                      <button onClick={() => removeGoal(goal.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', display: 'flex' }} aria-label="Entfernen">
-                        <Trash2 size={14} />
-                      </button>
+                    <div key={goal.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.6rem 0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <span style={{ flex: 1, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{goal.title}</span>
+                        <button onClick={() => removeGoal(goal.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', display: 'flex', flexShrink: 0 }} aria-label="Entfernen">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      {parentGoals.length > 0 && (
+                        <select
+                          value={goal.parent_id ?? ''}
+                          onChange={(e) => updateGoalParent(goal.id, e.target.value || null)}
+                          style={{ marginTop: '0.35rem', width: '100%', padding: '0.3rem 0.5rem', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '0.75rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: goal.parent_id ? 'var(--accent)' : 'var(--text-muted)', outline: 'none', cursor: 'pointer' }}
+                        >
+                          <option value="">Teil von Quartalsziel… (optional)</option>
+                          {parentGoals.map((pg) => (
+                            <option key={pg.id} value={pg.id}>{pg.title}</option>
+                          ))}
+                        </select>
+                      )}
                     </div>
                   ))}
                 </div>
+                {parentGoals.length > 0 && (
+                  <select
+                    value={newGoalParentId}
+                    onChange={(e) => setNewGoalParentId(e.target.value)}
+                    style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: newGoalParentId ? 'var(--text-primary)' : 'var(--text-muted)', outline: 'none', marginBottom: '0.5rem', cursor: 'pointer' }}
+                  >
+                    <option value="">Gehört zu Quartalsziel… (optional)</option>
+                    {parentGoals.map((pg) => (
+                      <option key={pg.id} value={pg.id}>{pg.title}</option>
+                    ))}
+                  </select>
+                )}
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <input
                     value={newGoalTitle}

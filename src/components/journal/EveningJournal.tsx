@@ -197,7 +197,8 @@ export default function EveningJournal() {
       const result = await getEveningImpulse(data.accomplished, data.energyLevel, profile ?? null)
       setEveningImpulse(result)
     } catch (err) {
-      setImpulseError(err instanceof Error ? err.message : 'Fehler beim Laden.')
+      console.error('getEveningImpulse Fehler:', err)
+      setImpulseError('KI momentan nicht verfügbar — bitte erneut versuchen.')
     } finally {
       setImpulseLoading(false)
     }

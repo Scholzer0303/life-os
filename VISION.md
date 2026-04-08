@@ -2,7 +2,7 @@
 # PFLICHTLEKTÜRE — wird bei JEDER Session als ERSTES gelesen, vor allem anderen.
 # Technik folgt der Vision — nie umgekehrt.
 # Wenn eine technische Entscheidung der Vision widerspricht: Vision gewinnt.
-# Zuletzt aktualisiert: 2026-04-07 (Paket 4 — Journal als Herzstück)
+# Zuletzt aktualisiert: 2026-04-08 (Paket 5+6 — Vision & Identitätssystem)
 
 ---
 
@@ -40,7 +40,8 @@ als sie ihm abnimmt, macht die App schlechter — nicht besser.
 
 Life OS existiert damit Lukas jeden Tag weiß:
 1. **Wer er ist** — Identität. Die App hilft ihm, die Person zu werden die er sein will.
-2. **Wohin er will** — Klare Ziele auf allen Zeitebenen, aufeinander aufgebaut.
+2. **Wohin er will** — Eine klare Vision seines Traumlebens, und Ziele auf allen Zeitebenen
+   die auf diese Vision einzahlen.
 3. **Was er heute konkret dafür tut** — Max. 0–4 realistische Tagesaufgaben.
 4. **Ob er sich selbst treu war** — Ehrliche Abendreflexion ohne Selbstgeißelung.
 5. **KI als Mentor** — Die App lernt Lukas durch seine Einträge kennen und begleitet
@@ -57,10 +58,12 @@ zusteuert — oder nicht. Life OS macht diesen Status jeden Tag sichtbar.
 ### Morgens (~8:15 Uhr, PC, 5–10 Minuten)
 Lukas kommt aus seiner Morgenroutine. Er ist klar und will Orientierung für den Tag.
 
-1. Öffnet Dashboard → sieht sofort heutigen Fokus, Tasks, Button ins Morgenjournal
+1. Öffnet Dashboard → sieht Identitätsbanner, heutigen Fokus, Tasks
 2. Wechselt zu Journal → Tab "Tag" → Morgen-Eintrag:
+   - Identität wird angezeigt (readonly — erinnert ihn wer er sein will)
+   - Optional: "Heute bin ich der Lukas, der..." (tagesbezogene Ergänzung)
    - Metriken: Energie (1–10), Gewicht, Schlaf
-   - 0–4 Tagesaufgaben definieren
+   - 0–4 Tagesaufgaben definieren (optional Wochenziel zuordnen)
    - Kalender-Check: Ja/Nein
    - Optional: KI-Impuls holen
 3. Ergebnis: **orientiert, fokussiert, weiß was er wann zu tun hat**
@@ -68,88 +71,115 @@ Lukas kommt aus seiner Morgenroutine. Er ist klar und will Orientierung für den
 ### Tagsüber (optional, situativ)
 - Tasks abhaken wenn erledigt
 - Coach bei Problemen, Entscheidungen, verknoteten Gedanken
-- Ziele nachschauen via Journal → Monat/Woche
+- KI zu einem Ziel befragen: "Macht das Sinn für meine Vision?"
 
 ### Abends (~20–22 Uhr, PC oder Handy, 5–15 Minuten)
 1. Journal → Tag → Abend-Eintrag:
    - Tagesreflexion: Was lief gut / nicht gut / freie Gedanken / Dankbarkeit
+   - Identitäts-Abgleich: "Habe ich heute als die Person gehandelt die ich sein will?"
+     Ja / Teilweise / Nein — bei Teilweise/Nein: kurzes Textfeld öffnet sich
    - Habits abhaken (alle Habits des aktuellen Monats)
    - Energie-Abend (1–10, farbkodiert)
    - Optional: KI-Feedback
 
 **Ergebnis: Kopf ist frei. Der Tag ist abgeschlossen.**
 
-### Wochentlich (Montag Planung / Sonntag Reflexion, ~10 Min)
-- Journal → Woche → Planung: Identitätssatz + Wochenziele setzen
+### Wöchentlich (Montag Planung / Sonntag Reflexion, ~10 Min)
+- Journal → Woche → Planung: Wochenziele setzen (optional Monatsziel zuordnen)
 - Journal → Woche → Reflexion: Was lief gut/schlecht, eine Erkenntnis
 
 ### Monatlich (Monatsstart Planung / Monatsende Reflexion, ~15 Min)
-- Journal → Monat → Planung: Monatsthema + Monatsziele (frei, keine festen Kategorien) + Habits für diesen Monat definieren
+- Journal → Monat → Planung: Monatsthema + Monatsziele + Habits für diesen Monat
+  Optional: KI bewertet Habits gegen Identität / schlägt Habits vor
 - Journal → Monat → Reflexion: Rückblick, Learnings, KI-Zusammenfassung
 
 ---
 
-## 4. DAS JOURNAL — Herzstück der App
+## 4. DAS ZIEL- UND VISIONSSYSTEM
+
+### Die vollständige Hierarchie (von oben nach unten)
+```
+VISION (zeitlos — Traumleben in 3–5 Jahren)
+    ↓
+JAHRESZIEL (was muss dieses Jahr passieren?)
+    ↓
+QUARTALSZIEL (was konkret in diesem Quartal?)
+    ↓
+MONATSZIEL
+    ↓
+WOCHENZIEL
+    ↓
+TAGESZIEL / AUFGABEN (0–4)
+```
+
+Jede Ebene kann (muss aber nicht) der darüber liegenden zugeordnet werden.
+Die Kette von Vision bis Tagesziel ist der rote Faden.
+
+### Vision
+- Zeitlos — beschreibt Lukas' Traumleben in 3–5 Jahren
+- Wird einmalig geführt erstellt (Dialog mit KI + freie Bearbeitung)
+- Kann jederzeit überarbeitet werden
+- Ist die oberste Referenz für alle Ziele und Habits
+- Früher "Nordstern" — heißt jetzt überall "Vision"
+
+### KI an Zielen
+- Jedes gespeicherte Ziel hat einen kleinen KI-Button
+- Klick → Panel öffnet sich direkt beim Ziel (kein Seitenwechsel)
+- KI bewertet: Macht das Sinn für die Vision? Ist es gut formuliert? Was optimieren?
+- KI kennt dabei: das Ziel, alle übergeordneten Ziele, die Vision
+
+### Coach
+- Freier Gesprächspartner — Therapeut, Planer, Arschtritt-Geber
+- Kennt alle Daten: Vision, Identität, alle Ziele, Habits, Journal-Einträge
+- Für Gespräche, Gedanken durchkauen, Entscheidungen — nicht für Ziel-Bewertung
+
+---
+
+## 5. DAS IDENTITÄTSSYSTEM
+
+### Grundprinzip (Identity-based Habits, nach James Clear)
+Ziele werden nicht durch Willenskraft erreicht, sondern indem man die Identität der
+Person annimmt die diese Ziele bereits lebt. Habits sind dann keine Aufgaben,
+sondern Bestätigungen dieser Identität.
+
+### Soll-Identität
+- Einmalig festlegen: "Wer bin ich wenn ich meine Vision lebe?"
+- Formuliert als Gegenwart: "Ich bin jemand der..." (nicht "Ich will...")
+- Wird geführt erstellt: KI stellt Fragen, hilft beim Formulieren
+- Jederzeit anpassbar
+- Täglich sichtbar im Morgenjournal und Dashboard
+
+### Tägliche Integration
+**Morgens:** Identität wird angezeigt (readonly). Optional: tagesbezogene Ergänzung.
+**Abends:** Abgleich in drei Stufen — Ja / Teilweise / Nein.
+Bei Teilweise/Nein: Textfeld für kurze Reflexion.
+
+### Habits und Identität
+- Habits sind Bestätigungen der Identität — nicht isolierte Aufgaben
+- KI kann auf Knopfdruck bewerten ob aktuelle Habits zur Identität passen
+- KI kann Habits vorschlagen die zur Identität passen
+- Vorgeschlagene Habits können per Klick übernommen werden
+
+---
+
+## 6. DAS JOURNAL — Herzstück der App
 
 ### Struktur
 Das Journal ist in fünf Zeitebenen gegliedert, erreichbar über Tabs oben:
 **Tag · Woche · Monat · Quartal · Jahr**
 
 Jede Ebene (außer Tag) hat zwei Unter-Tabs: **Planung** und **Reflexion**
-
 Der Tab "Tag" hat: **Morgen** und **Abend**
-
-### Ziele leben im Journal
-Es gibt keinen separaten Ziele-Tab mehr.
-- Tagesaufgaben → im Morgen-Eintrag
-- Wochenziele → in Woche → Planung
-- Monatsziele → in Monat → Planung
-- Quartalsziele → in Quartal → Planung
-- Jahresziele → in Jahr → Planung
-- Nordstern (zeitlos) → sichtbar in Jahr und im Dashboard
 
 ### Habits leben im Journal
 - Definition: Monat → Planung → Habit-Sektion
-- Beim Erstellen: Titel + Frequenz (täglich ODER x mal pro Woche)
 - Abhaken: täglich im Abend-Eintrag
-- Übersicht: automatisch im Übersichts-Tab (Habit-Grid + Statistiken)
+- Übersicht: automatisch im Übersichts-Tab
 - Monatsübergang: Dialog ob Habits übernommen werden sollen
 
-### Habit-Frequenz-Logik
-- **Täglich**: erscheint jeden Tag im Abend-Eintrag, muss täglich abgehakt werden
-- **X mal pro Woche**: erscheint täglich zum Abhaken, aber Woche gilt als erfüllt sobald X erreicht — kein fixer Wochentag nötig. Monatsziel = Wochen × X.
-
-### Review / Reflexion
-Kein separater Review-Tab. Reflexion ist in jede Ebene eingebaut.
-Pro Ebene: KI-Zusammenfassung auf Knopfdruck, gespeichert und abrufbar.
-Alle gespeicherten Reflexionen bleiben erhalten und sind nachträglich abrufbar + löschbar.
-
-### Übersichts-Tab
-Eigener Tab neben Dashboard/Journal/Coach/Einstellungen.
-Inhalt: Kalender-Monatsansicht, Habit-Grid (alle Habits × alle Tage), 
-Monatsstatistiken (Habit-Rate, Ø Energie, Ø Schlaf, Ø Gewicht),
-Kurven: Energielevel / Gewicht / Schlafscore über den Monat.
-
 ---
 
-## 5. ZIEL-SYSTEM — Konkrete Anforderungen
-
-### Hierarchie (lebt jetzt im Journal)
-Nordstern (zeitlos, in Jahr + Dashboard) → Jahresziel → Quartalsziel → Monatsziel → Wochenziel → Tagesaufgaben (0–4)
-
-### Monatsziele
-Frei erstellbar, keine festen Kategorien. Lukas entscheidet selbst wie viele und welche.
-
-### Wochenziele
-Frei erstellbar in Woche → Planung. Werden in Woche → Reflexion bewertet.
-
-### Datum-Zuordnung
-Alle Perioden sind dynamisch berechnet (KW, Monat, Quartal, Jahr).
-Banner bei Periodenübergang — führt aktiv durch Review → neue Planung.
-
----
-
-## 6. WIE SICH DIE APP ANFÜHLEN SOLL
+## 7. WIE SICH DIE APP ANFÜHLEN SOLL
 
 ### Die 5 Kern-Adjektive
 1. **Ruhig** — keine Informationsflut, aber keine fehlenden Inhalte
@@ -158,8 +188,6 @@ Banner bei Periodenübergang — führt aktiv durch Review → neue Planung.
 4. **Visuell ansprechend** — nicht kahl, nicht überladen. Farbe gezielt einsetzen
 5. **Direkt** — keine unnötigen Zwischenschritte
 
-Nice-to-have: subtile Animationen wo sie die App lebendiger machen — nur wenn es wirklich passt.
-
 ### Was Life OS NICHT ist
 ❌ Kein Tool das Druck erzeugt
 ❌ Keine App die "kaputt" ist wenn Lukas mal einen Tag aussetzt
@@ -167,16 +195,15 @@ Nice-to-have: subtile Animationen wo sie die App lebendiger machen — nur wenn 
 
 ---
 
-## 7. DER KI-COACH
+## 8. DER KI-COACH
 
 ### Charakter
 Ein älterer Lukas als bester Lebensmentor. Kennt Lukas durch seine Einträge.
 Direkt. Kein Gelaber. Keine leeren Floskeln.
 
-### Kontext
-Der Coach nutzt automatisch alle verfügbaren Daten: Journal-Einträge (alle Ebenen),
-Ziele (alle Ebenen), Habits, Metriken. Er kennt den ganzen Lukas — nicht nur den letzten Satz.
-Tokenkosten sind zweitrangig gegenüber echter Tiefe. Bei sehr langen Historien: rollierende Zusammenfassung.
+### Kontext (ab Paket 6 vollständig)
+Vision, Identität, alle Ziele (alle Ebenen), aktuelle Habits + Completion-Rate,
+letzte 7 Tage Journal-Einträge, letzte Identitäts-Checks.
 
 ### Ton-Modi
 - **Arschtritt** — direkt, hart, fokussierend
@@ -190,25 +217,9 @@ Tokenkosten sind zweitrangig gegenüber echter Tiefe. Bei sehr langen Historien:
 
 ---
 
-## 8. PROFIL (früher: Onboarding)
-
-Das Onboarding existiert als Erst-Start-Flow für neue Nutzer.
-Es löscht KEINE bestehenden Daten wenn neu gestartet.
-In den Einstellungen sind alle Profil-Bereiche einzeln bearbeitbar:
-Nordstern, Werte, Ikigai, Identität, Stopp-Liste — ohne Reset.
-Der Begriff "Onboarding" verschwindet aus der UI. Es heißt "Profil einrichten" oder "Mein Profil".
-
----
-
 ## 9. NAVIGATION
 
 **5 Tabs:** Dashboard · Journal · Coach · Übersicht · Einstellungen
-
-- **Dashboard** — Nordstern, Streak, heutiger Fokus, Tasks (bleibt vorerst wie jetzt)
-- **Journal** — Herzstück. Tag/Woche/Monat/Quartal/Jahr mit Planung + Reflexion
-- **Coach** — KI-Mentor mit vollem Kontext, Ton-Auswahl, vergangene Sessions
-- **Übersicht** — Kalender, Habit-Grid, Metriken-Visualisierung
-- **Einstellungen** — Profil, Werte, Ikigai, Stopp-Liste, Datenverwaltung
 
 ---
 
@@ -217,35 +228,25 @@ Der Begriff "Onboarding" verschwindet aus der UI. Es heißt "Profil einrichten" 
 Ein Feature ist "gut" wenn:
 - Fehlerfrei auf Handy UND PC
 - Max. 2–3 Taps/Klicks für die häufigste Aktion
-- Fühlt sich nach den 5 Adjektiven aus Sektion 6 an
+- Fühlt sich nach den 5 Adjektiven aus Sektion 7 an
 - Entspricht Lukas' Vorstellung — nicht nur der technischen Spec
-
-Die App ist "stabil" wenn:
-1. Lukas sie täglich nutzt ohne darüber nachzudenken
-2. Alle Kernfunktionen (Journal alle Ebenen, Habits, Coach, Übersicht) fehlerfrei laufen
-3. Nutzerreise aus Sektion 3 sich exakt so anfühlt wie beschrieben
 
 ---
 
 ## 11. BEKANNTE PROBLEME — Pflichtlektüre für Claude Code
 
-1. **Journal-Umbau ist ein Großprojekt** — nicht alles auf einmal. Einen Schritt nach dem anderen.
-   Bestehende funktionierende Teile (Morgen/Abend-Journal Inhalt) erhalten — nur Struktur ändern.
+1. **KI-Fehler niemals als rohen JSON anzeigen** — immer lesbare Fehlermeldung.
 
-2. **Ziele-Tab wird aufgelöst** — Code nicht löschen, nur deaktivieren/umbauen.
-   Daten bleiben in Supabase erhalten, werden neu gelesen.
+2. **PWA Session** — muss persistent sein, kein erneuter Login nach Homescreen-Start.
 
-3. **Review-Tab wird aufgelöst** — Logik wandert in Reflexions-Seiten.
-   Bestehende coach_sessions (Reviews) müssen weiterhin lesbar sein.
+3. **Abhak-Sync** — Dashboard und Wochenziele müssen sich sofort synchronisieren.
 
-4. **"Kaputt-Reparieren"-Problem** — beim Fixen/Erweitern werden funktionierende Dinge beschädigt.
-   Regel: immer nur einen Schritt anfassen → testen → weiter.
+4. **Vision ≠ Nordstern** — In der UI heißt es überall "Vision". DB-Feldname bleibt.
 
-5. **Session-Kontinuität** — LIFE_OS_KONTEXT.md nach JEDEM abgeschlossenen Schritt aktualisieren.
+5. **Schrittweise bauen** — besonders bei Paket 6. Vision-Flow und Identitäts-Flow
+   sind komplex. Einen Schritt fertig testen, dann weiter.
 
-6. **Push erst am Session-Ende** — kein Deployment während laufender Session.
-
-7. **Claude korrigiert Lukas aktiv** — wenn Anforderungen technisch falsch oder unnötig komplex sind: sagen und erklären.
+6. **Bestehende Daten schützen** — bei allen Migrationen.
 
 ---
 

@@ -184,7 +184,8 @@ export default function Coach() {
       setMessages(updatedMessages)
       await updateCoachSession(newSession.id, updatedMessages)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Starten der Session')
+      console.error('Coach Session Fehler:', err)
+      setError('KI momentan nicht verfügbar — bitte erneut versuchen.')
     } finally {
       setIsLoading(false)
     }
@@ -215,7 +216,8 @@ export default function Coach() {
       setMessages(finalMessages)
       await updateCoachSession(session.id, finalMessages)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Senden')
+      console.error('Coach sendMessage Fehler:', err)
+      setError('KI momentan nicht verfügbar — bitte erneut versuchen.')
     } finally {
       setIsLoading(false)
       setTimeout(() => inputRef.current?.focus(), 100)

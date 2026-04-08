@@ -122,7 +122,8 @@ export default function JournalYear() {
       setAiSummary(summary)
       await upsertJournalPeriod(user.id, 'year', periodKey, { ai_summary: summary })
     } catch (err) {
-      setAiError(err instanceof Error ? err.message : 'Fehler beim Generieren.')
+      console.error('generatePeriodSummary (Jahr) Fehler:', err)
+      setAiError('KI momentan nicht verfügbar — bitte erneut versuchen.')
     } finally {
       setAiLoading(false)
     }

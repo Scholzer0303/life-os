@@ -6,6 +6,7 @@ interface Props {
   goal: GoalRow
   tasks?: GoalTaskRow[]
   onToggleTask?: (task: GoalTaskRow) => void
+  parentName?: string
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -16,7 +17,7 @@ const TYPE_LABEL: Record<string, string> = {
   weekly: 'Woche',
 }
 
-export default function GoalCard({ goal, tasks = [], onToggleTask }: Props) {
+export default function GoalCard({ goal, tasks = [], onToggleTask, parentName }: Props) {
   const [showAll, setShowAll] = useState(false)
 
   const visibleTasks = showAll ? tasks : tasks.slice(0, 3)
@@ -57,7 +58,7 @@ export default function GoalCard({ goal, tasks = [], onToggleTask }: Props) {
 
       <p
         style={{
-          margin: '0 0 0.75rem',
+          margin: parentName ? '0 0 0.25rem' : '0 0 0.75rem',
           fontWeight: 500,
           lineHeight: 1.4,
           fontSize: '0.95rem',
@@ -66,6 +67,12 @@ export default function GoalCard({ goal, tasks = [], onToggleTask }: Props) {
       >
         {goal.title}
       </p>
+
+      {parentName && (
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.3 }}>
+          Teil von: {parentName}
+        </p>
+      )}
 
       {/* Progress bar */}
       <div

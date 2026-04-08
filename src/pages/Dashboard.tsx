@@ -6,6 +6,7 @@ import { useStore } from '../store/useStore'
 import {
   getTodayEntries,
   getWeeklyGoals,
+  getMonthlyGoals,
   getStreak,
   getBestStreak,
   getHeatmapData,
@@ -86,6 +87,7 @@ export default function Dashboard() {
   const [hasEveningEntry, setHasEveningEntry] = useState(false)
   const [weeklyGoals, setWeeklyGoals] = useState<GoalRow[]>([])
   const [weeklyGoalTasks, setWeeklyGoalTasks] = useState<GoalTaskRow[]>([])
+  const [monthlyGoals, setMonthlyGoals] = useState<GoalRow[]>([])
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>([])
   const [morningEntryId, setMorningEntryId] = useState<string | null>(null)
   const [streak, setStreak] = useState(0)
@@ -136,7 +138,10 @@ export default function Dashboard() {
     setIsLoading(true)
     const today = new Date().toISOString().split('T')[0]
     try {
-      const [todayEntries, goals, streakCount, best, heatmap, lastDate, recent, todayGoalTasks] = await Promise.all([
+      const now = new Date()
+      const curMonth = now.getMonth() + 1
+      const curYear = now.getFullYear()
+      const [todayEntries, goals, streakCount, best, heatmap, lastDate, recent, todayGoalTasks, mGoals] = await Promise.all([
         getTodayEntries(userId),
         getWeeklyGoals(userId),
         getStreak(userId),
@@ -145,7 +150,9 @@ export default function Dashboard() {
         getLastJournalDate(userId),
         getRecentEntries(userId, 30),
         getTodayGoalTasks(userId, today),
+        getMonthlyGoals(userId, curMonth, curYear),
       ])
+      setMonthlyGoals(mGoals)
 
       const morningEntry = todayEntries.find((e) => e.type === 'morning')
       setHasMorningEntry(!!morningEntry)
@@ -252,6 +259,8 @@ export default function Dashboard() {
   async function handleToggleTask(task: import('../types/database').GoalTaskRow) {
     const updated = { ...task, completed: !task.completed }
     setWeeklyGoalTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)))
+    // dailyTasks synchronisieren wenn dieser Task dort als verknüpfter Task vorkommt
+    setDailyTasks((prev) => prev.map((t) => t.goal_task_id === task.id ? { ...t, completed: !task.completed } : t))
     try {
       await updateGoalTask(task.id, { completed: updated.completed })
       // Fortschritt neu berechnen
@@ -827,6 +836,7 @@ export default function Dashboard() {
                 goal={goal}
                 tasks={weeklyGoalTasks.filter((t) => t.goal_id === goal.id)}
                 onToggleTask={handleToggleTask}
+                parentName={goal.parent_id ? monthlyGoals.find((m) => m.id === goal.parent_id)?.title : undefined}
               />
             ))}
           </div>

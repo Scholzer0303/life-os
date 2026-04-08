@@ -179,6 +179,17 @@ export async function deleteGoal(id: string): Promise<void> {
   if (error) throw error
 }
 
+export async function getGoalsByParent(userId: string, parentId: string): Promise<GoalRow[]> {
+  const { data, error } = await supabase
+    .from('goals')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('parent_id', parentId)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
 // ─── Journal Entries ──────────────────────────────────────────────────────────
 
 export async function getJournalEntries(userId: string, limit = 30): Promise<JournalEntryRow[]> {
