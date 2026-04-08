@@ -9,7 +9,9 @@
       "Bash(xargs grep:*)",
       "Bash(node scripts/generate-icons.mjs)",
       "Bash(node -e ':*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }

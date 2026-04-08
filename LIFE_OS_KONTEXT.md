@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md — Projektgedächtnis
 # Wird nach JEDEM abgeschlossenen Schritt von Claude Code aktualisiert.
 # Nach jeder Session: diese Datei ins Claude Project hochladen (ersetzt alte Version).
-# Zuletzt aktualisiert: 2026-04-08 (Paket 5B Schritt 3 — Ziel-Hierarchie UI)
+# Zuletzt aktualisiert: 2026-04-08 (Paket 5D komplett abgeschlossen — KI-Feedback final)
 
 ---
 
@@ -14,17 +14,19 @@ VISION.md → LIFE_OS_KONTEXT.md → LIFE_OS_FEATURES.md
 
 Life OS ist eine vollständig funktionsfähige PWA, live auf https://life-os-henna-xi.vercel.app
 
-**Was die App aktuell kann (Stand nach Paket 4 komplett):**
+**Was die App aktuell kann (Stand nach Paket 5 komplett):**
 - Navigation: Dashboard · Journal · Coach · Übersicht · Einstellungen
 - Journal: Tag (Morgen/Abend), Woche, Monat, Quartal, Jahr — alle mit Planung + Reflexion
 - Morgenjournal: Metriken (Energie, Gewicht, Schlaf), 0–4 Tasks, Kalender-Check, KI-Impuls
 - Abendjournal: Reflexion, Habits abhaken (mit Frequenz-Logik), Energie-Farben, Abschluss
-- Ziele: Hierarchie in goals-Tabelle (parent_id vorhanden aber UI noch nicht gebaut)
+- Ziele: Hierarchie vollständig in UI (parent_id Dropdown Woche→Monat→Quartal→Jahr)
+- Ziel-KI: Sparkles-Button an jedem Ziel → FeedbackPanel mit Markdown, Cache, Rückfrage-Verlauf, Navigation-persistent
 - Habits: Tabellen habits + habit_logs, frequency_type + frequency_value, Monatsübergang-Dialog
 - Übersicht: Kalender-Monatsansicht, Habit-Grid, Metriken-Charts (Recharts)
 - Coach: 4 Modi, Ton-Auswahl (sachlich/arschtritt/anerkennend), vergangene Sessions
-- Einstellungen: Profil, Werte, Stopp-Liste, Ikigai, Morgenmetriken-Toggle, Gefahrenzone
-- Dashboard: Vision-Banner (heißt noch "Nordstern" in UI), Streak, Tasks, Wochenziele, Heatmap
+- Einstellungen: Eingeklappt/aufklappbar (11 Sektionen), Vision readonly mit Link zu Journal→Jahr
+- Dashboard: Vision-Banner ("Vision"), Streak, Tasks, Wochenziele, Heatmap
+- Überall: "Nordstern" → "Vision" in UI (DB-Feld `north_star` unverändert)
 
 **Bekannte offene Bugs:**
 - keine bekannten Bugs mehr
@@ -33,6 +35,10 @@ Life OS ist eine vollständig funktionsfähige PWA, live auf https://life-os-hen
 - ✅ Abhak-Sync Dashboard↔Wochenziele: handleToggleTask aktualisiert jetzt auch dailyTasks-State
 - ✅ Supabase-Link 404 in Einstellungen entfernt (Info-Text bleibt)
 - ✅ KI-Fehler zeigen jetzt immer "KI momentan nicht verfügbar — bitte erneut versuchen." (MorningJournal, EveningJournal, JournalWeek/Month/Quarter/Year, Coach, AIFeedbackCard)
+
+**Neue Komponenten (Paket 5D):**
+- `src/components/journal/FeedbackPanel.tsx` — Shared KI-Feedback-Panel mit Markdown, Rückfrage-Verlauf, "Neues Feedback"/"Rückfrage"-Buttons
+- Modul-level Caches in allen 4 Journal-Komponenten: `goalFeedbackCache`, `followupHistoryCache`, `openGoalId` — überleben Navigation
 
 ---
 
@@ -117,9 +123,9 @@ src/
 | 5-1 | Bugs beheben (Sync, 404, KI-Fehler) | 5A | ✅ 2026-04-08 |
 | 5-2 | PWA Session Persistence | 5A | ✅ 2026-04-08 |
 | 5-3 | Ziel-Hierarchie UI (Verknüpfung) | 5B | ✅ 2026-04-08 |
-| 5-4 | "Nordstern" → "Vision" überall ersetzen | 5C | ⬜ OFFEN |
-| 5-5 | Einstellungen neu strukturieren | 5C | ⬜ OFFEN |
-| 5-6 | KI-Ziel-Feedback kontextuell | 5D | ⬜ OFFEN |
+| 5-4 | "Nordstern" → "Vision" überall ersetzen | 5C | ✅ 2026-04-08 |
+| 5-5 | Einstellungen neu strukturieren | 5C | ✅ 2026-04-08 |
+| 5-6 | KI-Ziel-Feedback: Markdown, Cache, Rückfrage-Verlauf, Navigation-persistent | 5D | ✅ 2026-04-08 |
 | 6-1 | Vision: Geführter Erstellungs-Flow | 6A | ⬜ OFFEN |
 | 6-2 | Vision als oberste Ebene in Kaskade | 6A | ⬜ OFFEN |
 | 6-3 | Soll-Identität: Erstellung + Verwaltung | 6B | ⬜ OFFEN |
@@ -172,3 +178,9 @@ Schritte 14–15: Habit-Tracker Datenbank (habits + habit_logs).
 4D: JournalQuarter + JournalYear.
 4E: Übersicht (Kalender + Habit-Grid + Metriken-Charts).
 4F: Ziele-Tab + Review-Tab aufgelöst, Profil repariert, Onboarding → Profil einrichten.
+
+**Paket 5 (alle 6 Schritte) — April 2026 ✅**
+5A: Bug-Fix (Sync, 404, KI-Fehler) + PWA Session Persistence.
+5B: Ziel-Hierarchie UI — Dropdown Woche→Monat→Quartal→Jahr, parent_id in allen 4 Journal-Komponenten.
+5C: "Nordstern" → "Vision" in allen UI-Labels + claude.ts. Einstellungen neu strukturiert (11 eingeklappte Sektionen).
+5D: KI-Ziel-Feedback — FeedbackPanel (shared), Markdown-Rendering, Feedback-Cache, Panel-State-Persistenz, Rückfrage-Verlauf (gecacht + multi-turn).

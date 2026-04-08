@@ -50,7 +50,7 @@ export default function Step6StoppListe({ data, onNext, onBack }: Props) {
         Deine Stopp-Liste
       </h2>
       <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.75rem', lineHeight: 1.6 }}>
-        Was hörst du ab heute auf zu tun, um deinen Nordstern zu erreichen? Mindestens 3 Einträge.
+        Was hörst du ab heute auf zu tun, um deine Vision zu erreichen? Mindestens 3 Einträge.
       </p>
 
       {/* North star reminder */}
@@ -67,7 +67,7 @@ export default function Step6StoppListe({ data, onNext, onBack }: Props) {
           }}
         >
           <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block', marginBottom: '0.2rem' }}>
-            Dein Nordstern
+            Deine Vision
           </span>
           {data.northStar}
         </div>

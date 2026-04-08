@@ -235,10 +235,10 @@ export default function Goals() {
       </div>
       <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 1.25rem' }}>{periodLabel}</p>
 
-      {/* Nordstern reminder */}
+      {/* Vision reminder */}
       {profile?.north_star && (
         <div style={{ padding: '0.65rem 0.85rem', background: 'var(--bg-secondary)', borderRadius: '8px', borderLeft: '3px solid var(--accent)', marginBottom: '1.25rem', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
-          <span style={{ fontSize: '0.68rem', color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '0.2rem' }}>Nordstern</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '0.2rem' }}>Vision</span>
           {profile.north_star}
         </div>
       )}

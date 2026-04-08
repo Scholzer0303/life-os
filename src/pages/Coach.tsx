@@ -353,7 +353,7 @@ export default function Coach() {
   if (!mode) {
     return (
       <div style={{ padding: '1.5rem', maxWidth: 480, margin: '0 auto' }}>
-        {/* Nordstern Banner */}
+        {/* Vision Banner */}
         {profile?.north_star && (
           <div
             style={{

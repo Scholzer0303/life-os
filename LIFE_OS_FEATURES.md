@@ -114,7 +114,7 @@ sichtbar ist. Dann Monatsziel anlegen und Quartalsziel zuordnen.
 
 ---
 
-### Schritt 4 — "Nordstern" → "Vision" überall ersetzen ⬜ OFFEN
+### Schritt 4 — "Nordstern" → "Vision" überall ersetzen ✅ UMGESETZT (2026-04-08)
 
 **Betroffene Dateien:** Alle Dateien die "Nordstern" als UI-Label oder Platzhaltertext enthalten.
 `src/pages/Settings.tsx`, `src/components/journal/JournalYear.tsx`, `src/pages/Dashboard.tsx`,
@@ -133,7 +133,7 @@ Test: Alle Screens durchklicken — kein "Nordstern" mehr sichtbar.
 
 ---
 
-### Schritt 5 — Einstellungen neu strukturieren ⬜ OFFEN
+### Schritt 5 — Einstellungen neu strukturieren ✅ UMGESETZT (2026-04-08)
 
 **Betroffene Dateien:** `src/pages/Settings.tsx`
 **Aufwand:** Mittel
@@ -185,39 +185,24 @@ Test: Alle Sektionen auf/zuklappen, Werte bearbeiten und speichern, Identitätss
 
 ---
 
-### Schritt 6 — KI-Ziel-Feedback kontextuell ⬜ OFFEN
+### Schritt 6 — KI-Ziel-Feedback kontextuell ✅ UMGESETZT (2026-04-08)
 
 **Betroffene Dateien:** `src/components/journal/JournalWeek.tsx`, `src/components/journal/JournalMonth.tsx`,
 `src/components/journal/JournalQuarter.tsx`, `src/components/journal/JournalYear.tsx`,
 `src/lib/claude.ts`
 **Aufwand:** Mittel
 
-**Was gebaut wird:**
-An jedem gespeicherten Ziel erscheint ein kleiner KI-Button (Stern- oder Blitz-Icon).
-Klick → öffnet ein Panel direkt unter dem Ziel (kein Seitenwechsel, kein Modal).
-
-Das Panel zeigt:
-- Einen Lade-Spinner während die KI antwortet
-- Die KI-Antwort als Text
-- Einen "Schließen"-Button
-
-**KI-Kontext der mitgeschickt wird:**
-- Das aktuelle Ziel (Text + Ebene)
-- Übergeordnete Ziele (falls verknüpft)
-- Vision des Nutzers
-- Identitätssatz
-
-**System-Prompt für diesen KI-Aufruf:**
-```
-Du bist Lukas' persönlicher Mentor. Du kennst seine Vision und seine Ziele.
-Bewerte kurz und direkt (max. 3–4 Sätze):
-1. Macht dieses Ziel Sinn um die Vision zu erreichen?
-2. Ist es konkret und erreichbar formuliert?
-3. Eine konkrete Optimierung wenn nötig.
-Kein Gelaber. Direkt zum Punkt.
-```
-
-Test: Ziel anlegen, KI-Button drücken, Antwort lesen. Fehlerfall (API überlastet) sauber abfangen.
+**Was umgesetzt wurde:**
+- Sparkles-Button an jedem Ziel öffnet FeedbackPanel direkt darunter (kein Modal, kein Seitenwechsel)
+- KI-Antwort wird mit react-markdown gerendert (keine rohen `*` oder `#`)
+- Feedback wird pro Ziel gecacht (Modul-level Map) — zweites Öffnen kostet keine neue API-Anfrage
+- Panel-State (offen/geschlossen) überlebt Tab-Wechsel und Navigation (Modul-level `openGoalId`)
+- "Neues Feedback" — generiert neu, überschreibt Cache + löscht Rückfrage-Verlauf
+- "Rückfrage" — Textfeld im Panel; alle Fragen + Antworten bleiben sichtbar und gestapelt
+- Rückfrage-Verlauf pro Ziel gecacht (`followupHistoryCache`) und bei Navigation wiederhergestellt
+- Multi-turn Kontext: `getGoalFeedbackFollowup` schickt kompletten Gesprächsverlauf mit
+- KI-Kontext: aktuelles Ziel + übergeordnetes Ziel (falls verknüpft) + Vision + Identitätssatz
+- Fehlerfall: "KI momentan nicht verfügbar — bitte erneut versuchen."
 
 ---
 

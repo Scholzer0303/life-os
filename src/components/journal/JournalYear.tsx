@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Trash2, Loader } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Trash2, Loader, Sparkles } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
 import { getJournalPeriod, upsertJournalPeriod, getYearlyGoals, createGoal, updateGoal, deleteGoal } from '../../lib/db'
-import { generatePeriodSummary } from '../../lib/claude'
+import { generatePeriodSummary, getGoalFeedback, getGoalFeedbackFollowup } from '../../lib/claude'
+import FeedbackPanel from './FeedbackPanel'
 import type { GoalRow } from '../../types/database'
 
 // ─── Typen ───────────────────────────────────────────────────────────────────
@@ -19,6 +20,10 @@ interface YearReflectionData {
 }
 
 // ─── Haupt-Komponente ─────────────────────────────────────────────────────────
+
+const goalFeedbackCache = new Map<string, string>()
+const followupHistoryCache = new Map<string, Array<{ question: string; answer: string }>>()
+let openGoalId: string | null = null
 
 export default function JournalYear() {
   const { user, profile } = useStore()
@@ -40,6 +45,16 @@ export default function JournalYear() {
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
+
+  // KI-Ziel-Feedback — initialisiert aus Modul-level Cache
+  const [aiFeedbackGoalId, setAiFeedbackGoalId] = useState<string | null>(() => openGoalId)
+  const [aiFeedbackLoading, setAiFeedbackLoading] = useState(false)
+  const [aiFeedbackText, setAiFeedbackText] = useState<string | null>(() => openGoalId ? (goalFeedbackCache.get(openGoalId) ?? null) : null)
+  const [aiFeedbackError, setAiFeedbackError] = useState<string | null>(null)
+  const [followupInput, setFollowupInput] = useState('')
+  const [followupHistory, setFollowupHistory] = useState<Array<{ question: string; answer: string }>>(() => openGoalId ? (followupHistoryCache.get(openGoalId) ?? []) : [])
+  const [followupLoading, setFollowupLoading] = useState(false)
+  const [showFollowup, setShowFollowup] = useState(false)
 
   // Jahresziele (goals table)
   const [goals, setGoals] = useState<GoalRow[]>([])
@@ -158,6 +173,60 @@ export default function JournalYear() {
     }
   }
 
+  function resetFollowup() {
+    setFollowupInput('')
+    setFollowupHistory([])
+    setFollowupLoading(false); setShowFollowup(false)
+  }
+
+  async function handleGetFeedback(goal: GoalRow, force = false) {
+    if (aiFeedbackGoalId === goal.id && !force && !aiFeedbackLoading) {
+      openGoalId = null
+      setAiFeedbackGoalId(null); setAiFeedbackText(null); setAiFeedbackError(null); resetFollowup(); return
+    }
+    if (aiFeedbackGoalId !== goal.id || force) resetFollowup()
+    openGoalId = goal.id
+    setAiFeedbackGoalId(goal.id); setAiFeedbackError(null)
+    if (!force && goalFeedbackCache.has(goal.id)) {
+      setAiFeedbackText(goalFeedbackCache.get(goal.id)!)
+      setFollowupHistory(followupHistoryCache.get(goal.id) ?? [])
+      return
+    }
+    followupHistoryCache.delete(goal.id)
+    setAiFeedbackLoading(true); setAiFeedbackText(null)
+    try {
+      const text = await getGoalFeedback(goal, null, profile ?? null)
+      goalFeedbackCache.set(goal.id, text); setAiFeedbackText(text)
+    } catch {
+      setAiFeedbackError('KI momentan nicht verfügbar — bitte erneut versuchen.')
+    } finally {
+      setAiFeedbackLoading(false)
+    }
+  }
+
+  async function handleFollowup(goal: GoalRow) {
+    if (!followupInput.trim() || !aiFeedbackText) return
+    const question = followupInput.trim()
+    const currentHistory = followupHistoryCache.get(goal.id) ?? []
+    setFollowupLoading(true)
+    try {
+      const result = await getGoalFeedbackFollowup(goal, aiFeedbackText, question, profile ?? null, currentHistory)
+      const newEntry = { question, answer: result }
+      const updatedHistory = [...currentHistory, newEntry]
+      followupHistoryCache.set(goal.id, updatedHistory)
+      setFollowupHistory(updatedHistory)
+      setFollowupInput('')
+    } catch {
+      const errorEntry = { question, answer: 'KI momentan nicht verfügbar — bitte erneut versuchen.' }
+      const updatedHistory = [...currentHistory, errorEntry]
+      followupHistoryCache.set(goal.id, updatedHistory)
+      setFollowupHistory(updatedHistory)
+      setFollowupInput('')
+    } finally {
+      setFollowupLoading(false)
+    }
+  }
+
   async function removeGoal(id: string) {
     try {
       await deleteGoal(id)
@@ -228,11 +297,11 @@ export default function JournalYear() {
       {/* ── PLANUNG ── */}
       {!loading && activeSubTab === 'planung' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {/* Nordstern (readonly) */}
+          {/* Vision (readonly) */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Mein Nordstern
+                Meine Vision
               </div>
               <button
                 onClick={() => navigate('/settings')}
@@ -253,7 +322,7 @@ export default function JournalYear() {
               lineHeight: 1.5,
               fontStyle: profile?.north_star ? 'normal' : 'italic',
             }}>
-              {profile?.north_star ?? 'Noch kein Nordstern definiert. Jetzt in den Einstellungen festlegen.'}
+              {profile?.north_star ?? 'Noch keine Vision definiert. Jetzt in den Einstellungen festlegen.'}
             </div>
           </div>
 
@@ -277,15 +346,30 @@ export default function JournalYear() {
             {!goalsLoading && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
                 {goals.map((goal) => (
-                  <div key={goal.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.6rem 0.75rem' }}>
-                    <span style={{ flex: 1, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{goal.title}</span>
-                    <button
-                      onClick={() => removeGoal(goal.id)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', display: 'flex', alignItems: 'center' }}
-                      aria-label="Ziel entfernen"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                  <div key={goal.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.6rem 0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <span style={{ flex: 1, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{goal.title}</span>
+                      <button onClick={() => handleGetFeedback(goal)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: aiFeedbackGoalId === goal.id ? 'var(--accent)' : 'var(--text-muted)', padding: '0.1rem', display: 'flex', alignItems: 'center', flexShrink: 0 }} aria-label="KI-Bewertung" title="KI-Bewertung">
+                        <Sparkles size={14} />
+                      </button>
+                      <button
+                        onClick={() => removeGoal(goal.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', display: 'flex', alignItems: 'center' }}
+                        aria-label="Ziel entfernen"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    {aiFeedbackGoalId === goal.id && (
+                      <FeedbackPanel
+                        loading={aiFeedbackLoading} error={aiFeedbackError} text={aiFeedbackText}
+                        showFollowup={showFollowup} followupInput={followupInput} followupHistory={followupHistory} followupLoading={followupLoading}
+                        onNewFeedback={() => handleGetFeedback(goal, true)}
+                        onToggleFollowup={() => setShowFollowup((v) => !v)}
+                        onFollowupChange={setFollowupInput}
+                        onFollowupSubmit={() => handleFollowup(goal)}
+                      />
+                    )}
                   </div>
                 ))}
               </div>

@@ -449,7 +449,7 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* ── Nordstern ────────────────────────────────────────────── */}
+      {/* ── Vision ───────────────────────────────────────────────── */}
       {profile?.north_star && (
         <div
           style={{
@@ -479,7 +479,7 @@ export default function Dashboard() {
                 letterSpacing: '0.05em',
               }}
             >
-              Nordstern
+              Vision
             </span>
           </div>
           <p

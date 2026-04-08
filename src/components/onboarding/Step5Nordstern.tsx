@@ -58,7 +58,7 @@ export default function Step5Nordstern({ data, onNext, onBack }: Props) {
           margin: '0 0 0.5rem',
         }}
       >
-        Dein Nordstern
+        Deine Vision
       </h2>
       <p style={{ color: 'var(--text-secondary)', margin: '0 0 0.5rem', lineHeight: 1.6 }}>
         Formuliere deine Richtung in einem Satz:
@@ -162,7 +162,7 @@ export default function Step5Nordstern({ data, onNext, onBack }: Props) {
           letterSpacing: '0.05em',
         }}
       >
-        Dein Nordstern-Satz
+        Dein Visions-Satz
       </label>
       <textarea
         id="northstar"

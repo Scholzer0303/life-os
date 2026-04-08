@@ -47,7 +47,7 @@ function buildSystemPrompt(profile: Profile, recentEntries: JournalEntry[], goal
   return `Du bist Life OS Coach — ein direkter, ehrlicher, mitfühlender Mentor für ${name}.
 
 ÜBER ${name}:
-- Nordstern-Vision: "${profile.north_star ?? 'noch nicht definiert'}"
+- Vision: "${profile.north_star ?? 'noch nicht definiert'}"
 - Wichtigste Werte: ${(profile.values ?? []).slice(0, 5).join(', ') || 'noch nicht definiert'}
 - Stopp-Liste (was er/sie explizit nicht mehr tut): ${(profile.stop_list ?? []).join(', ') || 'noch nicht definiert'}
 ${(profile.ikigai as Record<string, string> | null)?.synthesis ? `- IKIGAI-KERN: ${(profile.ikigai as Record<string, string>).synthesis}` : ''}
@@ -187,8 +187,8 @@ export async function summarizeNorthStar(fiveWhysAnswers: string[]): Promise<str
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,
-    system: `Du hilfst einem Menschen, seinen Nordstern-Satz zu formulieren.
-Basierend auf der 5-Warum-Analyse, fasse die Kernerkenntnisse zusammen und schlage einen Nordstern-Satz vor:
+    system: `Du hilfst einem Menschen, seinen Visions-Satz zu formulieren.
+Basierend auf der 5-Warum-Analyse, fasse die Kernerkenntnisse zusammen und schlage einen Visions-Satz vor:
 "In 3 Jahren bin ich [X], erkennbar daran, dass [Y]"
 Antworte auf Deutsch. Sei präzise, nicht pathetisch.`,
     messages: [
@@ -223,7 +223,7 @@ Reagiere mitfühlend und direkt. Erkenne was los ist. Schlage am Ende EINE einzi
 Antworte auf Deutsch. Maximal 150 Wörter.
 
 Kontext über ${name}:
-- Nordstern: "${profile.north_star ?? 'nicht definiert'}"
+- Vision: "${profile.north_star ?? 'nicht definiert'}"
 - Letzte Journal-Einträge: ${summarizeEntries(recentEntries)}`,
     messages: [
       {
@@ -391,7 +391,7 @@ export async function reformulateIdentity(userText: string, context?: IdentityCo
     prompt = `Der User beschreibt sein zukünftiges Ich: ${userText}. Forme es um in kraftvolle Gegenwartsform ('Ich bin...', 'Ich habe...', 'Ich lebe...'). Max. 4 Sätze. Deutsch. Nah am Original.`
   } else {
     const parts: string[] = []
-    if (context?.northStar) parts.push(`Nordstern: ${context.northStar}`)
+    if (context?.northStar) parts.push(`Vision: ${context.northStar}`)
     if (context?.values?.length) parts.push(`Wichtigste Werte: ${context.values.join(', ')}`)
     if (context?.ikigaiSynthesis) parts.push(`Ikigai-Kern: ${context.ikigaiSynthesis}`)
     if (context?.fiveWhysSummary) parts.push(`5-Warum-Kette: ${context.fiveWhysSummary}`)
@@ -497,6 +497,79 @@ Maximal 150 Wörter. Kein Motivations-Bullshit. Direkt. Antworte auf Deutsch.`,
   return block.text
 }
 
+export async function getGoalFeedback(
+  goal: Goal,
+  parentGoal: Goal | null,
+  profile: Profile | null
+): Promise<string> {
+  checkRateLimit()
+  const client = getClient()
+  const name = profile?.name ?? 'Lukas'
+
+  const systemPrompt = `Du bist ${name}s persönlicher Mentor. Du kennst seine Vision und seine Ziele.
+Bewerte kurz und direkt (max. 3–4 Sätze):
+1. Macht dieses Ziel Sinn um die Vision zu erreichen?
+2. Ist es konkret und erreichbar formuliert?
+3. Eine konkrete Optimierung wenn nötig.
+Kein Gelaber. Direkt zum Punkt. Antworte auf Deutsch.`
+
+  const lines = [
+    `Ziel: "${goal.title}"`,
+    `Ebene: ${goal.type}`,
+    parentGoal ? `Übergeordnetes Ziel: "${parentGoal.title}"` : null,
+    profile?.north_star ? `Vision: "${profile.north_star}"` : null,
+    profile?.identity_statement ? `Identitätssatz: "${profile.identity_statement}"` : null,
+  ].filter(Boolean).join('\n')
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 250,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: lines }],
+  })
+  const block = response.content[0]
+  if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
+  return block.text
+}
+
+export async function getGoalFeedbackFollowup(
+  goal: Goal,
+  originalFeedback: string,
+  followupQuestion: string,
+  profile: Profile | null,
+  previousHistory: Array<{ question: string; answer: string }> = []
+): Promise<string> {
+  checkRateLimit()
+  const client = getClient()
+  const name = profile?.name ?? 'Lukas'
+
+  const contextLine = [
+    `Ziel: "${goal.title}"`,
+    profile?.north_star ? `Vision: "${profile.north_star}"` : null,
+  ].filter(Boolean).join('\n')
+
+  // Build multi-turn messages: context → initial feedback → previous Q&A → new question
+  const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [
+    { role: 'user', content: contextLine },
+    { role: 'assistant', content: originalFeedback },
+  ]
+  for (const entry of previousHistory) {
+    messages.push({ role: 'user', content: entry.question })
+    messages.push({ role: 'assistant', content: entry.answer })
+  }
+  messages.push({ role: 'user', content: followupQuestion })
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 250,
+    system: `Du bist ${name}s persönlicher Mentor. Du beantwortest eine Rückfrage zu deiner Ziel-Bewertung. Direkt und konkret. Max. 3–4 Sätze. Auf Deutsch.`,
+    messages,
+  })
+  const block = response.content[0]
+  if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
+  return block.text
+}
+
 export async function checkGoalAlignment(
   goal: Goal,
   parentGoal: Goal | null,
@@ -520,7 +593,7 @@ export async function checkGoalAlignment(
     system: systemPrompt,
     messages: [{
       role: 'user',
-      content: `Bitte bewerte dieses Ziel:\n\n${context}\n\nFragen: Ist das Ziel noch auf Kurs? Stimmt es mit meinem Nordstern überein? Was beobachtest du?`,
+      content: `Bitte bewerte dieses Ziel:\n\n${context}\n\nFragen: Ist das Ziel noch auf Kurs? Stimmt es mit meiner Vision überein? Was beobachtest du?`,
     }],
   })
   const resultBlock = response.content[0]

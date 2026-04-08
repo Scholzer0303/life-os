@@ -177,12 +177,12 @@ export default function Step7QuartalZiel({ data, onFinish, onBack, isSaving }: P
               Erstes Quartalsziel
             </h2>
             <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.75rem', lineHeight: 1.6 }}>
-              Was ist dein wichtigstes Ziel für Q{quarter} {year}? Direkt abgeleitet von deinem Nordstern.
+              Was ist dein wichtigstes Ziel für Q{quarter} {year}? Direkt abgeleitet von deiner Vision.
             </p>
 
             {/* Kontext-Summary */}
             <div style={{ padding: '1rem', background: 'var(--bg-secondary)', borderRadius: '12px', marginBottom: '1.5rem', borderLeft: '3px solid var(--accent)' }}>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 0.3rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Dein Nordstern</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 0.3rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Deine Vision</p>
               <p style={{ margin: '0 0 0.75rem', fontWeight: 500, lineHeight: 1.4, fontSize: '0.9rem' }}>{data.northStar}</p>
               {data.selectedValues.length > 0 && (
                 <>

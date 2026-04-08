@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Trash2, Loader } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Trash2, Loader, Sparkles } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { getJournalPeriod, upsertJournalPeriod, getWeeklyGoalsByWeekYear, getMonthlyGoals, createGoal, updateGoal, deleteGoal } from '../../lib/db'
-import { generatePeriodSummary } from '../../lib/claude'
+import { generatePeriodSummary, getGoalFeedback, getGoalFeedbackFollowup } from '../../lib/claude'
+import FeedbackPanel from './FeedbackPanel'
 import type { GoalRow } from '../../types/database'
 
 // ─── Typen ───────────────────────────────────────────────────────────────────
@@ -67,6 +68,11 @@ function getWeekLabel(monday: Date): string {
 
 // ─── Haupt-Komponente ─────────────────────────────────────────────────────────
 
+// Modul-level Cache — überlebt Navigation (Komponenten-Unmount)
+const goalFeedbackCache = new Map<string, string>()
+const followupHistoryCache = new Map<string, Array<{ question: string; answer: string }>>()
+let openGoalId: string | null = null
+
 export default function JournalWeek() {
   const { user, profile } = useStore()
   const [weekOffset, setWeekOffset] = useState(0)
@@ -88,6 +94,16 @@ export default function JournalWeek() {
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
+
+  // KI-Ziel-Feedback — initialisiert aus Modul-level Cache
+  const [aiFeedbackGoalId, setAiFeedbackGoalId] = useState<string | null>(() => openGoalId)
+  const [aiFeedbackLoading, setAiFeedbackLoading] = useState(false)
+  const [aiFeedbackText, setAiFeedbackText] = useState<string | null>(() => openGoalId ? (goalFeedbackCache.get(openGoalId) ?? null) : null)
+  const [aiFeedbackError, setAiFeedbackError] = useState<string | null>(null)
+  const [followupInput, setFollowupInput] = useState('')
+  const [followupHistory, setFollowupHistory] = useState<Array<{ question: string; answer: string }>>(() => openGoalId ? (followupHistoryCache.get(openGoalId) ?? []) : [])
+  const [followupLoading, setFollowupLoading] = useState(false)
+  const [showFollowup, setShowFollowup] = useState(false)
 
   const monday = getMondayAtOffset(weekOffset)
   const periodKey = getWeekPeriodKey(monday)
@@ -217,6 +233,63 @@ export default function JournalWeek() {
       setGoals((prev) => prev.map((g) => g.id === goalId ? updated : g))
     } catch (err) {
       console.error('Parent update:', err)
+    }
+  }
+
+  function resetFollowup() {
+    setFollowupInput('')
+    setFollowupHistory([])
+    setFollowupLoading(false); setShowFollowup(false)
+  }
+
+  async function handleGetFeedback(goal: GoalRow, force = false) {
+    if (aiFeedbackGoalId === goal.id && !force && !aiFeedbackLoading) {
+      // Panel schließen
+      openGoalId = null
+      setAiFeedbackGoalId(null); setAiFeedbackText(null); setAiFeedbackError(null); resetFollowup(); return
+    }
+    if (aiFeedbackGoalId !== goal.id || force) resetFollowup()
+    openGoalId = goal.id
+    setAiFeedbackGoalId(goal.id); setAiFeedbackError(null)
+    if (!force && goalFeedbackCache.has(goal.id)) {
+      setAiFeedbackText(goalFeedbackCache.get(goal.id)!)
+      setFollowupHistory(followupHistoryCache.get(goal.id) ?? [])
+      return
+    }
+    // Neues Feedback: History löschen
+    followupHistoryCache.delete(goal.id)
+    setAiFeedbackLoading(true); setAiFeedbackText(null)
+    try {
+      const parentGoal = parentGoals.find((g) => g.id === goal.parent_id) ?? null
+      const text = await getGoalFeedback(goal, parentGoal, profile ?? null)
+      goalFeedbackCache.set(goal.id, text); setAiFeedbackText(text)
+    } catch {
+      setAiFeedbackError('KI momentan nicht verfügbar — bitte erneut versuchen.')
+    } finally {
+      setAiFeedbackLoading(false)
+    }
+  }
+
+  async function handleFollowup(goal: GoalRow) {
+    if (!followupInput.trim() || !aiFeedbackText) return
+    const question = followupInput.trim()
+    const currentHistory = followupHistoryCache.get(goal.id) ?? []
+    setFollowupLoading(true)
+    try {
+      const result = await getGoalFeedbackFollowup(goal, aiFeedbackText, question, profile ?? null, currentHistory)
+      const newEntry = { question, answer: result }
+      const updatedHistory = [...currentHistory, newEntry]
+      followupHistoryCache.set(goal.id, updatedHistory)
+      setFollowupHistory(updatedHistory)
+      setFollowupInput('')
+    } catch {
+      const errorEntry = { question, answer: 'KI momentan nicht verfügbar — bitte erneut versuchen.' }
+      const updatedHistory = [...currentHistory, errorEntry]
+      followupHistoryCache.set(goal.id, updatedHistory)
+      setFollowupHistory(updatedHistory)
+      setFollowupInput('')
+    } finally {
+      setFollowupLoading(false)
     }
   }
 
@@ -354,6 +427,14 @@ export default function JournalWeek() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                         <span style={{ flex: 1, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{goal.title}</span>
                         <button
+                          onClick={() => handleGetFeedback(goal)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: aiFeedbackGoalId === goal.id ? 'var(--accent)' : 'var(--text-muted)', padding: '0.1rem', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                          aria-label="KI-Bewertung"
+                          title="KI-Bewertung"
+                        >
+                          <Sparkles size={14} />
+                        </button>
+                        <button
                           onClick={() => removeGoal(goal.id)}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', display: 'flex', alignItems: 'center', flexShrink: 0 }}
                           aria-label="Ziel entfernen"
@@ -361,6 +442,16 @@ export default function JournalWeek() {
                           <Trash2 size={14} />
                         </button>
                       </div>
+                      {aiFeedbackGoalId === goal.id && (
+                        <FeedbackPanel
+                          loading={aiFeedbackLoading} error={aiFeedbackError} text={aiFeedbackText}
+                          showFollowup={showFollowup} followupInput={followupInput} followupHistory={followupHistory} followupLoading={followupLoading}
+                          onNewFeedback={() => handleGetFeedback(goal, true)}
+                          onToggleFollowup={() => setShowFollowup((v) => !v)}
+                          onFollowupChange={setFollowupInput}
+                          onFollowupSubmit={() => handleFollowup(goal)}
+                        />
+                      )}
                       {parentGoals.length > 0 && (
                         <select
                           value={goal.parent_id ?? ''}
