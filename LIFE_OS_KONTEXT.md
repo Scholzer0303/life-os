@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md — Projektgedächtnis
 # Wird nach JEDEM abgeschlossenen Schritt von Claude Code aktualisiert.
 # Nach jeder Session: diese Datei ins Claude Project hochladen (ersetzt alte Version).
-# Zuletzt aktualisiert: 2026-04-09 (Lebensrad-Konzept, Zielstruktur, Datenkonsistenz integriert)
+# Zuletzt aktualisiert: 2026-04-09 (Paket 7A + 7B Schritt 6 abgeschlossen)
 
 ---
 
@@ -14,7 +14,7 @@ VISION.md → LIFE_OS_KONTEXT.md → LIFE_OS_FEATURES.md
 
 Life OS ist eine PWA, live auf https://life-os-henna-xi.vercel.app
 
-**Was die App aktuell kann (Stand nach Paket 5 komplett):**
+**Was die App aktuell kann (Stand nach Paket 7A komplett):**
 - Navigation: Dashboard · Journal · Coach · Übersicht · Einstellungen
 - Journal: Tag (Morgen/Abend), Woche, Monat, Quartal, Jahr
 - Ziel-Hierarchie: parent_id Dropdown in allen Journal-Komponenten
@@ -26,17 +26,16 @@ Life OS ist eine PWA, live auf https://life-os-henna-xi.vercel.app
 - Dashboard: Vision-Banner, Streak, Tasks, Wochenziele, Heatmap
 
 **Bekannte kritische Bugs (aus App-Audit 09.04.2026):**
-- ⬜ Datenverlust beim Tab-Wechsel — NOCH OFFEN: zwei Fix-Versuche (useEffect → synchrone Event-Handler), Problem beim Testen noch vorhanden. Nächster Schritt: console.log-Debugging ob Save oder Load das Problem ist.
-- Abendjournal leert sich ab Schritt 2 beim erneuten Öffnen
-- Habits im Abendjournal komplett nicht sichtbar/abhakbar
-- Vision bearbeiten funktioniert nicht — Bearbeiten-Button führt im Kreis
-- KI-Ausgaben zeigen rohe Markdown-Formatierung (** und #)
-- Zeitperioden-Logik falsch — Woche wird mitten in der Woche als abgeschlossen angezeigt
-- Tab-Leiste schiebt sich auf Handy über die Tastatur
-- App verschiebt sich auf Handy beim Tippen — nicht starr
-- Tagesaufgaben können nicht Wochenzielen zugeordnet werden (fehlt im Morgenjournal)
-- PC: nur halbe Bildschirmbreite genutzt, viel grauer Platz links/rechts
-- KI-Impuls oft leer oder unbrauchbar (zu kurz, keine Substanz)
+- ✅ Datenverlust beim Tab-Wechsel — BEHOBEN: onChange schreibt synchron in localStorage; aktiver Journal-Tab + MorningJournal-Schritt werden separat persistiert.
+- ✅ Abendjournal leert sich ab Schritt 2 — BEHOBEN: useEffect lädt bestehenden Abend-Eintrag aus Supabase, zeigt Abschluss-Screen; "Eintrag bearbeiten"-Button vorhanden.
+- ✅ Habits im Abendjournal nicht sichtbar — BEHOBEN: Als Schritt 2 direkt nach "Geschafft" in EveningJournal-Flow integriert. Vergangene Tage: readonly in JournalDay.
+- ✅ Vision bearbeiten Loop — BEHOBEN: Inline-Bearbeitung in Journal → Jahr → Planung und Einstellungen → Vision & Identität. Kein Weiterleiten mehr.
+- ✅ KI-Ausgaben rohe Markdown-Formatierung — BEHOBEN: ReactMarkdown in MorningJournal, EveningJournal, JournalWeek/Month/Quarter/Year ergänzt.
+- Zeitperioden-Logik falsch — Woche wird mitten in der Woche als abgeschlossen angezeigt (Schritt 8, 7C)
+- ✅ Tab-Leiste / App verschiebt sich beim Tippen — BEHOBEN: interactive-widget=resizes-visual, height: 100dvh, overflow: hidden in AppLayout
+- Tagesaufgaben können nicht Wochenzielen zugeordnet werden (Schritt 9, 7C)
+- PC: nur halbe Bildschirmbreite genutzt (Schritt 7, 7B)
+- KI-Impuls oft leer oder unbrauchbar (Schritt 10, 7C)
 
 ---
 
@@ -170,12 +169,12 @@ Dashboard · Journal · Übersicht · Coach · Ich · Einstellungen
 
 | Nr | Name | Paket | Status |
 |----|------|-------|--------|
-| 7-1 | Tab-Wechsel: Datenverlust beheben | 7A | ⬜ OFFEN — 2 Fix-Versuche, Problem besteht noch |
-| 7-2 | Abendjournal: Daten bleiben erhalten beim erneuten Öffnen | 7A | ⬜ OFFEN |
-| 7-3 | Habits im Abendjournal wiederherstellen | 7A | ⬜ OFFEN |
-| 7-4 | Vision bearbeiten: Loop beheben (temporär, wird in P11 neu gebaut) | 7A | ⬜ OFFEN |
-| 7-5 | KI-Markdown-Rendering überall fixen | 7A | ⬜ OFFEN |
-| 7-6 | Handy: Tab-Leiste starr, App verschiebt sich nicht | 7B | ⬜ OFFEN |
+| 7-1 | Tab-Wechsel: Datenverlust beheben | 7A | ✅ ERLEDIGT 2026-04-09 |
+| 7-2 | Abendjournal: Daten bleiben erhalten beim erneuten Öffnen | 7A | ✅ ERLEDIGT 2026-04-09 |
+| 7-3 | Habits im Abendjournal wiederherstellen | 7A | ✅ ERLEDIGT 2026-04-09 |
+| 7-4 | Vision bearbeiten: Loop beheben (temporär, wird in P11 neu gebaut) | 7A | ✅ ERLEDIGT 2026-04-09 |
+| 7-5 | KI-Markdown-Rendering überall fixen | 7A | ✅ ERLEDIGT 2026-04-09 |
+| 7-6 | Handy: Tab-Leiste starr, App verschiebt sich nicht | 7B | ✅ ERLEDIGT 2026-04-09 |
 | 7-7 | PC: Volle Bildschirmbreite nutzen | 7B | ⬜ OFFEN |
 | 7-8 | Zeitperioden-Logik: Woche/Monat/Quartal/Jahr korrekt | 7C | ⬜ OFFEN |
 | 7-9 | Tagesaufgaben → Wochenziel Zuordnung im Morgenjournal | 7C | ⬜ OFFEN |
@@ -235,3 +234,11 @@ Grundaufbau, Journal-System, Habit-Tracker, Übersicht, Ziele, Review.
 5B: Ziel-Hierarchie UI.
 5C: Vision-Umbenennung + Einstellungen neu strukturiert.
 5D: KI-Ziel-Feedback mit FeedbackPanel, Cache, Rückfrage-Verlauf.
+
+**Paket 7A + 7B-1 (Schritte 1–6) — April 2026 ✅**
+7-1: Tab-Wechsel Datenverlust — synchrones Schreiben in onChange-Handlern.
+7-2: Abendjournal Datenverlust — Supabase-Eintrag beim Mount laden, Bearbeiten-Button.
+7-3: Habits im Abendjournal — als Schritt 2 in EveningJournal-Flow integriert.
+7-4: Vision-Bearbeiten-Loop — Inline-Textarea in Journal → Jahr und Einstellungen.
+7-5: KI-Markdown-Rendering — ReactMarkdown in 6 Journal-Komponenten ergänzt.
+7-6: Handy-Layout starr �� interactive-widget=resizes-visual, height: 100dvh, overflow: hidden.

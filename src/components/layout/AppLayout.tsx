@@ -9,12 +9,27 @@ export default function AppLayout({ children }: AppLayoutProps) {
   return (
     <div
       style={{
-        minHeight: '100svh',
+        height: '100dvh',
+        overflow: 'hidden',
         background: 'var(--bg-primary)',
-        paddingBottom: '5rem', // space for bottom nav
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      <main style={{ maxWidth: '640px', margin: '0 auto', padding: '1.5rem 1.25rem 0' }}>
+      <main
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+          maxWidth: '640px',
+          width: '100%',
+          margin: '0 auto',
+          padding: '1.5rem 1.25rem 0',
+          paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
+          boxSizing: 'border-box',
+        }}
+      >
         {children}
       </main>
       <Navigation />

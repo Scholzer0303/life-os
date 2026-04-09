@@ -157,6 +157,25 @@ export default function Settings() {
     () => localStorage.getItem('metrics_enabled') !== 'false'
   )
 
+  // Vision inline edit
+  const [editingVision, setEditingVision] = useState(false)
+  const [visionDraft, setVisionDraft] = useState('')
+  const [visionSaving, setVisionSaving] = useState(false)
+
+  async function saveVision() {
+    if (!user) return
+    setVisionSaving(true)
+    try {
+      const updated = await updateProfile(user.id, { north_star: visionDraft.trim() || null })
+      setProfile({ ...profile!, north_star: updated.north_star })
+      setEditingVision(false)
+    } catch (err) {
+      console.error('Vision speichern:', err)
+    } finally {
+      setVisionSaving(false)
+    }
+  }
+
   // Modals
   const [showOnboardingModal, setShowOnboardingModal] = useState(false)
   const [showDeleteJournalModal, setShowDeleteJournalModal] = useState(false)
@@ -420,33 +439,63 @@ export default function Settings() {
         <CollapsibleSection title="Vision & Identität" isOpen={openSections.has('vision')} onToggle={() => toggleSection('vision')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-            {/* Vision (readonly) */}
+            {/* Vision */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Meine Vision
                 </span>
-                <button
-                  onClick={() => navigate('/journal')}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--accent)', fontFamily: 'DM Sans, sans-serif', padding: 0 }}
-                >
-                  Bearbeiten →
-                </button>
+                {!editingVision && (
+                  <button
+                    onClick={() => { setVisionDraft(profile?.north_star ?? ''); setEditingVision(true) }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--accent)', fontFamily: 'DM Sans, sans-serif', padding: 0 }}
+                  >
+                    Bearbeiten →
+                  </button>
+                )}
               </div>
-              <div style={{
-                padding: '0.85rem 1rem',
-                background: profile?.north_star
-                  ? 'color-mix(in srgb, var(--accent) 6%, var(--bg-card))'
-                  : 'var(--bg-secondary)',
-                border: `1px solid ${profile?.north_star ? 'color-mix(in srgb, var(--accent) 20%, var(--border))' : 'var(--border)'}`,
-                borderRadius: '10px',
-                fontSize: '0.95rem',
-                color: profile?.north_star ? 'var(--text-primary)' : 'var(--text-muted)',
-                lineHeight: 1.6,
-                fontStyle: profile?.north_star ? 'normal' : 'italic',
-              }}>
-                {profile?.north_star ?? 'Noch keine Vision definiert. Öffne Journal → Jahr → Planung.'}
-              </div>
+              {editingVision ? (
+                <div>
+                  <textarea
+                    value={visionDraft}
+                    onChange={(e) => setVisionDraft(e.target.value)}
+                    rows={4}
+                    autoFocus
+                    placeholder="Meine Vision ist…"
+                    style={{ width: '100%', padding: '0.85rem 1rem', border: '1.5px solid var(--accent)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5, marginBottom: '0.75rem' }}
+                  />
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      onClick={() => setEditingVision(false)}
+                      style={{ padding: '0.6rem 1rem', background: 'none', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--text-secondary)' }}
+                    >
+                      Abbrechen
+                    </button>
+                    <button
+                      onClick={saveVision}
+                      disabled={visionSaving}
+                      style={{ flex: 1, padding: '0.6rem 1rem', background: visionSaving ? 'var(--text-muted)' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: visionSaving ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500 }}
+                    >
+                      {visionSaving ? 'Wird gespeichert…' : 'Speichern'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  padding: '0.85rem 1rem',
+                  background: profile?.north_star
+                    ? 'color-mix(in srgb, var(--accent) 6%, var(--bg-card))'
+                    : 'var(--bg-secondary)',
+                  border: `1px solid ${profile?.north_star ? 'color-mix(in srgb, var(--accent) 20%, var(--border))' : 'var(--border)'}`,
+                  borderRadius: '10px',
+                  fontSize: '0.95rem',
+                  color: profile?.north_star ? 'var(--text-primary)' : 'var(--text-muted)',
+                  lineHeight: 1.6,
+                  fontStyle: profile?.north_star ? 'normal' : 'italic',
+                }}>
+                  {profile?.north_star ?? 'Noch keine Vision definiert.'}
+                </div>
+              )}
             </div>
 
             {/* Identitätssatz (editierbar) */}

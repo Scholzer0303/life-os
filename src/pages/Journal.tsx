@@ -30,7 +30,11 @@ export default function Journal() {
 
   const tabParam = searchParams.get('tab') as JournalTab | null
   const dateParam = searchParams.get('date') ?? undefined
-  const [activeTab, setActiveTab] = useState<JournalTab>(tabParam ?? 'tag')
+  const [activeTab, setActiveTab] = useState<JournalTab>(() => {
+    if (tabParam) return tabParam
+    const saved = localStorage.getItem('life_os_journal_tab') as JournalTab | null
+    return saved ?? 'tag'
+  })
 
   useEffect(() => {
     if (tabParam && tabParam !== activeTab) {
@@ -41,6 +45,7 @@ export default function Journal() {
   function handleTabChange(tab: JournalTab) {
     setActiveTab(tab)
     setSearchParams({ tab })
+    localStorage.setItem('life_os_journal_tab', tab)
   }
 
   // Legacy-Flow für bestehende Links von Dashboard

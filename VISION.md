@@ -2,7 +2,7 @@
 # PFLICHTLEKTÜRE — wird bei JEDER Session als ERSTES gelesen, vor allem anderen.
 # Technik folgt der Vision — nie umgekehrt.
 # Wenn eine technische Entscheidung der Vision widerspricht: Vision gewinnt.
-# Zuletzt aktualisiert: 2026-04-08 (Paket 5+6 — Vision & Identitätssystem)
+# Zuletzt aktualisiert: 2026-04-09 (Lebensrad-Konzept integriert, Zielstruktur finalisiert)
 
 ---
 
@@ -40,12 +40,13 @@ als sie ihm abnimmt, macht die App schlechter — nicht besser.
 
 Life OS existiert damit Lukas jeden Tag weiß:
 1. **Wer er ist** — Identität. Die App hilft ihm, die Person zu werden die er sein will.
-2. **Wohin er will** — Eine klare Vision seines Traumlebens, und Ziele auf allen Zeitebenen
-   die auf diese Vision einzahlen.
+2. **Wohin er will** — Eine klare Vision seines Traumlebens in 6 Lebensbereichen, und Ziele
+   auf allen Zeitebenen die auf diese Vision einzahlen.
 3. **Was er heute konkret dafür tut** — Max. 0–4 realistische Tagesaufgaben.
 4. **Ob er sich selbst treu war** — Ehrliche Abendreflexion ohne Selbstgeißelung.
 5. **KI als Mentor** — Die App lernt Lukas durch seine Einträge kennen und begleitet
-   ihn als bester Lebensmentor — nicht als Chatbot, sondern als wachsende Vertrauensperson.
+   ihn als bester Lebensmentor — nicht als Chatbot, sondern als wachsende Vertrauensperson
+   die die Rolle des ehrlichen Freundes übernimmt, der immer alle Daten kennt.
 
 **Das Gefühl das ersetzt werden soll:**
 Das schlechte Gewissen und die Unklarheit, ob man gerade auf sein Traumleben
@@ -58,12 +59,10 @@ zusteuert — oder nicht. Life OS macht diesen Status jeden Tag sichtbar.
 ### Morgens (~8:15 Uhr, PC, 5–10 Minuten)
 Lukas kommt aus seiner Morgenroutine. Er ist klar und will Orientierung für den Tag.
 
-1. Öffnet Dashboard → sieht Identitätsbanner, heutigen Fokus, Tasks
+1. Öffnet Dashboard → sieht Lebensrad-Übersicht, Identitäts-Affirmation, heutige Tasks, Wochenziele
 2. Wechselt zu Journal → Tab "Tag" → Morgen-Eintrag:
-   - Identität wird angezeigt (readonly — erinnert ihn wer er sein will)
-   - Optional: "Heute bin ich der Lukas, der..." (tagesbezogene Ergänzung)
    - Metriken: Energie (1–10), Gewicht, Schlaf
-   - 0–4 Tagesaufgaben definieren (optional Wochenziel zuordnen)
+   - 0–4 Tagesaufgaben (optional Wochenziel zuordnen) — ggf. aus Abend vorausgefüllt
    - Kalender-Check: Ja/Nein
    - Optional: KI-Impuls holen
 3. Ergebnis: **orientiert, fokussiert, weiß was er wann zu tun hat**
@@ -71,111 +70,107 @@ Lukas kommt aus seiner Morgenroutine. Er ist klar und will Orientierung für den
 ### Tagsüber (optional, situativ)
 - Tasks abhaken wenn erledigt
 - Coach bei Problemen, Entscheidungen, verknoteten Gedanken
-- KI zu einem Ziel befragen: "Macht das Sinn für meine Vision?"
 
 ### Abends (~20–22 Uhr, PC oder Handy, 5–15 Minuten)
 1. Journal → Tag → Abend-Eintrag:
-   - Tagesreflexion: Was lief gut / nicht gut / freie Gedanken / Dankbarkeit
-   - Identitäts-Abgleich: "Habe ich heute als die Person gehandelt die ich sein will?"
-     Ja / Teilweise / Nein — bei Teilweise/Nein: kurzes Textfeld öffnet sich
-   - Habits abhaken (alle Habits des aktuellen Monats)
+   - Tagesreflexion: Was lief gut / nicht gut / freie Gedanken / Dankbarkeit / Sonstiges
+   - Identitäts-Abgleich: Ja / Teilweise / Nein
+   - Habits abhaken
    - Energie-Abend (1–10, farbkodiert)
-   - Optional: KI-Feedback
-
-**Ergebnis: Kopf ist frei. Der Tag ist abgeschlossen.**
+   - Optional: Tagesaufgaben für morgen vorplanen
+2. Ergebnis: **Kopf ist frei. Der Tag ist abgeschlossen.**
 
 ### Wöchentlich (Montag Planung / Sonntag Reflexion, ~10 Min)
-- Journal → Woche → Planung: Wochenziele setzen (optional Monatsziel zuordnen)
+- Journal → Woche → Planung: Wochenziele setzen (max. 3 pro Lebensbereich, Monatsziel als Kontext)
 - Journal → Woche → Reflexion: Was lief gut/schlecht, eine Erkenntnis
 
-### Monatlich (Monatsstart Planung / Monatsende Reflexion, ~15 Min)
-- Journal → Monat → Planung: Monatsthema + Monatsziele + Habits für diesen Monat
-  Optional: KI bewertet Habits gegen Identität / schlägt Habits vor
-- Journal → Monat → Reflexion: Rückblick, Learnings, KI-Zusammenfassung
+### Monatlich (~15 Min)
+- Journal → Monat → Planung: Monatsziele setzen (max. 2 pro Lebensbereich, Quartalsziel als Kontext) + Habits definieren
+- Journal → Monat → Reflexion: Rückblick, Learnings
+
+### Jährlich (~30 Min)
+- Journal → Jahr → Planung: Ist-Stand pro Lebensbereich (1–10 + Notiz), Schwerpunktbereiche wählen, Jahresziele setzen (1 pro Lebensbereich)
+- Journal → Jahr → Reflexion: Jahresende-Ist-Stand eintragen, Vergleich mit Jahresbeginn, Rückblick
 
 ---
 
-## 4. DAS ZIEL- UND VISIONSSYSTEM
+## 4. DAS LEBENSRAD & VISIONSSYSTEM
 
-### Die vollständige Hierarchie (von oben nach unten)
+### Die 6 Lebensbereiche
+Jeder Bereich hat eine eigene Farbe (wird im Design-System definiert):
+- 🔵 Körper & Geist
+- 🟢 Soziales
+- 🩷 Liebe
+- 🟡 Finanzen
+- 🟠 Karriere
+- 🟣 Sinn
+
+### Vision (im "Ich"-Tab)
+- Pro Lebensbereich: eine 10/10-Beschreibung ("Was wäre für mich in diesem Bereich perfekt?")
+- Wird mit KI-Unterstützung erarbeitet (Paket 6)
+- Ist jahresgebunden: zu Jahresbeginn kann sie überarbeitet werden, alte Version wird archiviert
+- Zeitlich: mittel- bis langfristig (3–5 Jahre Horizont)
+
+### Jahresstand (im Journal → Jahr)
+- Jahresbeginn: Ist-Stand pro Bereich (1–10 + kurze Notiz)
+- Jahresende: neuer Ist-Stand pro Bereich (1–10 + kurze Notiz)
+- Vergleich Jahresbeginn vs. Jahresende wird nebeneinander angezeigt
+- Jahresziel = Soll-Zustand für das Jahr (1 Ziel pro Bereich)
+
+### Die vollständige Zielhierarchie
 ```
-VISION (zeitlos — Traumleben in 3–5 Jahren)
+VISION (pro Lebensbereich — 10/10-Beschreibung, zeitlos/jahresgebunden)
     ↓
-JAHRESZIEL (was muss dieses Jahr passieren?)
+JAHRESZIEL (1 pro Lebensbereich)
     ↓
-QUARTALSZIEL (was konkret in diesem Quartal?)
+QUARTALSZIEL (max. 2 pro Lebensbereich, muss Jahresziel zugeordnet sein)
     ↓
-MONATSZIEL
+MONATSZIEL (max. 2 pro Lebensbereich, muss Quartalsziel zugeordnet sein)
     ↓
-WOCHENZIEL
+WOCHENZIEL (max. 3 pro Lebensbereich, kann Monatsziel zugeordnet sein)
     ↓
-TAGESZIEL / AUFGABEN (0–4)
+TAGESAUFGABEN (max. 4 gesamt, kann Wochenziel zugeordnet sein)
 ```
 
-Jede Ebene kann (muss aber nicht) der darüber liegenden zugeordnet werden.
-Die Kette von Vision bis Tagesziel ist der rote Faden.
+**Pflichtverknüpfung:** Quartal→Jahr und Monat→Quartal sind Pflicht.
+Woche→Monat und Tag→Woche sind optional aber empfohlen.
 
-### Vision
-- Zeitlos — beschreibt Lukas' Traumleben in 3–5 Jahren
-- Wird einmalig geführt erstellt (Dialog mit KI + freie Bearbeitung)
-- Kann jederzeit überarbeitet werden
-- Ist die oberste Referenz für alle Ziele und Habits
-- Früher "Nordstern" — heißt jetzt überall "Vision"
+**Schwerpunktbereiche:** Lukas wählt zu Jahresbeginn 2–3 Bereiche als Jahresschwerpunkt.
+Diese werden im Dashboard und "Ich"-Tab prominenter angezeigt.
+Schwerpunkt kann im Laufe des Jahres geändert werden (Button im Journal → Jahr →
+Planung), mit Pflichtnotiz warum + Datum — wird gespeichert und ist für die KI sichtbar.
 
-### KI an Zielen
-- Jedes gespeicherte Ziel hat einen kleinen KI-Button
-- Klick → Panel öffnet sich direkt beim Ziel (kein Seitenwechsel)
-- KI bewertet: Macht das Sinn für die Vision? Ist es gut formuliert? Was optimieren?
-- KI kennt dabei: das Ziel, alle übergeordneten Ziele, die Vision
-
-### Coach
-- Freier Gesprächspartner — Therapeut, Planer, Arschtritt-Geber
-- Kennt alle Daten: Vision, Identität, alle Ziele, Habits, Journal-Einträge
-- Für Gespräche, Gedanken durchkauen, Entscheidungen — nicht für Ziel-Bewertung
+### Ziele setzen
+Ziele werden im **Journal auf der jeweiligen Zeitebene unter "Planung"** gesetzt — nicht im "Ich"-Tab.
+Der "Ich"-Tab zeigt die Kaskade als Übersicht, aber Eingabe findet im Journal statt.
+Alle Ziele müssen konkret formuliert sein — ein Hinweisbanner erinnert daran.
 
 ---
 
 ## 5. DAS IDENTITÄTSSYSTEM
 
-### Grundprinzip (Identity-based Habits, nach James Clear)
+### Grundprinzip
 Ziele werden nicht durch Willenskraft erreicht, sondern indem man die Identität der
-Person annimmt die diese Ziele bereits lebt. Habits sind dann keine Aufgaben,
-sondern Bestätigungen dieser Identität.
+Person annimmt die diese Ziele bereits lebt.
 
 ### Soll-Identität
-- Einmalig festlegen: "Wer bin ich wenn ich meine Vision lebe?"
-- Formuliert als Gegenwart: "Ich bin jemand der..." (nicht "Ich will...")
-- Wird geführt erstellt: KI stellt Fragen, hilft beim Formulieren
-- Jederzeit anpassbar
-- Täglich sichtbar im Morgenjournal und Dashboard
-
-### Tägliche Integration
-**Morgens:** Identität wird angezeigt (readonly). Optional: tagesbezogene Ergänzung.
-**Abends:** Abgleich in drei Stufen — Ja / Teilweise / Nein.
-Bei Teilweise/Nein: Textfeld für kurze Reflexion.
-
-### Habits und Identität
-- Habits sind Bestätigungen der Identität — nicht isolierte Aufgaben
-- KI kann auf Knopfdruck bewerten ob aktuelle Habits zur Identität passen
-- KI kann Habits vorschlagen die zur Identität passen
-- Vorgeschlagene Habits können per Klick übernommen werden
+- Wird aus der Vision (6 Lebensbereiche) von der KI als Affirmationen abgeleitet
+- Formuliert als Affirmationen in der Gegenwart: "Ich bin jemand der..."
+- Mehrere Affirmationen die zusammen ein Bild ergeben
+- Täglich sichtbar: morgens als Erinnerung, abends als Abgleich (Ja/Teilweise/Nein)
+- Im "Ich"-Tab editierbar
 
 ---
 
 ## 6. DAS JOURNAL — Herzstück der App
 
-### Struktur
-Das Journal ist in fünf Zeitebenen gegliedert, erreichbar über Tabs oben:
-**Tag · Woche · Monat · Quartal · Jahr**
+**Fünf Zeitebenen:** Tag · Woche · Monat · Quartal · Jahr
 
-Jede Ebene (außer Tag) hat zwei Unter-Tabs: **Planung** und **Reflexion**
+Jede Ebene (außer Tag) hat: **Planung** und **Reflexion**
 Der Tab "Tag" hat: **Morgen** und **Abend**
 
-### Habits leben im Journal
-- Definition: Monat → Planung → Habit-Sektion
-- Abhaken: täglich im Abend-Eintrag
-- Übersicht: automatisch im Übersichts-Tab
-- Monatsübergang: Dialog ob Habits übernommen werden sollen
+Planung enthält immer: Ziele setzen für diese Periode (mit Limit-Regeln) + übergeordnetes Ziel als Kontext anzeigen
+Reflexion enthält immer: Rückblick, KI-Feedback, freie Notizen
 
 ---
 
@@ -185,8 +180,16 @@ Der Tab "Tag" hat: **Morgen** und **Abend**
 1. **Ruhig** — keine Informationsflut, aber keine fehlenden Inhalte
 2. **Übersichtlich** — KI-Feedbacks, Ziele, Metriken: visuell klar und schön
 3. **Klar strukturiert** — Nutzerreise absolut logisch, effizient, effektiv
-4. **Visuell ansprechend** — nicht kahl, nicht überladen. Farbe gezielt einsetzen
+4. **Visuell ansprechend** — modern wie Headspace, nicht kahl, nicht überladen
 5. **Direkt** — keine unnötigen Zwischenschritte
+
+### Design-Leitplanken
+- Orientierung: Headspace-Stil — ruhig, modern, aufgeräumt
+- Keine grellen Farben. Kein Orange/Gelb als Hintergrund oder Primärfarbe
+- PC: volle Bildschirmbreite nutzen, kein schmaler Streifen
+- Mobile: starr wie eine native App, keine Verschiebung beim Tippen
+- Texte: gut lesbar, nicht zu klein, nicht zu groß, großzügige Abstände
+- Lebensbereiche: konsistente Farbkodierung überall in der App
 
 ### Was Life OS NICHT ist
 ❌ Kein Tool das Druck erzeugt
@@ -200,10 +203,12 @@ Der Tab "Tag" hat: **Morgen** und **Abend**
 ### Charakter
 Ein älterer Lukas als bester Lebensmentor. Kennt Lukas durch seine Einträge.
 Direkt. Kein Gelaber. Keine leeren Floskeln.
+Übernimmt die Rolle des ehrlichen Freundes aus dem Podcast — nur mit vollständigen Daten.
 
 ### Kontext (ab Paket 6 vollständig)
-Vision, Identität, alle Ziele (alle Ebenen), aktuelle Habits + Completion-Rate,
-letzte 7 Tage Journal-Einträge, letzte Identitäts-Checks.
+Vision (alle 6 Lebensbereiche), Identität/Affirmationen, alle Ziele (alle Ebenen, alle Bereiche),
+aktuelle Habits + Completion-Rate, letzte 7 Tage Journal-Einträge, letzte Identitäts-Checks,
+aktueller Schwerpunktbereich, Jahresbeginn-Ist-Stand vs. aktueller Stand.
 
 ### Ton-Modi
 - **Arschtritt** — direkt, hart, fokussierend
@@ -219,11 +224,41 @@ letzte 7 Tage Journal-Einträge, letzte Identitäts-Checks.
 
 ## 9. NAVIGATION
 
-**5 Tabs:** Dashboard · Journal · Coach · Übersicht · Einstellungen
+**6 Tabs (ab Paket 11):**
+Dashboard · Journal · Übersicht · Coach · Ich · Einstellungen
+
+**Bis Paket 11 (5 Tabs):**
+Dashboard · Journal · Übersicht · Coach · Einstellungen
+
+**"Ich"-Tab** (ab Paket 11):
+- Lebensrad: Radar-Diagramm mit 6 Bereichen + aktuellem Ist-Stand (aus Journal → Jahr)
+- Pro Bereich aufklappbar: 10/10-Vision-Text, aktuelles Jahresziel, ob Schwerpunkt
+- Identität/Affirmationen (editierbar)
+- Werte, Stopp-Liste, Ikigai: **deaktiviert** (Code bleibt, nicht angezeigt)
+
+**Übersichts-Tab:**
+- Kalender: Klick auf Tag öffnet alle Einträge dieses Tages (Tagebuch-Funktion)
+- Angezeigt pro Tag: Morgenjournal, Abendjournal, Habits, Woche/Monat/Quartal/Jahr falls zutreffend, KI-Feedback, Coach-Gespräche
+- Datenkonsistenz: Gelöschte/geänderte Einträge werden überall gleichzeitig aktualisiert
+- Habit-Grid + Metriken-Charts bleiben erhalten
 
 ---
 
-## 10. DEFINITION OF DONE
+## 10. DATENKONSISTENZ — PFLICHTPRINZIP
+
+**Gilt app-weit ohne Ausnahme:**
+Wenn ein Datensatz an einer Stelle gelöscht oder geändert wird, muss diese Änderung
+überall in der App sofort sichtbar sein. Es gibt keinen Bereich der eine eigene Kopie
+von Daten hält. Alles läuft über die Supabase-Datenbank als Single Source of Truth.
+
+Beispiele:
+- Coach-Gespräch gelöscht → verschwindet auch im Übersichts-Tab
+- Ziel geändert → neue Version überall sichtbar
+- Habit-Log nachträglich geändert → Habit-Grid und Übersicht aktualisieren sich
+
+---
+
+## 11. DEFINITION OF DONE
 
 Ein Feature ist "gut" wenn:
 - Fehlerfrei auf Handy UND PC
@@ -233,24 +268,37 @@ Ein Feature ist "gut" wenn:
 
 ---
 
-## 11. BEKANNTE PROBLEME — Pflichtlektüre für Claude Code
+## 12. BEKANNTE PROBLEME — Pflichtlektüre für Claude Code
 
-1. **KI-Fehler niemals als rohen JSON anzeigen** — immer lesbare Fehlermeldung.
-
-2. **PWA Session** — muss persistent sein, kein erneuter Login nach Homescreen-Start.
-
-3. **Abhak-Sync** — Dashboard und Wochenziele müssen sich sofort synchronisieren.
-
-4. **Vision ≠ Nordstern** — In der UI heißt es überall "Vision". DB-Feldname bleibt.
-
-5. **Schrittweise bauen** — besonders bei Paket 6. Vision-Flow und Identitäts-Flow
-   sind komplex. Einen Schritt fertig testen, dann weiter.
-
-6. **Bestehende Daten schützen** — bei allen Migrationen.
+1. **Datenverlust beim Tab-Wechsel** — höchste Priorität, Paket 7 behebt das.
+2. **Abendjournal leert sich** beim erneuten Öffnen — Paket 7.
+3. **Habits fehlen** im Abendjournal — Paket 7.
+4. **Vision bearbeiten** führt im Loop — Paket 7 (wird in Paket 11 neu gebaut).
+5. **KI-Markdown** wird roh angezeigt — Paket 7.
+6. **Mobile Layout** — App verschiebt sich, Tab-Leiste über Tastatur — Paket 7.
+7. **PC-Breite** — nur halber Platz genutzt — Paket 7.
+8. **Zeitperioden-Logik** falsch — Paket 7.
+9. **KI-Ausgaben niemals als rohen JSON anzeigen** — immer lesbare Fehlermeldung.
+10. **Schrittweise bauen** — ein Schritt fertig testen, dann weiter.
+11. **Bestehende Daten schützen** — bei allen Migrationen.
+12. **Datenkonsistenz** — Änderungen/Löschungen überall gleichzeitig wirksam.
 
 ---
 
-## 12. ARBEITSWEISE — Session-Protokoll
+## 13. PAKET-REIHENFOLGE (Stand April 2026)
+
+```
+Paket 7  — Bugs & Stabilität                    ← JETZT
+Paket 8  — Design-Overhaul + Lebensbereich-Farben + Motivationssprüche
+Paket 9  — Journal-Logik, Zielstruktur, Zielkaskade visuell
+Paket 10 — Login vereinfachen
+Paket 11 — Neuer Tab "Ich" (Lebensrad), Übersicht als Tagebuch
+Paket 6  — Vision/Identität KI-Flows, Coach vollständiger Kontext  ← ZULETZT
+```
+
+---
+
+## 14. ARBEITSWEISE — Session-Protokoll
 
 ### Session-Start
 ```powershell
@@ -267,6 +315,6 @@ Lesen: VISION.md → LIFE_OS_KONTEXT.md → LIFE_OS_FEATURES.md
 ✅ SESSION-ABSCHLUSS
 Erledigt: [Liste]
 Nächste Session: [Schritt X]
-git add -A && git commit -m "feat: [was]" && git push origin master
+git add -A && git commit -m "feat: [was gebaut wurde]" && git push origin master
 LIFE_OS_KONTEXT.md aktuell? ✅
 ```

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { ChevronLeft, ChevronRight, Plus, Trash2, Loader, Sparkles } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { getJournalPeriod, upsertJournalPeriod, getQuarterlyGoalsByQuarterYear, getYearlyGoals, createGoal, updateGoal, deleteGoal } from '../../lib/db'
@@ -108,15 +109,25 @@ export default function JournalQuarter() {
         getQuarterlyGoalsByQuarterYear(user.id, quarter, year),
         getYearlyGoals(user.id, year),
       ])
-      if (p) {
-        setPlanning((p.planning_data as QuarterPlanningData) ?? {})
-        setReflection((p.reflection_data as QuarterReflectionData) ?? {})
-        setAiSummary(p.ai_summary ?? null)
+      const supabasePlanning: QuarterPlanningData = p ? ((p.planning_data as QuarterPlanningData) ?? {}) : {}
+      const supabaseReflection: QuarterReflectionData = p ? ((p.reflection_data as QuarterReflectionData) ?? {}) : {}
+      setAiSummary(p?.ai_summary ?? null)
+
+      const draftRaw = localStorage.getItem(`life_os_draft_quarter_${periodKey}`)
+      if (draftRaw) {
+        try {
+          const draft = JSON.parse(draftRaw)
+          setPlanning({ ...supabasePlanning, ...(draft.planning ?? {}) })
+          setReflection({ ...supabaseReflection, ...(draft.reflection ?? {}) })
+        } catch {
+          setPlanning(supabasePlanning)
+          setReflection(supabaseReflection)
+        }
       } else {
-        setPlanning({})
-        setReflection({})
-        setAiSummary(null)
+        setPlanning(supabasePlanning)
+        setReflection(supabaseReflection)
       }
+
       setGoals(g)
       setParentGoals(pg)
       setNewGoalParentId('')
@@ -128,7 +139,14 @@ export default function JournalQuarter() {
     }
   }, [user, periodKey, quarter, year]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  // Draft sofort bei jeder Eingabe speichern (synchron, keine Race Condition)
+  function saveDraft(newPlanning: QuarterPlanningData, newReflection: QuarterReflectionData) {
+    localStorage.setItem(`life_os_draft_quarter_${periodKey}`, JSON.stringify({ planning: newPlanning, reflection: newReflection }))
+  }
 
   // Planung speichern
   async function savePlanning() {
@@ -136,6 +154,7 @@ export default function JournalQuarter() {
     setSaving(true); setSaveSuccess(false)
     try {
       await upsertJournalPeriod(user.id, 'quarter', periodKey, { planning_data: planning as Record<string, unknown> })
+      localStorage.removeItem(`life_os_draft_quarter_${periodKey}`)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 2000)
     } catch (err) {
@@ -153,6 +172,7 @@ export default function JournalQuarter() {
       await upsertJournalPeriod(user.id, 'quarter', periodKey, {
         reflection_data: reflection as Record<string, unknown>,
       })
+      localStorage.removeItem(`life_os_draft_quarter_${periodKey}`)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 2000)
     } catch (err) {
@@ -354,7 +374,7 @@ export default function JournalQuarter() {
             </label>
             <textarea
               value={planning.focus ?? ''}
-              onChange={(e) => setPlanning((p) => ({ ...p, focus: e.target.value }))}
+              onChange={(e) => { const u = { ...planning, focus: e.target.value }; setPlanning(u); saveDraft(u, reflection) }}
               placeholder="Das übergeordnete Thema oder der Fokus des Quartals…"
               rows={3}
               style={{ width: '100%', padding: '0.85rem 1rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5 }}
@@ -519,7 +539,7 @@ export default function JournalQuarter() {
               </label>
               <textarea
                 value={reflection[key] ?? ''}
-                onChange={(e) => setReflection((r) => ({ ...r, [key]: e.target.value }))}
+                onChange={(e) => { const u = { ...reflection, [key]: e.target.value }; setReflection(u); saveDraft(planning, u) }}
                 placeholder={placeholder}
                 rows={3}
                 style={{ width: '100%', padding: '0.85rem 1rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5 }}
@@ -555,7 +575,7 @@ export default function JournalQuarter() {
                   <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.4rem' }}>
                     Mentor · {quarterLabel}
                   </span>
-                  {aiSummary}
+                  <ReactMarkdown>{aiSummary}</ReactMarkdown>
                 </div>
                 <button
                   onClick={() => { setAiSummary(null); handleGenerateSummary() }}

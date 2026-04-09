@@ -1,7 +1,7 @@
 # LIFE_OS_FEATURES.md — Aktive Pakete
 # Claude Code liest diese Datei beim Session-Start automatisch.
 # Nach Abschluss eines Schritts: Status auf ✅ UMGESETZT (Datum) setzen.
-# Zuletzt aktualisiert: 2026-04-09 (Lebensrad-Konzept, Zielstruktur, Datenkonsistenz integriert)
+# Zuletzt aktualisiert: 2026-04-09 (Paket 7A + 7B Schritt 6 abgeschlossen)
 
 ---
 
@@ -26,7 +26,7 @@
 
 ---
 
-### Schritt 1 — Tab-Wechsel: Datenverlust beheben ⬜ OFFEN
+### Schritt 1 — Tab-Wechsel: Datenverlust beheben ✅ UMGESETZT (2026-04-09)
 
 **Problem:** Wenn der Nutzer einen Tab wechselt während er etwas einträgt, gehen die
 nicht gespeicherten Eingaben verloren.
@@ -49,7 +49,7 @@ nicht gespeicherten Eingaben verloren.
 
 ---
 
-### Schritt 2 — Abendjournal: Daten bleiben erhalten beim erneuten Öffnen ⬜ OFFEN
+### Schritt 2 — Abendjournal: Daten bleiben erhalten beim erneuten Öffnen ✅ UMGESETZT (2026-04-09)
 
 **Problem:** Bereits gespeicherte Daten im Abendjournal sind ab Schritt 2 leer wenn
 der Nutzer erneut öffnet.
@@ -60,37 +60,37 @@ der Nutzer erneut öffnet.
 
 ---
 
-### Schritt 3 — Habits im Abendjournal wiederherstellen ⬜ OFFEN
+### Schritt 3 — Habits im Abendjournal wiederherstellen ✅ UMGESETZT (2026-04-09)
 
 **Problem:** Habits sind im Abendjournal komplett nicht mehr sichtbar/abhakbar.
 
 **Lösung:**
-- Habits des aktuellen Monats im Abendjournal anzeigen
-- Tägliches Abhaken wiederherstellen
-- Frequenz-Logik beachten (täglich vs. X mal pro Woche)
-- Bereits abgehakte Habits als abgehakt anzeigen
+- Habits als eigener Schritt (Schritt 2) direkt nach "Geschafft" in den EveningJournal-Flow integriert
+- Für vergangene Tage: HabitChecklist als Lese-Ansicht im Abend-Archiv von JournalDay
+- HabitChecklist nicht mehr als separater Block oberhalb des Formulars
 
 ---
 
-### Schritt 4 — Vision bearbeiten: Loop beheben ⬜ OFFEN
+### Schritt 4 — Vision bearbeiten: Loop beheben ✅ UMGESETZT (2026-04-09)
 
-**Problem:** Bearbeiten-Button führt im Kreis statt zu einem editierbaren Feld.
+**Problem:** Bearbeiten-Button führte im Kreis (Settings → Journal → Settings).
 
-**Lösung:** Direktes Textfeld in Einstellungen → Vision zum Bearbeiten.
-Hinweis: In Paket 11 wird die Vision komplett neu als Lebensrad gebaut —
-dieser Fix ist nur eine temporäre Lösung damit der Nutzer nicht blockiert ist.
+**Lösung:** Inline-Bearbeitung an beiden Stellen:
+- Journal → Jahr → Planung: "Bearbeiten →" öffnet Textarea direkt vor Ort, speichert in north_star
+- Einstellungen → Vision & Identität: gleiche Inline-Logik
+- Beide nutzen updateProfile() + setProfile() ohne Navigation
 
 ---
 
-### Schritt 5 — KI-Markdown-Rendering überall fixen ⬜ OFFEN
+### Schritt 5 — KI-Markdown-Rendering überall fixen ✅ UMGESETZT (2026-04-09)
 
-**Problem:** KI-Antworten zeigen rohe Markdown-Formatierung.
+**Problem:** KI-Antworten zeigten rohe Markdown-Formatierung (**fett**, # Überschriften).
 
-**Betrifft:** KI-Feedback an Zielen, KI-Impuls Morgenjournal, KI-Zusammenfassungen,
-Abend-KI-Feedback, Coach-Antworten.
-
-**Lösung:** react-markdown ist bereits in FeedbackPanel.tsx. Alle anderen Komponenten
-die KI-Text anzeigen ebenfalls damit ausstatten.
+**Lösung:** ReactMarkdown in alle 6 betroffenen Komponenten ergänzt:
+- MorningJournal.tsx (impulse)
+- EveningJournal.tsx (eveningImpulse)
+- JournalWeek.tsx, JournalMonth.tsx, JournalQuarter.tsx, JournalYear.tsx (aiSummary)
+- FeedbackPanel.tsx war bereits korrekt — unverändert
 
 ---
 
@@ -98,16 +98,15 @@ die KI-Text anzeigen ebenfalls damit ausstatten.
 
 ---
 
-### Schritt 6 — Handy: App-Layout starr machen ⬜ OFFEN
+### Schritt 6 — Handy: App-Layout starr machen ✅ UMGESETZT (2026-04-09)
 
 **Problem:** Tab-Leiste schiebt sich über Tastatur. App verschiebt sich beim Tippen.
-Inhalte am Rand abgeschnitten.
 
 **Lösung:**
-- Tab-Leiste: `position: fixed; bottom: 0` mit `env(safe-area-inset-bottom)`
-- Viewport: `height: 100dvh` statt `100vh`
-- `interactive-widget=resizes-content` im meta-Tag prüfen
-- Horizontales Overflow beheben
+- `interactive-widget=resizes-visual` im viewport-Meta (index.html): Tastatur verkleinert nur visuelles Viewport, Layout bleibt stabil
+- AppLayout: `height: 100dvh`, `overflow: hidden`, `display: flex`, `flexDirection: column`
+- main: `flex: 1`, `overflowY: auto`, `WebkitOverflowScrolling: touch`
+- paddingBottom: `calc(5rem + env(safe-area-inset-bottom))` für iPhone-Notch-Kompatibilität
 
 ---
 

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { ChevronLeft, ChevronRight, Plus, Trash2, Loader, Sparkles } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
-import { getJournalPeriod, upsertJournalPeriod, getYearlyGoals, createGoal, updateGoal, deleteGoal } from '../../lib/db'
+import { getJournalPeriod, upsertJournalPeriod, getYearlyGoals, createGoal, updateGoal, deleteGoal, updateProfile } from '../../lib/db'
 import { generatePeriodSummary, getGoalFeedback, getGoalFeedbackFollowup } from '../../lib/claude'
 import FeedbackPanel from './FeedbackPanel'
 import type { GoalRow } from '../../types/database'
@@ -26,8 +26,7 @@ const followupHistoryCache = new Map<string, Array<{ question: string; answer: s
 let openGoalId: string | null = null
 
 export default function JournalYear() {
-  const { user, profile } = useStore()
-  const navigate = useNavigate()
+  const { user, profile, setProfile } = useStore()
   const currentYear = new Date().getFullYear()
   const [yearOffset, setYearOffset] = useState(0)
   const [activeSubTab, setActiveSubTab] = useState<'planung' | 'reflexion'>('planung')
@@ -56,6 +55,25 @@ export default function JournalYear() {
   const [followupLoading, setFollowupLoading] = useState(false)
   const [showFollowup, setShowFollowup] = useState(false)
 
+  // Vision inline edit
+  const [editingVision, setEditingVision] = useState(false)
+  const [visionDraft, setVisionDraft] = useState('')
+  const [visionSaving, setVisionSaving] = useState(false)
+
+  async function saveVision() {
+    if (!user) return
+    setVisionSaving(true)
+    try {
+      const updated = await updateProfile(user.id, { north_star: visionDraft.trim() || null })
+      setProfile({ ...profile!, north_star: updated.north_star })
+      setEditingVision(false)
+    } catch (err) {
+      console.error('Vision speichern:', err)
+    } finally {
+      setVisionSaving(false)
+    }
+  }
+
   // Jahresziele (goals table)
   const [goals, setGoals] = useState<GoalRow[]>([])
   const [goalsLoading, setGoalsLoading] = useState(false)
@@ -71,15 +89,25 @@ export default function JournalYear() {
         getJournalPeriod(user.id, 'year', periodKey),
         getYearlyGoals(user.id, year),
       ])
-      if (p) {
-        setPlanning((p.planning_data as YearPlanningData) ?? {})
-        setReflection((p.reflection_data as YearReflectionData) ?? {})
-        setAiSummary(p.ai_summary ?? null)
+      const supabasePlanning: YearPlanningData = p ? ((p.planning_data as YearPlanningData) ?? {}) : {}
+      const supabaseReflection: YearReflectionData = p ? ((p.reflection_data as YearReflectionData) ?? {}) : {}
+      setAiSummary(p?.ai_summary ?? null)
+
+      const draftRaw = localStorage.getItem(`life_os_draft_year_${periodKey}`)
+      if (draftRaw) {
+        try {
+          const draft = JSON.parse(draftRaw)
+          setPlanning({ ...supabasePlanning, ...(draft.planning ?? {}) })
+          setReflection({ ...supabaseReflection, ...(draft.reflection ?? {}) })
+        } catch {
+          setPlanning(supabasePlanning)
+          setReflection(supabaseReflection)
+        }
       } else {
-        setPlanning({})
-        setReflection({})
-        setAiSummary(null)
+        setPlanning(supabasePlanning)
+        setReflection(supabaseReflection)
       }
+
       setGoals(g)
     } catch (err) {
       console.error('JournalYear laden:', err)
@@ -89,7 +117,14 @@ export default function JournalYear() {
     }
   }, [user, periodKey, year]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  // Draft sofort bei jeder Eingabe speichern (synchron, keine Race Condition)
+  function saveDraft(newPlanning: YearPlanningData, newReflection: YearReflectionData) {
+    localStorage.setItem(`life_os_draft_year_${periodKey}`, JSON.stringify({ planning: newPlanning, reflection: newReflection }))
+  }
 
   // Planung speichern
   async function savePlanning() {
@@ -97,6 +132,7 @@ export default function JournalYear() {
     setSaving(true); setSaveSuccess(false)
     try {
       await upsertJournalPeriod(user.id, 'year', periodKey, { planning_data: planning as Record<string, unknown> })
+      localStorage.removeItem(`life_os_draft_year_${periodKey}`)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 2000)
     } catch (err) {
@@ -114,6 +150,7 @@ export default function JournalYear() {
       await upsertJournalPeriod(user.id, 'year', periodKey, {
         reflection_data: reflection as Record<string, unknown>,
       })
+      localStorage.removeItem(`life_os_draft_year_${periodKey}`)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 2000)
     } catch (err) {
@@ -297,33 +334,63 @@ export default function JournalYear() {
       {/* ── PLANUNG ── */}
       {!loading && activeSubTab === 'planung' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {/* Vision (readonly) */}
+          {/* Vision */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Meine Vision
               </div>
-              <button
-                onClick={() => navigate('/settings')}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--accent)', fontFamily: 'DM Sans, sans-serif', padding: 0 }}
-              >
-                Bearbeiten →
-              </button>
+              {!editingVision && (
+                <button
+                  onClick={() => { setVisionDraft(profile?.north_star ?? ''); setEditingVision(true) }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--accent)', fontFamily: 'DM Sans, sans-serif', padding: 0 }}
+                >
+                  Bearbeiten →
+                </button>
+              )}
             </div>
-            <div style={{
-              padding: '0.85rem 1rem',
-              background: profile?.north_star
-                ? 'color-mix(in srgb, var(--accent) 6%, var(--bg-card))'
-                : 'var(--bg-card)',
-              border: `1px solid ${profile?.north_star ? 'color-mix(in srgb, var(--accent) 20%, var(--border))' : 'var(--border)'}`,
-              borderRadius: '10px',
-              fontSize: '0.95rem',
-              color: profile?.north_star ? 'var(--text-primary)' : 'var(--text-muted)',
-              lineHeight: 1.5,
-              fontStyle: profile?.north_star ? 'normal' : 'italic',
-            }}>
-              {profile?.north_star ?? 'Noch keine Vision definiert. Jetzt in den Einstellungen festlegen.'}
-            </div>
+            {editingVision ? (
+              <div>
+                <textarea
+                  value={visionDraft}
+                  onChange={(e) => setVisionDraft(e.target.value)}
+                  rows={4}
+                  autoFocus
+                  placeholder="Meine Vision ist…"
+                  style={{ width: '100%', padding: '0.85rem 1rem', border: '1.5px solid var(--accent)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5, marginBottom: '0.75rem' }}
+                />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    onClick={() => setEditingVision(false)}
+                    style={{ padding: '0.6rem 1rem', background: 'none', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--text-secondary)' }}
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    onClick={saveVision}
+                    disabled={visionSaving}
+                    style={{ flex: 1, padding: '0.6rem 1rem', background: visionSaving ? 'var(--text-muted)' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: visionSaving ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500 }}
+                  >
+                    {visionSaving ? 'Wird gespeichert…' : 'Speichern'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                padding: '0.85rem 1rem',
+                background: profile?.north_star
+                  ? 'color-mix(in srgb, var(--accent) 6%, var(--bg-card))'
+                  : 'var(--bg-card)',
+                border: `1px solid ${profile?.north_star ? 'color-mix(in srgb, var(--accent) 20%, var(--border))' : 'var(--border)'}`,
+                borderRadius: '10px',
+                fontSize: '0.95rem',
+                color: profile?.north_star ? 'var(--text-primary)' : 'var(--text-muted)',
+                lineHeight: 1.5,
+                fontStyle: profile?.north_star ? 'normal' : 'italic',
+              }}>
+                {profile?.north_star ?? 'Noch keine Vision definiert. Klick auf "Bearbeiten →" um sie festzulegen.'}
+              </div>
+            )}
           </div>
 
           {/* Jahresziele */}
@@ -403,7 +470,7 @@ export default function JournalYear() {
             </label>
             <textarea
               value={planning.achievements ?? ''}
-              onChange={(e) => setPlanning((p) => ({ ...p, achievements: e.target.value }))}
+              onChange={(e) => { const u = { ...planning, achievements: e.target.value }; setPlanning(u); saveDraft(u, reflection) }}
               placeholder={`Am 31. Dezember ${year} blicke ich zurück und bin stolz auf…`}
               rows={4}
               style={{ width: '100%', padding: '0.85rem 1rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5 }}
@@ -468,7 +535,7 @@ export default function JournalYear() {
               </label>
               <textarea
                 value={reflection[key] ?? ''}
-                onChange={(e) => setReflection((r) => ({ ...r, [key]: e.target.value }))}
+                onChange={(e) => { const u = { ...reflection, [key]: e.target.value }; setReflection(u); saveDraft(planning, u) }}
                 placeholder={placeholder}
                 rows={3}
                 style={{ width: '100%', padding: '0.85rem 1rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5 }}
@@ -504,7 +571,7 @@ export default function JournalYear() {
                   <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.4rem' }}>
                     Mentor · {year}
                   </span>
-                  {aiSummary}
+                  <ReactMarkdown>{aiSummary}</ReactMarkdown>
                 </div>
                 <button
                   onClick={() => { setAiSummary(null); handleGenerateSummary() }}

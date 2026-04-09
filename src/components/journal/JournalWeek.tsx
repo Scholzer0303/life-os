@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { ChevronLeft, ChevronRight, Plus, Trash2, Loader, Sparkles } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { getJournalPeriod, upsertJournalPeriod, getWeeklyGoalsByWeekYear, getMonthlyGoals, createGoal, updateGoal, deleteGoal } from '../../lib/db'
@@ -126,15 +127,30 @@ export default function JournalWeek() {
         getWeeklyGoalsByWeekYear(user.id, week, year),
         getMonthlyGoals(user.id, weekMonth, weekMonthYear),
       ])
-      if (p) {
-        setPlanning((p.planning_data as WeekPlanningData) ?? { identity_statement: '' })
-        setReflection((p.reflection_data as WeekReflectionData) ?? {})
-        setAiSummary(p.ai_summary ?? null)
+      const supabasePlanning: WeekPlanningData = p
+        ? ((p.planning_data as WeekPlanningData) ?? { identity_statement: '' })
+        : { identity_statement: '' }
+      const supabaseReflection: WeekReflectionData = p
+        ? ((p.reflection_data as WeekReflectionData) ?? {})
+        : {}
+      setAiSummary(p?.ai_summary ?? null)
+
+      // Draft überlagert Supabase-Daten
+      const draftRaw = localStorage.getItem(`life_os_draft_week_${periodKey}`)
+      if (draftRaw) {
+        try {
+          const draft = JSON.parse(draftRaw)
+          setPlanning({ ...supabasePlanning, ...(draft.planning ?? {}) })
+          setReflection({ ...supabaseReflection, ...(draft.reflection ?? {}) })
+        } catch {
+          setPlanning(supabasePlanning)
+          setReflection(supabaseReflection)
+        }
       } else {
-        setPlanning({ identity_statement: '' })
-        setReflection({})
-        setAiSummary(null)
+        setPlanning(supabasePlanning)
+        setReflection(supabaseReflection)
       }
+
       setGoals(g)
       setParentGoals(pg)
       setNewGoalParentId('')
@@ -146,7 +162,9 @@ export default function JournalWeek() {
     }
   }, [user, periodKey, week, year, weekMonth, weekMonthYear]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   // Planung speichern (nur identity_statement — Ziele direkt in goals-Tabelle)
   async function savePlanning() {
@@ -154,6 +172,7 @@ export default function JournalWeek() {
     setSaving(true); setSaveSuccess(false)
     try {
       await upsertJournalPeriod(user.id, 'week', periodKey, { planning_data: planning as Record<string, unknown> })
+      localStorage.removeItem(`life_os_draft_week_${periodKey}`)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 2000)
     } catch (err) {
@@ -171,6 +190,7 @@ export default function JournalWeek() {
       await upsertJournalPeriod(user.id, 'week', periodKey, {
         reflection_data: reflection as Record<string, unknown>,
       })
+      localStorage.removeItem(`life_os_draft_week_${periodKey}`)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 2000)
     } catch (err) {
@@ -178,6 +198,11 @@ export default function JournalWeek() {
     } finally {
       setSaving(false)
     }
+  }
+
+  // Draft sofort bei jeder Eingabe speichern (synchron, keine Race Condition)
+  function saveDraft(newPlanning: WeekPlanningData, newReflection: WeekReflectionData) {
+    localStorage.setItem(`life_os_draft_week_${periodKey}`, JSON.stringify({ planning: newPlanning, reflection: newReflection }))
   }
 
   // KI-Zusammenfassung generieren
@@ -403,7 +428,7 @@ export default function JournalWeek() {
             </label>
             <textarea
               value={planning.identity_statement ?? ''}
-              onChange={(e) => setPlanning((p) => ({ ...p, identity_statement: e.target.value }))}
+              onChange={(e) => { const u = { ...planning, identity_statement: e.target.value }; setPlanning(u); saveDraft(u, reflection) }}
               placeholder="…konsequent seine Ziele verfolgt und jeden Tag das Wichtigste tut."
               rows={3}
               style={{ width: '100%', padding: '0.85rem 1rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5 }}
@@ -559,7 +584,7 @@ export default function JournalWeek() {
               </label>
               <textarea
                 value={reflection[key] ?? ''}
-                onChange={(e) => setReflection((r) => ({ ...r, [key]: e.target.value }))}
+                onChange={(e) => { const u = { ...reflection, [key]: e.target.value }; setReflection(u); saveDraft(planning, u) }}
                 placeholder={placeholder}
                 rows={3}
                 style={{ width: '100%', padding: '0.85rem 1rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5 }}
@@ -595,7 +620,7 @@ export default function JournalWeek() {
                   <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.4rem' }}>
                     Mentor · {weekLabel}
                   </span>
-                  {aiSummary}
+                  <ReactMarkdown>{aiSummary}</ReactMarkdown>
                 </div>
                 <button
                   onClick={() => { setAiSummary(null); handleGenerateSummary() }}

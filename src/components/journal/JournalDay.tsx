@@ -313,8 +313,8 @@ export default function JournalDay({ initialDate }: Props) {
 
       {!loading && activeSubTab === 'abend' && (
         <>
-          {/* Habits immer zuerst — für heute und vergangene Tage */}
-          <HabitChecklist date={selectedDate} readonly={!isToday} />
+          {/* Habits für vergangene Tage als Lese-Ansicht — heute ist in EveningJournal integriert */}
+          {!isToday && <HabitChecklist date={selectedDate} readonly />}
 
           {isToday ? (
             <EveningJournal />

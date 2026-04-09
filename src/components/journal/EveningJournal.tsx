@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
@@ -6,6 +7,7 @@ import { createJournalEntry, getTodayEntries, updateJournalEntry, updateGoalTask
 import { getEveningImpulse } from '../../lib/claude'
 import type { DailyTask } from '../../types'
 import { todayISO } from '../../lib/utils'
+import HabitChecklist from '../habits/HabitChecklist'
 import ProgressBar from '../onboarding/ProgressBar'
 import type { JournalEntryRow } from '../../types/database'
 
@@ -123,6 +125,7 @@ export default function EveningJournal() {
     validDraft?.data ?? { accomplished: '', whatBlocked: '', energyLevel: null, freeText: '', gratitude: '' }
   )
   const [savedEntry, setSavedEntry] = useState<JournalEntryRow | null>(null)
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [eveningImpulse, setEveningImpulse] = useState<string | null>(null)
@@ -140,6 +143,8 @@ export default function EveningJournal() {
       getTodayGoalTasks(user.id, today),
     ]).then(([entries, todayGoalTasks]) => {
       const morning = entries.find((e) => e.type === 'morning')
+      const evening = entries.find((e) => e.type === 'evening')
+
       if (morning) {
         setMorningGoal(morning.main_goal_today ?? null)
         setMorningEntryId(morning.id)
@@ -155,13 +160,27 @@ export default function EveningJournal() {
         }))
         const allTasks = [...unlinkedTasks, ...linkedTasks]
         setDailyTasks(allTasks)
-        // accomplished mit erledigten Tasks vorausfüllen — nur wenn noch kein Draft
-        if (!validDraft) {
+        // accomplished mit erledigten Tasks vorausfüllen — nur wenn noch kein Draft und kein Abend-Eintrag
+        if (!validDraft && !evening) {
           const done = allTasks.filter((t) => t.completed).map((t) => `- ${t.title}`)
           if (done.length > 0) {
             patchData({ accomplished: done.join('\n') })
           }
         }
+      }
+
+      // Bereits gespeicherter Abend-Eintrag → Daten laden, Draft verwerfen, Abschluss-Screen zeigen
+      if (evening) {
+        localStorage.removeItem(getEveningDraftKey(todayStr))
+        setData({
+          accomplished: (evening as { accomplished?: string | null }).accomplished ?? '',
+          whatBlocked: (evening as { what_blocked?: string | null }).what_blocked ?? '',
+          energyLevel: (evening as { energy_level?: number | null }).energy_level ?? null,
+          freeText: evening.free_text ?? '',
+          gratitude: (evening as { gratitude?: string | null }).gratitude ?? '',
+        })
+        setSavedEntry(evening)
+        setStep(6)
       }
     }).catch(() => {})
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -218,21 +237,31 @@ export default function EveningJournal() {
     if (!user || !data.energyLevel) return
     setIsSaving(true); setSaveError(null)
     try {
-      const entry = await createJournalEntry({
-        user_id: user.id, entry_date: todayISO(), type: 'evening',
+      const payload = {
         accomplished: data.accomplished || null,
         what_blocked: data.whatBlocked || null,
         energy_level: data.energyLevel,
         free_text: data.freeText || null,
         gratitude: data.gratitude || null,
-      })
+      }
+      const entry = editingEntryId
+        ? await updateJournalEntry(editingEntryId, payload)
+        : await createJournalEntry({ user_id: user.id, entry_date: todayISO(), type: 'evening', ...payload })
       localStorage.removeItem(getEveningDraftKey(todayStr))
+      setEditingEntryId(null)
       setSavedEntry(entry)
-      setStep(5) // feedback step
+      setStep(6)
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Fehler beim Speichern.')
       setIsSaving(false)
     }
+  }
+
+  function handleEdit() {
+    if (!savedEntry) return
+    setEditingEntryId(savedEntry.id)
+    setSavedEntry(null)
+    setStep(1)
   }
 
   async function handleGetEveningImpulse() {
@@ -255,10 +284,10 @@ export default function EveningJournal() {
       <div style={{ marginBottom: '0.25rem' }}>
         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Abend-Journal</span>
       </div>
-      {step < 5 && <ProgressBar current={step} total={4} />}
+      {step < 6 && <ProgressBar current={step} total={5} />}
 
       {/* Morgen-Ziel-Referenz */}
-      {morningGoal && step < 5 && (
+      {morningGoal && step < 6 && (
         <div
           style={{
             padding: '0.55rem 0.875rem',
@@ -330,7 +359,21 @@ export default function EveningJournal() {
         )}
 
         {step === 2 && (
-          <StepTextarea key="e2"
+          <motion.div key="e2" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.25 }}>
+            <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.6rem', fontWeight: 600, margin: '0 0 0.4rem' }}>Habits für heute</h2>
+            <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.25rem', lineHeight: 1.5 }}>Hake ab, was du heute geschafft hast.</p>
+            <HabitChecklist date={todayISO()} />
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+              <button onClick={back} style={BACK_BTN}>←</button>
+              <button onClick={next} style={{ flex: 1, padding: '0.9rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '1rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer' }}>
+                Weiter →
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {step === 3 && (
+          <StepTextarea key="e3"
             heading="Was hat dich aufgehalten?"
             hint="Keine Schuld, nur Klarheit."
             placeholder="Mich hat gebremst…"
@@ -340,8 +383,8 @@ export default function EveningJournal() {
           />
         )}
 
-        {step === 3 && (
-          <motion.div key="e3" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.25 }}>
+        {step === 4 && (
+          <motion.div key="e4" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.25 }}>
             <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.6rem', fontWeight: 600, margin: '0 0 0.4rem' }}>Wie ist dein Energie-Level?</h2>
             <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.75rem', lineHeight: 1.5 }}>1 = leer, 10 = top.</p>
             <EnergyScale value={data.energyLevel} onChange={(v) => patch({ energyLevel: v })} />
@@ -355,8 +398,8 @@ export default function EveningJournal() {
           </motion.div>
         )}
 
-        {step === 4 && (
-          <motion.div key="e4" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.25 }}>
+        {step === 5 && (
+          <motion.div key="e5" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.25 }}>
             <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.6rem', fontWeight: 600, margin: '0 0 0.4rem' }}>Was liegt dir noch auf der Seele?</h2>
             <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.5rem', lineHeight: 1.5 }}>Optional — schreib es raus.</p>
             <textarea
@@ -391,8 +434,8 @@ export default function EveningJournal() {
           </motion.div>
         )}
 
-        {step === 5 && savedEntry && (
-          <motion.div key="e5" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+        {step === 6 && savedEntry && (
+          <motion.div key="e6" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             {/* Header */}
             <div style={{ textAlign: 'center', padding: '1rem 0 1.25rem' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🌙</div>
@@ -474,11 +517,15 @@ export default function EveningJournal() {
                   <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.4rem' }}>
                     Mentor
                   </span>
-                  {eveningImpulse}
+                  <ReactMarkdown>{eveningImpulse}</ReactMarkdown>
                 </div>
               )}
             </div>
 
+            <button onClick={handleEdit}
+              style={{ width: '100%', padding: '0.75rem', background: 'none', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.9rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: '0.75rem' }}>
+              Eintrag bearbeiten
+            </button>
             <button onClick={() => navigate('/', { replace: true })}
               style={{ width: '100%', padding: '0.9rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '1rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer' }}>
               → Zum Dashboard

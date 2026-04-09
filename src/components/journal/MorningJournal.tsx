@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
@@ -35,11 +36,26 @@ function getMorningDraftKey(date: string): string {
   return `life_os_draft_morning_${date}`
 }
 
+function getMorningStepKey(date: string): string {
+  return `life_os_morning_step_${date}`
+}
+
 function readMorningDraft(date: string): MorningDraft | null {
   try {
     const raw = localStorage.getItem(getMorningDraftKey(date))
     return raw ? (JSON.parse(raw) as MorningDraft) : null
   } catch { return null }
+}
+
+function readMorningStep(date: string): number {
+  const raw = localStorage.getItem(getMorningStepKey(date))
+  if (!raw) return 1
+  const n = parseInt(raw, 10)
+  return n >= 1 && n <= 5 ? n : 1
+}
+
+function writeMorningStep(date: string, step: number) {
+  localStorage.setItem(getMorningStepKey(date), String(step))
 }
 
 const MORNING_EMPTY: MorningData = {
@@ -57,7 +73,7 @@ export default function MorningJournal() {
   const todayStr = todayISO()
   const validDraft = readMorningDraft(todayStr)
 
-  const [step, setStep] = useState(() => validDraft?.step ?? 1)
+  const [step, setStep] = useState(() => validDraft?.step ?? readMorningStep(todayStr))
   const [data, setData] = useState<MorningData>(() => validDraft?.data ?? { ...MORNING_EMPTY })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -103,7 +119,7 @@ export default function MorningJournal() {
           dailyTasks: [...unlinkedTasks, ...linkedTasks],
           calendarPlanned: (existing as { calendar_planned?: boolean | null }).calendar_planned ?? null,
         })
-        setStep(1)
+        // Schritt aus separatem Key wiederherstellen statt auf 1 zurücksetzen
       } else if (!validDraft) {
         // Kein Draft, kein Supabase-Eintrag → Carry-over Dialog prüfen
         getYesterdayOpenGoalTasks(user.id)
@@ -134,6 +150,7 @@ export default function MorningJournal() {
     const newData = { ...data, ...patch }
     const newStep = step + 1
     saveDraft(newData, newStep)
+    writeMorningStep(todayStr, newStep)
     setData(newData)
     setStep(newStep)
   }
@@ -141,6 +158,7 @@ export default function MorningJournal() {
   function back() {
     const newStep = Math.max(1, step - 1)
     saveDraft(data, newStep)
+    writeMorningStep(todayStr, newStep)
     setStep(newStep)
   }
 
@@ -189,6 +207,7 @@ export default function MorningJournal() {
       }
 
       localStorage.removeItem(getMorningDraftKey(todayStr))
+      writeMorningStep(todayStr, 1)
       setShowCompletion(true)
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Fehler beim Speichern.')
@@ -316,7 +335,7 @@ export default function MorningJournal() {
               <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.4rem' }}>
                 Mentor
               </span>
-              {impulse}
+              <ReactMarkdown>{impulse}</ReactMarkdown>
             </div>
           )}
         </div>
