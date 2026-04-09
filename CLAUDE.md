@@ -1,7 +1,7 @@
 # CLAUDE.md — Life OS Entwicklungsregeln
 # Liegt im Stammverzeichnis von Desktop/life-os/
 # Claude Code liest diese Datei automatisch bei jedem Start.
-# Zuletzt aktualisiert: 2026-04-08 (Paket 5+6 — Vision & Identitätssystem)
+# Zuletzt aktualisiert: 2026-04-09 (Lebensrad-Konzept, Zielstruktur, Datenkonsistenz)
 
 ---
 
@@ -69,9 +69,24 @@ Nur neue Tabellen/Spalten hinzufügen, bestehende umnutzen.
 Code deaktivieren statt löschen.
 
 ### 2.8 Begriff: "Vision" nicht "Nordstern"
-Ab Paket 5 gilt: In der UI heißt es überall "Vision" oder "Meine Vision".
-Der DB-Feldname `north_star` in der profiles-Tabelle bleibt unverändert (kein breaking change).
-Nur UI-Labels, Platzhaltertexte und Coach-Kontext-Strings ändern sich.
+In der UI heißt es überall "Vision" oder "Meine Vision".
+Der DB-Feldname `north_star` in der profiles-Tabelle bleibt unverändert bis Migration.
+
+### 2.9 Design-Regeln (ab Paket 8)
+- Orientierung: Modern, ruhig, aufgeräumt — ähnlich Headspace
+- Kein Orange, kein Gelb als Hintergrund oder Primärfarbe
+- Nicht kahl, nicht überladen — großzügige Abstände
+- Texte gut lesbar, nicht zu klein, nicht zu groß
+- PC: volle Bildschirmbreite nutzen (kein schmaler zentrierter Streifen)
+- Mobile: App starr wie native App — keine Verschiebung beim Tippen
+- Lebensbereiche: konsistente Farbkodierung überall (siehe Design-System Paket 8)
+
+### 2.10 Datenkonsistenz — PFLICHT
+**Änderungen und Löschungen wirken app-weit sofort.**
+Es gibt keine lokalen Kopien von Daten. Alles läuft über Supabase als Single Source of Truth.
+Wenn ein Datensatz gelöscht wird (z.B. Coach-Gespräch), verschwindet er überall gleichzeitig.
+Bei jeder Implementierung prüfen: Gibt es andere Stellen in der App die diese Daten anzeigen?
+Falls ja: sicherstellen dass Änderungen dort ebenfalls ankommen.
 
 ---
 
@@ -91,31 +106,40 @@ src/pages/
   Dashboard.tsx       → aktiv
   Journal.tsx         → Herzstück, Tab-Navigation Tag/Woche/Monat/Quartal/Jahr
   Coach.tsx           → aktiv, erhält in Paket 6 vollständigen Kontext
-  Overview.tsx        → aktiv (Kalender + Habit-Grid + Metriken)
-  Settings.tsx        → wird in Paket 5 neu strukturiert
+  Overview.tsx        → aktiv (Kalender als Tagebuch + Habit-Grid + Metriken)
+  Me.tsx              → NEU in Paket 11: Lebensrad + Identität/Affirmationen
+  Settings.tsx        → aktiv, wird in Paket 11 bereinigt
   Goals.tsx           → deaktiviert (Code bleibt)
   Review.tsx          → deaktiviert (Code bleibt)
 
 src/components/journal/
   JournalDay.tsx          → Tag: Morgen + Abend
-  JournalWeek.tsx         → Woche: Planung + Reflexion
-  JournalMonth.tsx        → Monat: Planung (Ziele + Habits) + Reflexion
-  JournalQuarter.tsx      → Quartal: Planung + Reflexion
-  JournalYear.tsx         → Jahr: Planung (Vision + Jahresziel) + Reflexion
+  JournalWeek.tsx         → Woche: Planung (Wochenziele) + Reflexion
+  JournalMonth.tsx        → Monat: Planung (Monatsziele + Habits) + Reflexion
+  JournalQuarter.tsx      → Quartal: Planung (Quartalsziele) + Reflexion
+  JournalYear.tsx         → Jahr: Planung (Ist-Stand + Jahresziele + Schwerpunkt) + Reflexion
 
 src/components/overview/
-  OverviewCalendar.tsx    → Kalender-Monatsansicht
+  OverviewCalendar.tsx    → Kalender-Monatsansicht, Klick öffnet Tages-Archiv
+  DayArchive.tsx          → NEU: alle Einträge eines Tages als Archiv-Ansicht
   HabitGrid.tsx           → Habit-Grid
   MetricChart.tsx         → Metriken-Charts
 
-src/components/vision/
-  VisionFlow.tsx          → NEU in Paket 6: geführter Vision-Erstellungs-Flow
+src/components/me/
+  LifeWheel.tsx           → NEU in Paket 11: Radar-Diagramm 6 Lebensbereiche
+  LifeAreaDetail.tsx      → NEU in Paket 11: aufgeklappter Bereich mit Vision + Jahresziel
 
-src/components/identity/
-  IdentityFlow.tsx        → NEU in Paket 6: geführter Identitäts-Flow
+src/components/vision/
+  VisionFlow.tsx          → NEU in Paket 6: geführter Lebensrad-KI-Flow
 ```
 
-### 3.3 Supabase-Calls — Pflichtregeln
+### 3.3 Navigation (aktuelle Reihenfolge)
+```
+Aktuell (Pakete 7–10): Dashboard · Journal · Übersicht · Coach · Einstellungen
+Ab Paket 11:           Dashboard · Journal · Übersicht · Coach · Ich · Einstellungen
+```
+
+### 3.4 Supabase-Calls — Pflichtregeln
 ```typescript
 // IMMER: user_id Filter
 const { data, error } = await supabase
@@ -132,17 +156,20 @@ await supabase
   .upsert({ ...data, user_id: userId }, { onConflict: 'user_id,entry_date,type' });
 ```
 
-### 3.4 Wichtige Feldnamen (falsche Namen = 400 Bad Request)
+### 3.5 Wichtige Feldnamen (falsche Namen = 400 Bad Request)
 ```
 journal_entries:
   ✅ main_goal_today     ✅ what_blocked       ✅ entry_date
   ✅ feeling_score       ✅ calendar_planned   ✅ gratitude
   ✅ weight              ✅ sleep_score
   ✅ identity_check      ✅ identity_note      (NEU in Paket 6B)
+  ✅ next_day_tasks      (JSON-Array, NEU in Paket 9A)
 
 goals:
-  ✅ type: 'three_year' | 'year' | 'quarterly' | 'monthly' | 'weekly'
-  ✅ parent_id (UUID, nullable) — für Ziel-Hierarchie-Verknüpfung
+  ✅ type: 'year' | 'quarterly' | 'monthly' | 'weekly'
+  ✅ parent_id (UUID, nullable) — Pflicht für quarterly/monthly, optional für weekly
+  ✅ life_area: 'body_mind' | 'social' | 'love' | 'finance' | 'career' | 'meaning'
+  ✅ max_count_rule: Jahr=1, Quartal=2, Monat=2, Woche=3 pro life_area
 
 habits:
   ✅ frequency_type: 'daily' | 'weekly'
@@ -150,14 +177,23 @@ habits:
   ✅ month, year (INT)
 
 profiles:
-  ✅ north_star (text) — UI-Label: "Vision" (NICHT "Nordstern")
+  ✅ north_star (text) — UI-Label: "Vision" (NICHT "Nordstern") — wird zu life_areas migriert
+  ✅ life_areas (jsonb) — NEU in Paket 11: Vision pro Lebensbereich
   ✅ identity_statement (text)
   ✅ ai_profile (jsonb)
-  ✅ ikigai (jsonb)
+  ✅ ikigai (jsonb) — deaktiviert in UI, Daten bleiben
 
 journal_periods:
   ✅ period_type: 'week' | 'month' | 'quarter' | 'year'
   ✅ period_key: z.B. '2026-W15', '2026-04', '2026-Q2', '2026'
+
+life_area_snapshots (NEU in Paket 11):
+  ✅ user_id, year (INT), scores (jsonb), notes (jsonb), created_at
+  — speichert Jahresbeginn- und Jahresende-Ist-Stand pro Jahr
+
+focus_area_changes (NEU in Paket 11):
+  ✅ user_id, changed_at, old_areas (jsonb), new_areas (jsonb), reason (text)
+  — speichert jeden Schwerpunktwechsel mit Begründung
 ```
 
 ---
@@ -177,18 +213,46 @@ journal_periods:
 `goal_tasks`, `recurring_blocks`, `recurring_block_exceptions`,
 `habits`, `habit_logs`, `journal_periods`
 
-### 5.2 SQL-Migration Workflow
+### 5.2 Neue Tabellen (ab Paket 11)
+`life_area_snapshots` — Jahres-Ist-Stände pro Bereich
+`focus_area_changes` — Schwerpunktwechsel-Log
+
+### 5.3 SQL-Migration Workflow
 Claude Code identifiziert → SQL ausgeben → auf Lukas' "weiter" warten →
 Lukas führt manuell im Supabase SQL Editor aus → bestätigt → Claude Code testet
 
-### 5.3 journal_entries Unique Constraint
+### 5.4 journal_entries Unique Constraint
 ```sql
 UNIQUE (user_id, entry_date, type)
 ```
 
 ---
 
-## 6. KI-FEHLERBEHANDLUNG — PFLICHT
+## 6. ZIELSTRUKTUR-REGELN — PFLICHT
+
+```
+Pro Lebensbereich (life_area) gelten folgende Limits:
+  Jahr:    max. 1 Ziel
+  Quartal: max. 2 Ziele (müssen einem Jahresziel zugeordnet sein — Pflicht)
+  Monat:   max. 2 Ziele (müssen einem Quartalsziel zugeordnet sein — Pflicht)
+  Woche:   max. 3 Ziele (können einem Monatsziel zugeordnet sein — optional)
+  Tag:     max. 4 Aufgaben gesamt (können einem Wochenziel zugeordnet sein — optional)
+```
+
+Beim Erstellen eines Ziels:
+- Lebensbereich (life_area) ist Pflichtfeld
+- Für quarterly/monthly: parent_id Pflicht — UI zeigt nur passende übergeordnete Ziele an
+- Limit-Prüfung vor dem Speichern: wenn Limit erreicht → klare UI-Meldung, kein Speichern
+- Hinweisbanner beim Ziel-Erstellen: "Formuliere dein Ziel konkret und messbar"
+
+Schwerpunktbereiche:
+- Werden in profiles.ai_profile oder separatem Feld gespeichert
+- Änderung nur über dedizierten Button im Journal → Jahr → Planung
+- Bei Änderung: Pflichtnotiz + Datum → in focus_area_changes speichern
+
+---
+
+## 7. KI-FEHLERBEHANDLUNG — PFLICHT
 
 Jeder Claude-API-Aufruf muss Fehler sauber abfangen:
 ```typescript
@@ -202,12 +266,13 @@ try {
 }
 ```
 
-Gilt für: Mentor-Impuls, KI-Zusammenfassungen, Ziel-Feedback, Vision-Flow, Identitäts-Flow,
-Habit-Vorschläge, Coach.
+KI-Antworten IMMER mit react-markdown rendern — niemals rohen Text mit ** oder # anzeigen.
+Gilt für: Mentor-Impuls, KI-Zusammenfassungen, Ziel-Feedback, Vision-Flow,
+Identitäts-Flow, Habit-Vorschläge, Coach.
 
 ---
 
-## 7. DEPLOYMENT
+## 8. DEPLOYMENT
 
 ```bash
 npm run build   # lokal testen — muss fehlerfrei sein
@@ -219,7 +284,7 @@ git add -A && git commit -m "feat: [was]" && git push origin master
 
 ---
 
-## 8. NPM BESONDERHEITEN
+## 9. NPM BESONDERHEITEN
 
 ```bash
 npm install [paket] --legacy-peer-deps   # IMMER diesen Flag
@@ -227,7 +292,7 @@ npm install [paket] --legacy-peer-deps   # IMMER diesen Flag
 
 ---
 
-## 9. KOMMUNIKATION MIT LUKAS
+## 10. KOMMUNIKATION MIT LUKAS
 
 - Alles auf Deutsch erklären
 - Nach jedem Teilschritt: kurze Beschreibung, dann warten
@@ -237,25 +302,26 @@ npm install [paket] --legacy-peer-deps   # IMMER diesen Flag
 
 ---
 
-## 10. KONTEXT-LOGBUCH — AUTOMATISCHE PFLICHT
+## 11. KONTEXT-LOGBUCH — AUTOMATISCHE PFLICHT
 
 LIFE_OS_KONTEXT.md wird nach JEDEM abgeschlossenen Schritt aktualisiert.
 "Abgeschlossen" = Code ✓ + Build fehlerfrei ✓ + App getestet ✓
 
 ---
 
-## 11. SESSION-START CHECKLISTE
+## 12. SESSION-START CHECKLISTE
 
 1. VISION.md lesen
 2. LIFE_OS_KONTEXT.md lesen
 3. LIFE_OS_FEATURES.md lesen
-4. PowerShell-Befehl ausgeben: `cd Desktop/life-os && npm run dev`
-5. Status im Browser prüfen
-6. Erst dann mit erstem Schritt anfangen
+4. Dev-Server selbst starten: `npm run dev` im Projektverzeichnis ausführen (Bash-Tool)
+   → Den genutzten Port ausgeben (5173 / 5174 / 5175 je nach Verfügbarkeit)
+   → Lukas braucht keinen separaten PowerShell-Tab mehr
+5. Erst dann mit erstem Schritt anfangen
 
 ---
 
-## 12. DATEI-ÜBERSICHT
+## 13. DATEI-ÜBERSICHT
 
 | Datei | Zweck | Wer aktualisiert |
 |---|---|---|

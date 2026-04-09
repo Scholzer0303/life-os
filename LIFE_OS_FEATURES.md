@@ -1,412 +1,619 @@
 # LIFE_OS_FEATURES.md — Aktive Pakete
 # Claude Code liest diese Datei beim Session-Start automatisch.
 # Nach Abschluss eines Schritts: Status auf ✅ UMGESETZT (Datum) setzen.
-# Zuletzt aktualisiert: 2026-04-08 (Paket 5 + 6 geplant)
+# Zuletzt aktualisiert: 2026-04-09 (Lebensrad-Konzept, Zielstruktur, Datenkonsistenz integriert)
 
 ---
 
-## PAKET 5 — Stabilität & Ziel-Hierarchie
+## ÜBERSICHT — Pakete und Reihenfolge
 
-Paket 5 behebt alle bekannten Bugs, stabilisiert die PWA-Session und baut die
-vollständige Ziel-Hierarchie-Verknüpfung in der UI. Außerdem wird "Nordstern"
-überall durch "Vision" ersetzt und die Einstellungen werden aufgeräumt.
+| Paket | Thema | Priorität |
+|---|---|---|
+| Paket 7 | Bugs & Stabilität | JETZT — Blocker |
+| Paket 8 | Design-Overhaul + Lebensbereiche-Farben + Motivationssprüche | DANACH |
+| Paket 9 | Journal-Logik, Zielstruktur mit Lebensbereich + Limits, Kaskade visuell | DANACH |
+| Paket 10 | Login vereinfachen | DANACH |
+| Paket 11 | "Ich"-Tab (Lebensrad), Übersicht als Tagebuch, neue DB-Tabellen | DANACH |
+| Paket 6 | Vision/Identität KI-Flows, Coach vollständiger Kontext | ZULETZT |
 
-**Reihenfolge ist kritisch. Niemals zwei Schritte gleichzeitig.**
-
-### Pakete
-- **5A — Bugs & PWA** (Schritte 1–2): Alle bekannten Bugs + Session Persistence
-- **5B — Ziel-Hierarchie** (Schritt 3): Verknüpfung Woche→Monat→Quartal→Jahr in der UI
-- **5C — Umbenennung & Aufräumen** (Schritte 4–5): Vision-Begriff + Einstellungen neu strukturieren
-- **5D — KI an Zielen** (Schritt 6): Kontextuelles KI-Feedback direkt an jedem Ziel
-
----
-
-## PAKET 5A — Bugs & PWA
+**Reihenfolge ist kritisch. Niemals Paket 8 vor Paket 7. Niemals Paket 6 vor Paket 11.**
 
 ---
 
-### Schritt 1 — Bugs beheben (3 Bugs) ✅ UMGESETZT (2026-04-08)
+## PAKET 7 — Bugs & Stabilität
 
-**Betroffene Dateien:** `src/pages/Dashboard.tsx`, `src/pages/Settings.tsx`, diverse KI-Aufrufe
-**Aufwand:** Klein-Mittel
-
-**Bug A — Abhak-Synchronisation:**
-Task im Dashboard abhaken → Wochenziel-Status aktualisiert sich sofort (kein Reload nötig).
-Wochenziel-Status ändern → Dashboard-Tasks aktualisieren sich sofort.
-Lösung: Gemeinsamer State oder Echtzeit-Listener statt separater Lade-Calls.
-
-**Bug B — Supabase-Link 404:**
-In Einstellungen → Datenspeicher: "Speichernutzung im Supabase Dashboard prüfen →"
-wirft 404. Link entfernen — kein Ersatz nötig, die Info-Box kann ohne den Link stehen bleiben.
-
-**Bug C — KI-Fehler als roher JSON:**
-Wenn die Anthropic API einen Fehler zurückgibt (z.B. 529 Overloaded), wird der rohe
-JSON-String direkt in der UI angezeigt. Überall wo KI aufgerufen wird: saubere
-Fehlermeldung anzeigen: "KI momentan nicht verfügbar — bitte erneut versuchen."
-Betrifft: Mentor-Impuls im Morgenjournal, KI-Zusammenfassungen, Coach.
-
-Nach diesem Schritt: alle drei Bugs in der laufenden App testen.
+### Paket 7A — Datenverlust (Kritisch)
 
 ---
 
-### Schritt 2 — PWA Session Persistence ✅ UMGESETZT (2026-04-08)
+### Schritt 1 — Tab-Wechsel: Datenverlust beheben ⬜ OFFEN
 
-**Betroffene Dateien:** `src/lib/supabase.ts` oder Auth-Initialisierung, ggf. `src/App.tsx`
-**Aufwand:** Klein
-
-**Problem:** Wenn die App als PWA-Icon auf dem Homescreen liegt und geöffnet wird,
-ist die Supabase-Session abgelaufen → Nutzer muss sich erneut per Magic Link anmelden.
-Das passiert auf dem Handy regelmäßig und ist inakzeptabel für tägliche Nutzung.
+**Problem:** Wenn der Nutzer einen Tab wechselt während er etwas einträgt, gehen die
+nicht gespeicherten Eingaben verloren.
 
 **Lösung:**
-- Supabase Auth mit `persistSession: true` und `autoRefreshToken: true` konfigurieren
-- Session wird in localStorage persistent gespeichert
-- Token wird automatisch erneuert bevor er abläuft
-- PWA-Manifest prüfen: `display: standalone` muss gesetzt sein
+- Formulardaten bei jedem Tab-Wechsel automatisch als Draft speichern (localStorage oder Zustand-Store)
+- Beim Zurückkehren: Draft automatisch wiederherstellen
+- Draft wird gelöscht wenn der Nutzer explizit speichert
 
-Test: App auf Handy als PWA installieren, einen Tag warten, dann öffnen → kein Login-Screen.
+**Betrifft:** Alle Journal-Komponenten (JournalDay, JournalWeek, JournalMonth, JournalQuarter, JournalYear)
+
+**Bisherige Versuche (Stand 2026-04-09):**
+1. Erster Fix: localStorage + useEffect-basiertes Speichern → Race Condition (useEffect läuft nach Paint, Nutzer kann davor navigieren)
+2. Zweiter Fix: Synchrones Speichern in Event-Handlern (next/back/patchData) → Build OK, aber Problem beim Testen noch vorhanden
+
+**Nächster Debugschritt:**
+- console.log in saveDraft() einbauen: prüfen ob Drafts überhaupt in localStorage geschrieben werden
+- console.log beim Lesen (useState Lazy Initializer): prüfen ob validDraft korrekt gelesen wird
+- Ziel: herausfinden ob es ein Speicher-Problem oder ein Lade-Problem ist
 
 ---
 
-## PAKET 5B — Ziel-Hierarchie
+### Schritt 2 — Abendjournal: Daten bleiben erhalten beim erneuten Öffnen ⬜ OFFEN
+
+**Problem:** Bereits gespeicherte Daten im Abendjournal sind ab Schritt 2 leer wenn
+der Nutzer erneut öffnet.
+
+**Erwartetes Verhalten:** Bereits gespeicherte Daten werden vollständig geladen — editierbar.
+
+**Betrifft:** JournalDay.tsx (Abend-Bereich), EveningJournal.tsx
 
 ---
 
-### Schritt 3 — Ziel-Hierarchie: Verknüpfung in der UI ✅ UMGESETZT (2026-04-08)
+### Schritt 3 — Habits im Abendjournal wiederherstellen ⬜ OFFEN
 
-**Betroffene Dateien:** `src/components/journal/JournalWeek.tsx`, `src/components/journal/JournalMonth.tsx`,
-`src/components/journal/JournalQuarter.tsx`, `src/components/journal/JournalYear.tsx`, `src/lib/db.ts`
-**Aufwand:** Groß
+**Problem:** Habits sind im Abendjournal komplett nicht mehr sichtbar/abhakbar.
 
-**Hintergrund:** Die `parent_id`-Spalte in der `goals`-Tabelle existiert bereits in der DB.
-Bisher wird sie nicht genutzt. Jetzt wird die UI gebaut die diese Verknüpfung ermöglicht.
+**Lösung:**
+- Habits des aktuellen Monats im Abendjournal anzeigen
+- Tägliches Abhaken wiederherstellen
+- Frequenz-Logik beachten (täglich vs. X mal pro Woche)
+- Bereits abgehakte Habits als abgehakt anzeigen
+
+---
+
+### Schritt 4 — Vision bearbeiten: Loop beheben ⬜ OFFEN
+
+**Problem:** Bearbeiten-Button führt im Kreis statt zu einem editierbaren Feld.
+
+**Lösung:** Direktes Textfeld in Einstellungen → Vision zum Bearbeiten.
+Hinweis: In Paket 11 wird die Vision komplett neu als Lebensrad gebaut —
+dieser Fix ist nur eine temporäre Lösung damit der Nutzer nicht blockiert ist.
+
+---
+
+### Schritt 5 — KI-Markdown-Rendering überall fixen ⬜ OFFEN
+
+**Problem:** KI-Antworten zeigen rohe Markdown-Formatierung.
+
+**Betrifft:** KI-Feedback an Zielen, KI-Impuls Morgenjournal, KI-Zusammenfassungen,
+Abend-KI-Feedback, Coach-Antworten.
+
+**Lösung:** react-markdown ist bereits in FeedbackPanel.tsx. Alle anderen Komponenten
+die KI-Text anzeigen ebenfalls damit ausstatten.
+
+---
+
+### Paket 7B — Mobile & PC Layout
+
+---
+
+### Schritt 6 — Handy: App-Layout starr machen ⬜ OFFEN
+
+**Problem:** Tab-Leiste schiebt sich über Tastatur. App verschiebt sich beim Tippen.
+Inhalte am Rand abgeschnitten.
+
+**Lösung:**
+- Tab-Leiste: `position: fixed; bottom: 0` mit `env(safe-area-inset-bottom)`
+- Viewport: `height: 100dvh` statt `100vh`
+- `interactive-widget=resizes-content` im meta-Tag prüfen
+- Horizontales Overflow beheben
+
+---
+
+### Schritt 7 — PC: Volle Bildschirmbreite nutzen ⬜ OFFEN
+
+**Problem:** Nur schmaler zentrierter Streifen auf dem PC.
+
+**Lösung:**
+- Ab ~1024px volle Breite
+- Zwei-Spalten-Layout wo sinnvoll (Dashboard, Journal)
+- Coach und Übersicht: volle Breite
+- Mobile-First bleibt erhalten
+
+---
+
+### Paket 7C — Logik & Qualität
+
+---
+
+### Schritt 8 — Zeitperioden-Logik korrekt implementieren ⬜ OFFEN
+
+**Problem:** Perioden-Abschluss-Dialoge erscheinen zum falschen Zeitpunkt.
+
+**Erwartetes Verhalten:**
+- Woche = Mo–So (Kalenderwochen)
+- Monat = 1.–letzter des Monats
+- Perioden-Abschluss-Dialog erst NACH Ende der Periode
+- Neue Planung erst nach Abschluss der alten Periode möglich
+
+**Betrifft:** journal_periods, utils.ts, alle Journal-Komponenten
+
+---
+
+### Schritt 9 — Tagesaufgaben → Wochenziel Zuordnung im Morgenjournal ⬜ OFFEN
+
+**Problem:** Tagesaufgaben können keinem Wochenziel zugeordnet werden.
+
+**Lösung:**
+- Bei jeder Tagesaufgabe: optionales Dropdown "Gehört zu Wochenziel"
+- Zeigt alle aktiven Wochenziele der aktuellen KW
+- Zuordnung optional
+- Dashboard: Tagesaufgabe zeigt zugeordnetes Wochenziel als Badge
+
+---
+
+### Schritt 10 — KI-Impuls: Qualität verbessern ⬜ OFFEN
+
+**Problem:** KI-Impuls oft leer, zu kurz oder unbrauchbar.
+
+**Erwartetes Verhalten:**
+- Immer vorhanden, 3–5 Sätze, konkret und personalisiert
+- Bezieht sich auf heutige Tasks, aktuelle Wochenziele, Datum
+- Ton entspricht dem gewählten Coach-Ton
+- Prompt verbessern: mehr Kontext mitgeben
+
+---
+
+## PAKET 8 — Design-Overhaul
+
+### Paket 8A — Design-System
+
+---
+
+### Schritt 1 — Design-System + Lebensbereiche-Farben definieren ⬜ OFFEN
+
+**Was gebaut wird:** Einheitliches Design-System für die gesamte App.
+
+**Farbpalette:**
+- Primärfarbe: Tiefes Blau-Grau (#1a1f2e)
+- Akzentfarbe: Weiches Blau-Grün (#4f8a8b oder ähnlich)
+- Hintergrund: Sehr helles Grau (#f8f9fb)
+- Karten: Weiß mit subtilем Schatten
+- Text: Dunkelgrau (#1a1f2e)
+- Muted Text: Mittelgrau (#6b7280)
+- Kein Orange, kein Gelb
+
+**Lebensbereiche-Farben (konsistent überall in der App):**
+- Körper & Geist: Blau (#3b82f6)
+- Soziales: Grün (#22c55e)
+- Liebe: Pink (#ec4899)
+- Finanzen: Gelb-Gold (#eab308) — nur als Akzent, nie als Hintergrund
+- Karriere: Orange-Amber (#f97316) — nur als Akzent, nie als Hintergrund
+- Sinn: Lila (#a855f7)
+
+**Typografie:** Inter oder System-Font, klar gestuft, großzügige Zeilenhöhe
+
+**Komponenten:** Buttons abgerundet (10–12px), Karten mit Box-Shadow, großzügige Abstände
+
+**Umsetzung:** CSS-Variablen global definieren, Tailwind-Config anpassen
+
+---
+
+### Paket 8B — Screens neu gestalten
+
+---
+
+### Schritt 2 — Dashboard visuell neu gestalten + Motivationssprüche ⬜ OFFEN
+
+**Desktop (2 Spalten):**
+
+Linke Spalte:
+- Lebensrad-Miniatur (kleines Radar-Diagramm, Übersicht auf einen Blick)
+- Identitäts-Affirmation (kurz, prominent)
+- Tages-Tasks: abhakbar, mit Wochenziel-Badge
+- Wochenziele mit Fortschrittsbalken
+
+Rechte Spalte:
+- Streak + aktuelle Periode
+- Zielkaskade: heutige Tasks → Wochenziel → Monatsziel visuell verbunden
+- Quick-Links: "Morgenjournal", "Abendjournal", "Coach"
+- Motivationssprüche-Button: zufälliger Spruch aus der Liste (Button "Brauch ich heute")
+
+**Motivationssprüche-Liste (zufällig ausgespielt):**
+1. "Erfolgreiche Menschen sind nicht immer motiviert, sie sind diszipliniert. Motivation ist ein flüchtiges Gefühl — wer darauf wartet, fängt nie an."
+2. "Alles was gut für dich ist, fühlt sich kurzfristig unangenehm an. Alles Schädliche fühlt sich kurzfristig gut an. Das ist kein Zufall — es ist ein Muster."
+3. "Nach 4–6 Wochen wird eine neue Gewohnheit automatisch. Vorher ist es harte Arbeit. Das ist normal — kein Zeichen von Schwäche."
+4. "Du wählst sowieso zwischen zwei Schmerzen: dem Schmerz der Disziplin oder dem Schmerz des Bedauerns. Der erste wiegt weniger."
+5. "Der Weg ist das Ziel. Wer aufhört, verliert alles was er aufgebaut hat — fang klein an, aber fang an."
+6. "Du kannst nicht noch 50 Silvester feiern und gleichzeitig so leben als hättest du unendlich Zeit."
+7. "Klein anfangen. Einen Bereich wählen. Vier Wochen durchhalten. Der Hunger kommt von selbst."
+8. "Nicht überladen. Nicht tausend Bälle jonglieren. Was sind deine wichtigsten Bälle — und hältst du sie wirklich?"
+
+**Was entfernt wird:**
+- "Letzte 60 Tage" Heatmap → raus
+- Vision-Banner (Textblock) → wird zu Lebensrad-Miniatur
+
+**Mobile:** Alles untereinander, gleiche Reihenfolge
+
+---
+
+### Schritt 3 — Journal visuell neu gestalten ⬜ OFFEN
+
+- Tab-Navigation oben: klare aktive/inaktive Zustände
+- Formularfelder: großzügige Abstände, gut lesbare Labels
+- Speichern-Button: immer sichtbar
+- Morgenjournal: Metriken als schöne Slider oder Zahl-Picker
+- Tasks: gut sichtbare Checkbox + Textfeld
+- Abendjournal: Energie-Farbkodierung schöner
+- Habits: übersichtliche Liste, gut abhakbar
+
+---
+
+### Schritt 4 — Coach visuell neu gestalten ⬜ OFFEN
+
+- Chat-Blasen: klar unterscheidbar (Nutzer vs. KI)
+- Ton-Auswahl: prominent sichtbar
+- Volle Breite auf Desktop
+- Eingabefeld: unten fixiert
+
+---
+
+### Schritt 5 — Übersicht visuell neu gestalten ⬜ OFFEN
+
+- Kalender: Lebensbereiche-Farbpunkte an Tagen mit Zielen
+- Habit-Grid: konsistente Farben, gut lesbar
+- Charts: Design-System-Farben
+
+---
+
+### Schritt 6 — Einstellungen visuell neu gestalten ⬜ OFFEN
+
+- Sektionen: klarer Header, schöner Pfeil
+- Gefahrenzone: visuell klar abgetrennt, rotes Design
+
+---
+
+## PAKET 9 — Journal-Logik, Zielstruktur & Bereinigung
+
+### Paket 9A — Tagesaufgaben Vor-/Nachplanung
+
+---
+
+### Schritt 1 — Abendjournal: Tagesaufgaben für morgen vorplanen ⬜ OFFEN
+
+**Was gebaut wird:** Am Ende des Abend-Eintrags optionaler Bereich "Aufgaben für morgen" (0–4).
+
+**Synchronisation:**
+- Aufgaben erscheinen am nächsten Morgen im Morgenjournal vorausgefüllt
+- Im Morgenjournal: änderbar, löschbar, ergänzbar
+- Abend-Eintrag bleibt als Snapshot — Morgen-Änderungen überschreiben ihn nicht
+
+**DB:** `next_day_tasks` (JSON-Array) in journal_entries für Abend-Typ
+
+---
+
+### Schritt 2 — Morgenjournal: vorbereitete Tasks aus Abend laden ⬜ OFFEN
+
+Technische Gegenseite zu Schritt 1 — Tasks vom Vorabend automatisch laden.
+
+---
+
+### Paket 9B — Zielstruktur mit Lebensbereichen
+
+---
+
+### Schritt 3 — Ziele: life_area Feld + Limit-Logik einbauen ⬜ OFFEN
 
 **Was gebaut wird:**
 
-Beim Erstellen ODER Bearbeiten eines Ziels erscheint ein optionales Dropdown:
-"Gehört zu [übergeordneter Ebene]..." — zeigt alle Ziele der nächsthöheren Ebene.
-Die Verknüpfung ist OPTIONAL — kein Zwang, kein Pflichtfeld.
+DB-Migration: `life_area` Feld an goals-Tabelle hinzufügen.
 
-Konkrete Verknüpfungen:
-- Wochenziel → kann einem Monatsziel zugeordnet werden
-- Monatsziel → kann einem Quartalsziel zugeordnet werden
-- Quartalsziel → kann einem Jahresziel zugeordnet werden
-- Jahresziel → Vision (wird in Paket 6 gebaut — Feld vorerst ausblenden)
+UI-Änderungen:
+- Beim Ziel erstellen/bearbeiten: Lebensbereich Pflichtfeld (Dropdown mit 6 Bereichen + Farbe)
+- Limit-Prüfung vor Speichern: wenn Limit erreicht → klare Meldung, kein Speichern
+  - Jahr: max. 1 pro Lebensbereich
+  - Quartal: max. 2 pro Lebensbereich
+  - Monat: max. 2 pro Lebensbereich
+  - Woche: max. 3 pro Lebensbereich
+- Hinweisbanner: "Formuliere dein Ziel konkret und messbar" beim Erstellen
+- Lebensbereiche-Farbe überall an Zielen sichtbar (Badge, Punkt, Linie)
 
-**Anzeige nach Verknüpfung:**
-- Bei übergeordnetem Ziel: untergeordnete Ziele werden darunter eingerückt angezeigt
-- Kleine Badge/Label zeigt die Verbindung: "Teil von: [Monatsziel-Name]"
-- Im Dashboard → Wochenziele: zeigt zu welchem Monatsziel das Wochenziel gehört
+---
 
-**DB-Funktion ergänzen:**
-```typescript
-getGoalsByParent(userId, parentId)  // alle Ziele die einem bestimmten Ziel untergeordnet sind
+### Schritt 4 — Pflichtverknüpfung Quartal→Jahr und Monat→Quartal ⬜ OFFEN
+
+**Was gebaut wird:**
+
+- Quartalsziel erstellen: parent_id Pflichtfeld, zeigt nur Jahresziele des gleichen Lebensbereichs
+- Monatsziel erstellen: parent_id Pflichtfeld, zeigt nur Quartalsziele des gleichen Lebensbereichs
+- Wochenziel: parent_id optional, zeigt Monatsziele des gleichen Lebensbereichs
+- Tagesaufgabe: Wochenziel optional, zeigt Wochenziele
+
+---
+
+### Schritt 5 — Zielkaskade visuell pro Lebensbereich ⬜ OFFEN
+
+**Was gebaut wird:**
+
+Pro Lebensbereich eine verbundene Hierarchie-Ansicht:
+```
+[Lebensbereich: Körper & Geist] ●
+  └── Jahresziel: "..."
+        └── Q2-Ziel: "..."
+              └── April-Ziel: "..."
+                    └── KW15-Ziel: "..."
+                          └── Aufgabe: "..."
 ```
 
-**Wichtig:** Bestehende Ziele ohne parent_id bleiben unverändert. Keine Migration nötig.
+Zugänglich über:
+- Journal → Jahr → Planung: alle 6 Bereiche als aufklappbare Kaskaden
+- "Ich"-Tab (Paket 11): gleiche Ansicht als Übersicht (readonly)
+- Dashboard: kompakte Version für aktuell relevante Ebene
 
-Test: Wochenziel anlegen, Monatsziel zuordnen, prüfen ob Verknüpfung gespeichert und
-sichtbar ist. Dann Monatsziel anlegen und Quartalsziel zuordnen.
-
----
-
-## PAKET 5C — Umbenennung & Aufräumen
+Lebensbereiche-Farben konsistent in der Kaskade.
 
 ---
 
-### Schritt 4 — "Nordstern" → "Vision" überall ersetzen ✅ UMGESETZT (2026-04-08)
-
-**Betroffene Dateien:** Alle Dateien die "Nordstern" als UI-Label oder Platzhaltertext enthalten.
-`src/pages/Settings.tsx`, `src/components/journal/JournalYear.tsx`, `src/pages/Dashboard.tsx`,
-`src/lib/claude.ts` (Coach-Kontext), ggf. weitere.
-**Aufwand:** Klein
-
-**Was geändert wird:**
-- Alle UI-Labels: "Nordstern" → "Vision" (oder "Meine Vision")
-- Alle Platzhaltertexte die "Nordstern" erwähnen
-- Coach-Kontext in claude.ts: "Nordstern" → "Vision"
-- DB-Feldname `north_star` in profiles bleibt unverändert (nur UI-Label ändert sich)
-
-**Was NICHT geändert wird:** DB-Spaltennamen (breaking change, unnötig).
-
-Test: Alle Screens durchklicken — kein "Nordstern" mehr sichtbar.
+### Paket 9C — Übersicht als Tagebuch
 
 ---
 
-### Schritt 5 — Einstellungen neu strukturieren ✅ UMGESETZT (2026-04-08)
-
-**Betroffene Dateien:** `src/pages/Settings.tsx`
-**Aufwand:** Mittel
-
-**Problem:** Einstellungen ist eine endlose Scrollseite. Profildaten sind kaum lesbar.
-Alles liegt auf einer Ebene ohne klare Struktur.
-
-**Neue Struktur — eingeklappte Sektionen:**
-Jede Sektion hat einen Header der auf/zu klappt. Standard: alle eingeklappt außer "Mein Profil".
-
-```
-▼ MEIN PROFIL
-  Name, E-Mail (readonly)
-
-▶ VISION & IDENTITÄT
-  Vision (readonly, großer Text gut lesbar — mit "Bearbeiten"-Button der zu Journal→Jahr führt)
-  Identitätssatz (direkt editierbar, Speichern-Button)
-
-▶ WERTE
-  Werte-Tags (wie bisher, aber in eigener Sektion)
-
-▶ STOPP-LISTE
-  Liste (wie bisher)
-
-▶ IKIGAI
-  Die vier Felder + Synthese (wie bisher)
-
-▶ HABITS & JOURNAL
-  Morgenmetriken Toggle
-
-▶ PROFIL EINRICHTEN
-  "Profil-Einrichtung neu starten" Button mit Erklärung
-
-▶ GEFAHRENZONE
-  Journal-Einträge löschen, Ziele löschen, Alles löschen
-
-▶ ACCOUNT
-  Abmelden
-```
-
-Jede Sektion mit eigenem Speichern-Button wo nötig.
-"Bearbeiten"-Link bei Vision führt zu Journal → Jahr → Planung.
-
-Test: Alle Sektionen auf/zuklappen, Werte bearbeiten und speichern, Identitätssatz bearbeiten.
-
----
-
-## PAKET 5D — KI an Zielen
-
----
-
-### Schritt 6 — KI-Ziel-Feedback kontextuell ✅ UMGESETZT (2026-04-08)
-
-**Betroffene Dateien:** `src/components/journal/JournalWeek.tsx`, `src/components/journal/JournalMonth.tsx`,
-`src/components/journal/JournalQuarter.tsx`, `src/components/journal/JournalYear.tsx`,
-`src/lib/claude.ts`
-**Aufwand:** Mittel
-
-**Was umgesetzt wurde:**
-- Sparkles-Button an jedem Ziel öffnet FeedbackPanel direkt darunter (kein Modal, kein Seitenwechsel)
-- KI-Antwort wird mit react-markdown gerendert (keine rohen `*` oder `#`)
-- Feedback wird pro Ziel gecacht (Modul-level Map) — zweites Öffnen kostet keine neue API-Anfrage
-- Panel-State (offen/geschlossen) überlebt Tab-Wechsel und Navigation (Modul-level `openGoalId`)
-- "Neues Feedback" — generiert neu, überschreibt Cache + löscht Rückfrage-Verlauf
-- "Rückfrage" — Textfeld im Panel; alle Fragen + Antworten bleiben sichtbar und gestapelt
-- Rückfrage-Verlauf pro Ziel gecacht (`followupHistoryCache`) und bei Navigation wiederhergestellt
-- Multi-turn Kontext: `getGoalFeedbackFollowup` schickt kompletten Gesprächsverlauf mit
-- KI-Kontext: aktuelles Ziel + übergeordnetes Ziel (falls verknüpft) + Vision + Identitätssatz
-- Fehlerfall: "KI momentan nicht verfügbar — bitte erneut versuchen."
-
----
-
-## PAKET 6 — Vision & Identitätssystem
-
-Paket 6 ist der inhaltliche Kern der App. Die Vision wird zur lebendigen obersten Ebene.
-Das Identitätssystem wird als durchgehendes Element durch die gesamte App integriert.
-Habits werden mit Identität und Vision verknüpft.
-
-**Reihenfolge ist kritisch. Paket 5 muss vollständig abgeschlossen sein.**
-
-### Pakete
-- **6A — Vision-Flow** (Schritte 1–2): Geführte Vision-Erstellung + Vision als Ebene über Jahr
-- **6B — Identitätssystem** (Schritte 3–4): Soll-Identität festlegen + Morgen/Abend-Integration
-- **6C — Habit-KI** (Schritt 5): KI bewertet Habits gegen Identität + schlägt Habits vor
-- **6D — Coach-Kontext** (Schritt 6): Coach erhält vollständigen Vision+Identität-Kontext
-
----
-
-## PAKET 6A — Vision-Flow
-
----
-
-### Schritt 1 — Vision: Geführter Erstellungs-Flow ⬜ OFFEN
-
-**Betroffene Dateien:** `src/components/vision/VisionFlow.tsx` (NEU), `src/pages/Settings.tsx`,
-`src/lib/claude.ts`, `src/lib/db.ts`
-**Aufwand:** Groß
-
-**Was gebaut wird:**
-Ein geführter Flow zur Erstellung der persönlichen Vision. Zugänglich über:
-- Einstellungen → Vision & Identität → "Vision erstellen / bearbeiten"
-- Beim ersten App-Start wenn noch keine Vision vorhanden (einmalig)
-
-**Flow-Ablauf (schrittweise, kein Zwang alles auf einmal):**
-
-*Schritt A — Freies Schreiben:*
-"Beschreibe dein Traumleben in 3–5 Jahren. Wie sieht ein typischer Tag aus?
-Was hast du erreicht? Wer bist du?" — großes Textfeld, kein Limit.
-
-*Schritt B — KI-Feedback:*
-KI liest den Text und gibt strukturiertes Feedback:
-- Was ist stark und klar formuliert?
-- Was ist noch vage?
-- 2–3 Fragen die helfen die Vision zu schärfen
-Lukas kann antworten und den Text überarbeiten — beliebig oft.
-
-*Schritt C — Vision finalisieren:*
-Lukas schreibt die finale Version. KI kann auf Wunsch helfen sie zu verdichten
-("Schreib das als kraftvollen, klaren Vision-Statement in 3–5 Sätzen").
-
-*Schritt D — Speichern:*
-Vision wird in `profiles.north_star` gespeichert (Feldname bleibt, Label wird "Vision").
-Bestehende Vision wird überschrieben nach Bestätigung.
-
-**Wichtig:** Der Flow kann jederzeit abgebrochen werden. Bestehende Vision bleibt erhalten.
-
----
-
-### Schritt 2 — Vision als oberste Ebene in der Zielkaskade ⬜ OFFEN
-
-**Betroffene Dateien:** `src/components/journal/JournalYear.tsx`, `src/lib/db.ts`
-**Aufwand:** Klein
-
-**Was gebaut wird:**
-In Journal → Jahr → Planung:
-- Vision wird oben angezeigt (readonly, schön formatiert — nicht als kleines Textfeld)
-- Jahresziele haben jetzt das Dropdown "Gehört zu Vision" (aus Schritt 3 Paket 5B)
-- Visuell wird die Kaskade von oben nach unten klar: Vision → Jahresziele
-
-In der Ziel-Erstellung (alle Ebenen):
-- Quartalsziel kann jetzt einem Jahresziel zugeordnet werden (Paket 5B hat das gebaut)
-- Jahresziel kann jetzt der Vision zugeordnet werden (dieser Schritt)
-- Die vollständige Kette ist damit schließbar: Vision → Jahr → Quartal → Monat → Woche → Tag
-
----
-
-## PAKET 6B — Identitätssystem
-
----
-
-### Schritt 3 — Soll-Identität: Erstellung + Verwaltung ⬜ OFFEN
-
-**Betroffene Dateien:** `src/components/identity/IdentityFlow.tsx` (NEU), `src/pages/Settings.tsx`,
-`src/lib/claude.ts`, `src/lib/db.ts`
-**Aufwand:** Groß
-
-**Konzept:**
-Die Soll-Identität beschreibt wer Lukas ist wenn er seine Vision lebt.
-Nicht als Ziel formuliert ("Ich will...") sondern als Gegenwart ("Ich bin...").
-Beispiel: "Ich bin jemand der sein Wort hält. Ich priorisiere meinen Körper und
-meine Energie. Ich handle täglich in Richtung meiner finanziellen Freiheit."
+### Schritt 6 — Kalender-Klick öffnet Tages-Archiv ⬜ OFFEN
 
 **Was gebaut wird:**
 
-*Erstellungs-Flow (analog zu Vision-Flow):*
-- Schritt A: KI stellt 3–4 Fragen: "Wer musst du sein um deine Vision zu leben?",
-  "Welche Eigenschaften hat der Lukas der das erreicht hat?",
-  "Was tut dieser Lukas täglich, was tust du heute noch nicht?"
-- Schritt B: KI generiert Identitätsbeschreibung aus den Antworten
-- Schritt C: Lukas bearbeitet und finalisiert
-- Optional: KI prüft ob Identität zur Vision passt
+Klick auf einen Tag im Kalender → Panel öffnet sich darunter (kein Seitenwechsel).
 
-*Verwaltung in Einstellungen → Vision & Identität:*
-- Identität gut lesbar angezeigt (kein kleines Scrollfeld)
-- "Bearbeiten"-Button öffnet den Flow erneut
-- KI kann auf Wunsch Optimierungsvorschläge machen
+Angezeigt werden alle Daten dieses Tages:
+- Morgenjournal (Metriken, Tasks, KI-Impuls)
+- Abendjournal (Reflexion, Habits, Energie)
+- Falls Wochenstart/-ende: Wochenplanung/-reflexion
+- Falls Monatsstart/-ende: Monatsplanung/-reflexion
+- Falls Quartal-/Jahreswechsel: entsprechende Einträge
+- KI-Feedback das an diesem Tag generiert wurde
+- Coach-Gespräche dieses Tages
 
-**DB:** `profiles.identity_statement` — existiert bereits. Wird genutzt.
+**Datenkonsistenz:** Alles direkt aus Supabase — keine lokalen Kopien.
+Gelöschte Einträge erscheinen hier nicht mehr.
 
 ---
 
-### Schritt 4 — Identität im täglichen Flow ⬜ OFFEN
+### Paket 9D — Journal bereinigen
 
-**Betroffene Dateien:** `src/components/journal/JournalDay.tsx`, `src/pages/Dashboard.tsx`
-**Aufwand:** Mittel
+---
 
-**Was gebaut wird:**
+### Schritt 7 — Morgenjournal: überflüssige Felder deaktivieren ⬜ OFFEN
 
-*Morgenjournal — Identitäts-Anzeige:*
-Am Anfang des Morgen-Eintrags (vor den Metriken):
-- Identität wird angezeigt — nicht editierbar, nur lesen/spüren
-- Darunter optional: "Wie verkörpere ich heute meine Identität?"
-  Freitext-Feld, optional ausfüllbar, max. 1–2 Sätze
-  Vorschlag: "Heute bin ich der Lukas, der..." (Pre-Fill mit Anfang)
-  Bezug auf heutige Aufgaben möglich aber nicht erzwungen
+**Was deaktiviert wird (Code bleibt):**
+- "Dein Ziel Kontext"
+- "Mein Ziel für heute" (redundant zu Tasks)
+- "Welche Handlung heute beweist wer du bist?"
 
-*Dashboard — Identitäts-Banner:*
-Kurzer Identitätssatz (erste Zeile der Identität) als subtiler Banner oben im Dashboard.
-Nicht aufdringlich — eher wie eine ruhige Erinnerung.
+---
 
-*Abendjournal — Identitäts-Abgleich:*
-Nach der Tagesreflexion, vor den Habits:
-- Frage: "Hast du heute als die Person gehandelt die du sein willst?"
-- Antwort: Ja / Teilweise / Nein (drei Buttons, farbkodiert grün/gelb/rot)
-- Bei "Teilweise" oder "Nein": Textfeld öffnet sich automatisch
-  "Was lief nicht — und warum?" (optional ausfüllen, kein Zwang)
-- Antwort wird in `journal_entries` gespeichert (neues Feld: `identity_check` + `identity_note`)
+### Schritt 8 — Journal: weitere überflüssige Felder bereinigen ⬜ OFFEN
 
-**SQL-Migration:**
+**Was deaktiviert wird (Code bleibt):**
+- Woche: "Wofür steht diese Woche?"
+- Monat: "Wofür steht dieser Monat?"
+- Jahr: "Was will ich 2026 erreicht haben?" (redundant zu Jahreszielen)
+- Abendjournal: "Heute habe ich..." Textfeld (redundant zu abgehakten Tasks)
+
+---
+
+## PAKET 10 — Login vereinfachen
+
+---
+
+### Schritt 1 — Magic Link ersetzen oder vereinfachen ⬜ OFFEN
+
+**Problem:** Magic Link per E-Mail ist umständlich auf dem Handy.
+
+**Optionen:**
+- Option A: Auto-Login — Session läuft sehr lange (1 Jahr), kein erneuter Login
+- Option B: PIN-Login — nach Magic Link einmalig 4–6-stelligen PIN setzen
+- Option C: Magic Link UX verbessern
+
+**Hinweis:** Nur ein Nutzer (Lukas), kein Fremdzugriff-Risiko. Bequemlichkeit hat Vorrang.
+Claude Code soll beste Option empfehlen und begründen.
+
+---
+
+## PAKET 11 — "Ich"-Tab + Übersicht als Tagebuch + neue DB-Struktur
+
+### Paket 11A — Neue DB-Tabellen + "Ich"-Tab Grundstruktur
+
+---
+
+### Schritt 1 — DB-Migration: neue Tabellen und Felder ⬜ OFFEN
+
+**SQL-Migrationen (Lukas führt im Supabase SQL Editor aus):**
+
 ```sql
-ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS identity_check TEXT
-  CHECK (identity_check IN ('yes', 'partly', 'no'));
-ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS identity_note TEXT;
+-- life_area Feld an profiles für Lebensrad-Vision
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS life_areas JSONB;
+
+-- Jahres-Ist-Stände
+CREATE TABLE IF NOT EXISTS life_area_snapshots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  year INT NOT NULL,
+  snapshot_type TEXT CHECK (snapshot_type IN ('start','end')),
+  scores JSONB NOT NULL,
+  notes JSONB,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Schwerpunktwechsel-Log
+CREATE TABLE IF NOT EXISTS focus_area_changes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  changed_at TIMESTAMPTZ DEFAULT now(),
+  old_areas JSONB,
+  new_areas JSONB,
+  reason TEXT NOT NULL
+);
 ```
 
 ---
 
-## PAKET 6C — Habit-KI
+### Schritt 2 — Neuer Tab "Ich" erstellen ⬜ OFFEN
+
+**Navigation:** Zwischen Coach und Einstellungen einfügen.
+
+**Inhalt:**
+
+1. **Lebensrad** — Radar/Spinnen-Diagramm mit 6 Bereichen
+   - Werte kommen aus dem aktuellsten life_area_snapshot (Jahresbeginn)
+   - Lebensbereiche-Farben aus Design-System
+   - Klick auf Bereich → klappt Detail auf
+
+2. **Pro Bereich aufgeklappt:**
+   - 10/10-Vision-Text (aus profiles.life_areas, editierbar)
+   - Aktuelles Jahresziel (readonly, Link zu Journal → Jahr)
+   - Schwerpunkt-Badge (ja/nein)
+
+3. **Identität/Affirmationen** — editierbar, Speichern-Button
+
+4. **Werte, Stopp-Liste, Ikigai** — Code bleibt, in UI deaktiviert (ausgeblendet)
+
+---
+
+### Paket 11B — Journal → Jahr erweitern
+
+---
+
+### Schritt 3 — Journal → Jahr: Ist-Stand pro Lebensbereich ⬜ OFFEN
+
+**Was gebaut wird:**
+
+Im Journal → Jahr → Planung:
+- Jahresbeginn-Sektion: Ist-Stand pro Lebensbereich (1–10 Slider + kurze Notiz)
+- Schwerpunktbereiche wählen (2–3 Bereiche markieren)
+- Speichern → in life_area_snapshots (snapshot_type: 'start')
+
+Im Journal → Jahr → Reflexion:
+- Jahresende-Sektion: neuer Ist-Stand pro Lebensbereich (1–10 + Notiz)
+- Speichern → in life_area_snapshots (snapshot_type: 'end')
+- Vergleich: Start-Stand und End-Stand nebeneinander angezeigt
+- Jahresziel pro Bereich als Soll-Wert daneben
+
+---
+
+### Schritt 4 — Schwerpunktwechsel: Button + Pflichtnotiz + Speicherung ⬜ OFFEN
+
+**Was gebaut wird:**
+
+Im Journal → Jahr → Planung: Button "Schwerpunktbereiche ändern"
+
+Beim Klick:
+- Aktuelle Schwerpunkte angezeigt
+- Neue Auswahl (2–3 Bereiche)
+- Pflicht-Textfeld: "Warum änderst du den Schwerpunkt?"
+- Speichern → in focus_area_changes (old_areas, new_areas, reason, changed_at)
+
+KI bekommt diese Information als Kontext.
+
+---
+
+### Paket 11C — Einstellungen bereinigen
+
+---
+
+### Schritt 5 — Einstellungen bereinigen ⬜ OFFEN
+
+**Was bleibt:**
+- Mein Profil (Name, E-Mail)
+- Habits & Journal (Metriken-Toggle)
+- Datenspeicher (Supabase-Link + Anthropic Console Link)
+- Profil einrichten (Onboarding neu starten)
+- Gefahrenzone
+- Account (Abmelden)
+
+**Was rausfliegt (Code bleibt, deaktiviert):**
+- Vision & Identität → im "Ich"-Tab
+- Werte → deaktiviert
+- Stopp-Liste → deaktiviert
+- Ikigai → deaktiviert
+
+**Neue Links in Datenspeicher:**
+- Supabase Dashboard
+- Anthropic Console (https://console.anthropic.com)
+
+---
+
+## PAKET 6 — Vision & Identität KI-Flows (zuletzt)
+
+Paket 6 wird erst angegangen wenn Pakete 7–11 vollständig abgeschlossen sind.
+
+### Schritt 1 — Lebensrad KI-Flow: 10/10-Vision erarbeiten ⬜ OFFEN
+
+**Zugänglich über:** "Ich"-Tab → Lebensrad → "Mit KI erarbeiten"
+
+**Ablauf:**
+- KI führt durch alle 6 Lebensbereiche einzeln
+- Pro Bereich: KI stellt Fragen, hilft beim Formulieren der 10/10-Beschreibung
+- Nutzer kann KI-Vorschlag annehmen, anpassen oder neu generieren
+- Am Ende: alle 6 Bereiche gespeichert in profiles.life_areas
+- Vision wird archiviert wenn sie geändert wird (altes Jahr als Snapshot)
+
+---
+
+### Schritt 2 — Identität: KI leitet Affirmationen aus Lebensrad ab ⬜ OFFEN
+
+**Ablauf:**
+- KI analysiert die 6 Lebensbereiche-Visionen
+- Generiert 5–8 Identitäts-Affirmationen ("Ich bin jemand der...")
+- Nutzer kann annehmen, einzeln bearbeiten, neue generieren lassen
+- Gespeichert in profiles.identity_statement (als JSON-Array)
+
+---
+
+### Schritt 3 — Jahresstart-Flow mit KI-Unterstützung ⬜ OFFEN
+
+**Ablauf:**
+- KI begleitet den Jahresstart im Journal → Jahr → Planung
+- KI analysiert Vision + letztjährige Einträge (falls vorhanden)
+- Schlägt Ist-Stand-Bewertungen vor, begründet sie
+- Empfiehlt Schwerpunktbereiche basierend auf Ist-Stand und Vision
+- Schlägt Jahresziele vor die realistisch und zur Vision passend sind
+
+---
+
+### Schritt 4 — Identität täglich im Morgen/Abend ⬜ OFFEN
+
+- Morgens: Identitäts-Affirmationen anzeigen (readonly, 1–2 Affirmationen rotierend)
+- Abends: Identitäts-Abgleich Ja/Teilweise/Nein + kurze Notiz
+
+**DB:** identity_check + identity_note in journal_entries (Migration ausstehend)
 
 ---
 
 ### Schritt 5 — Habit-KI: Bewertung + Vorschläge ⬜ OFFEN
 
-**Betroffene Dateien:** `src/components/journal/JournalMonth.tsx`, `src/lib/claude.ts`
-**Aufwand:** Mittel
-
-**Was gebaut wird:**
-
-*Habit-Bewertung:*
-In Journal → Monat → Planung → Habit-Sektion:
-Button "Meine Habits bewerten lassen" (KI-Icon).
-KI kennt: alle aktuellen Habits (Titel + Frequenz), Identität, Vision.
-KI gibt Feedback: "Welche Habits unterstützen deine Identität?",
-"Welche sind vielleicht nicht zielführend?", "Was fehlt?"
-Antwort erscheint direkt unter dem Button, kein Seitenwechsel.
-
-*Habit-Vorschläge:*
-Button "Habits vorschlagen lassen" (KI-Icon).
-KI generiert 3–5 konkrete Habit-Vorschläge passend zu Identität und Vision.
-Format der Antwort: strukturierte Liste mit Titel + Beschreibung + empfohlener Frequenz.
-Neben jedem Vorschlag: "+ Übernehmen"-Button.
-Klick → Habit wird automatisch angelegt mit den vorgeschlagenen Werten
-(Titel, Beschreibung, Frequenz) — funktioniert identisch wie manuell erstellte Habits.
-Farbe wird automatisch zugewiesen (nächste freie aus den 6 Optionen).
+- KI bewertet aktuelle Habits gegen Vision und Identität
+- Schlägt neue Habits vor die zur Vision passen
+- Ein-Klick-Übernahme als neuer Habit
 
 ---
 
-## PAKET 6D — Coach-Kontext
+### Schritt 6 — Coach: vollständiger Kontext ⬜ OFFEN
 
----
-
-### Schritt 6 — Coach erhält vollständigen Vision+Identität-Kontext ⬜ OFFEN
-
-**Betroffene Dateien:** `src/lib/claude.ts`, `src/pages/Coach.tsx`
-**Aufwand:** Klein
-
-**Was gebaut wird:**
-Der Coach-System-Prompt wird erweitert. Er kennt jetzt:
-- Vision (vollständiger Text)
-- Soll-Identität (vollständiger Text)
-- Aktuelle Ziele aller Ebenen (Jahr/Quartal/Monat/Woche)
-- Aktuelle Habits + Completion-Rate des laufenden Monats
+**Kontext den der Coach bekommt:**
+- Vision (alle 6 Lebensbereiche, 10/10-Beschreibungen)
+- Identität/Affirmationen
+- Alle Ziele (alle Ebenen, alle Bereiche) + Completion-Status
+- Aktuelle Habits + Completion-Rate letzte 30 Tage
 - Letzte 7 Tage Journal-Einträge (Morgen + Abend)
-- Letzte Identitäts-Checks (ja/nein/teilweise der letzten 7 Tage)
-
-Der Coach ist damit vollständig informiert und muss nicht gefragt werden "was sind meine Ziele?"
-Er kennt Lukas — Vision, Identität, aktuelle Situation, tägliche Patterns.
-
-Kein neues UI — nur der Kontext der mitgeschickt wird wird erweitert.
+- Letzte Identitäts-Checks
+- Aktueller Schwerpunktbereich + Begründung letzter Wechsel
+- Jahresbeginn-Ist-Stand vs. aktueller berechneter Stand
 
 ---
 
 ## Abgeschlossene Pakete (Archiv)
 
 **Paket 1 + 2A + 3A + 3B + 3C + 4 (alle 15 Schritte) — April 2026 ✅**
-Details in LIFE_OS_KONTEXT.md Archiv-Sektion.
+**Paket 5 (alle 6 Schritte) — April 2026 ✅**
+Details in Archiv-Sektion der LIFE_OS_KONTEXT.md.

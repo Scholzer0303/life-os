@@ -97,11 +97,31 @@ interface EveningData {
   gratitude: string
 }
 
+interface EveningDraft { data: EveningData; step: number; date: string }
+
+function getEveningDraftKey(date: string): string {
+  return `life_os_draft_evening_${date}`
+}
+
+function readEveningDraft(date: string): EveningDraft | null {
+  try {
+    const raw = localStorage.getItem(getEveningDraftKey(date))
+    return raw ? (JSON.parse(raw) as EveningDraft) : null
+  } catch { return null }
+}
+
 export default function EveningJournal() {
   const { user, profile } = useStore()
   const navigate = useNavigate()
-  const [step, setStep] = useState(1)
-  const [data, setData] = useState<EveningData>({ accomplished: '', whatBlocked: '', energyLevel: null, freeText: '', gratitude: '' })
+
+  // Draft synchron aus localStorage lesen — überlebt Navigation + Seiten-Reload
+  const todayStr = todayISO()
+  const validDraft = readEveningDraft(todayStr)
+
+  const [step, setStep] = useState(() => validDraft?.step ?? 1)
+  const [data, setData] = useState<EveningData>(() =>
+    validDraft?.data ?? { accomplished: '', whatBlocked: '', energyLevel: null, freeText: '', gratitude: '' }
+  )
   const [savedEntry, setSavedEntry] = useState<JournalEntryRow | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -135,10 +155,12 @@ export default function EveningJournal() {
         }))
         const allTasks = [...unlinkedTasks, ...linkedTasks]
         setDailyTasks(allTasks)
-        // accomplished mit erledigten Tasks vorausfüllen
-        const done = allTasks.filter((t) => t.completed).map((t) => `- ${t.title}`)
-        if (done.length > 0 && !data.accomplished) {
-          patch({ accomplished: done.join('\n') })
+        // accomplished mit erledigten Tasks vorausfüllen — nur wenn noch kein Draft
+        if (!validDraft) {
+          const done = allTasks.filter((t) => t.completed).map((t) => `- ${t.title}`)
+          if (done.length > 0) {
+            patchData({ accomplished: done.join('\n') })
+          }
         }
       }
     }).catch(() => {})
@@ -165,9 +187,32 @@ export default function EveningJournal() {
     }
   }
 
-  function patch(updates: Partial<EveningData>) { setData((p) => ({ ...p, ...updates })) }
-  function next() { setStep((s) => s + 1) }
-  function back() { setStep((s) => Math.max(1, s - 1)) }
+  // Draft synchron im Event-Handler speichern — kein useEffect-Timing-Problem
+  function saveDraft(newData: EveningData, newStep: number) {
+    if (savedEntry) return
+    localStorage.setItem(getEveningDraftKey(todayStr), JSON.stringify({ data: newData, step: newStep, date: todayStr }))
+  }
+
+  function patchData(updates: Partial<EveningData>) {
+    const newData = { ...data, ...updates }
+    setData(newData)
+    saveDraft(newData, step)
+  }
+
+  // patch bleibt als Alias für interne Aufrufe (handleToggleDailyTask)
+  function patch(updates: Partial<EveningData>) { patchData(updates) }
+
+  function next() {
+    const newStep = step + 1
+    setStep(newStep)
+    saveDraft(data, newStep)
+  }
+
+  function back() {
+    const newStep = Math.max(1, step - 1)
+    setStep(newStep)
+    saveDraft(data, newStep)
+  }
 
   async function handleSave() {
     if (!user || !data.energyLevel) return
@@ -181,6 +226,7 @@ export default function EveningJournal() {
         free_text: data.freeText || null,
         gratitude: data.gratitude || null,
       })
+      localStorage.removeItem(getEveningDraftKey(todayStr))
       setSavedEntry(entry)
       setStep(5) // feedback step
     } catch (err) {

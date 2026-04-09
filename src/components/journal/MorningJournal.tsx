@@ -29,24 +29,36 @@ interface MorningData {
   calendarPlanned: boolean | null
 }
 
+interface MorningDraft { data: MorningData; step: number; date: string }
+
+function getMorningDraftKey(date: string): string {
+  return `life_os_draft_morning_${date}`
+}
+
+function readMorningDraft(date: string): MorningDraft | null {
+  try {
+    const raw = localStorage.getItem(getMorningDraftKey(date))
+    return raw ? (JSON.parse(raw) as MorningDraft) : null
+  } catch { return null }
+}
+
+const MORNING_EMPTY: MorningData = {
+  feelingScore: null, feelingText: '', weight: null, sleepScore: null,
+  mainGoal: '', linkedGoalId: null, identityAction: '',
+  blockers: '', timeblocks: [], dailyTasks: [], calendarPlanned: null,
+}
+
 export default function MorningJournal() {
   const { user, goals, profile } = useStore()
   const navigate = useNavigate()
-  const [step, setStep] = useState(1)
   const metricsEnabled = localStorage.getItem('metrics_enabled') !== 'false'
-  const [data, setData] = useState<MorningData>({
-    feelingScore: null,
-    feelingText: '',
-    weight: null,
-    sleepScore: null,
-    mainGoal: '',
-    linkedGoalId: null,
-    identityAction: '',
-    blockers: '',
-    timeblocks: [],
-    dailyTasks: [],
-    calendarPlanned: null,
-  })
+
+  // Draft synchron aus localStorage lesen — überlebt Navigation + Seiten-Reload
+  const todayStr = todayISO()
+  const validDraft = readMorningDraft(todayStr)
+
+  const [step, setStep] = useState(() => validDraft?.step ?? 1)
+  const [data, setData] = useState<MorningData>(() => validDraft?.data ?? { ...MORNING_EMPTY })
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -66,7 +78,8 @@ export default function MorningJournal() {
     ]).then(([entries, todayGoalTasks]) => {
       const existing = entries.find((e) => e.type === 'morning')
       if (existing) {
-        // Unverknüpfte Tasks aus JSON + verknüpfte Tasks aus goal_tasks zusammenführen
+        // Bereits gespeicherter Eintrag → Draft verwerfen, Supabase-Daten laden
+        localStorage.removeItem(getMorningDraftKey(todayStr))
         const unlinkedTasks: DailyTask[] = Array.isArray(existing.daily_tasks)
           ? existing.daily_tasks as unknown as DailyTask[]
           : []
@@ -90,12 +103,14 @@ export default function MorningJournal() {
           dailyTasks: [...unlinkedTasks, ...linkedTasks],
           calendarPlanned: (existing as { calendar_planned?: boolean | null }).calendar_planned ?? null,
         })
-      } else {
-        // Erstes Öffnen heute → offene gestrige Tasks für Übertrag-Dialog laden
+        setStep(1)
+      } else if (!validDraft) {
+        // Kein Draft, kein Supabase-Eintrag → Carry-over Dialog prüfen
         getYesterdayOpenGoalTasks(user.id)
           .then(setCarryOverTasks)
           .catch((err) => console.error('Carry-over Tasks laden:', err))
       }
+      // Wenn validDraft: useState hat bereits korrekte Werte gesetzt — nichts zu tun
     })
       .catch((err) => console.error('Morgenjournal laden:', err))
       .finally(() => setIsLoading(false))
@@ -110,13 +125,23 @@ export default function MorningJournal() {
     setCarryOverTasks([])
   }
 
+  // Draft synchron im Event-Handler speichern — kein useEffect-Timing-Problem
+  function saveDraft(newData: MorningData, newStep: number) {
+    localStorage.setItem(getMorningDraftKey(todayStr), JSON.stringify({ data: newData, step: newStep, date: todayStr }))
+  }
+
   function next(patch: Partial<MorningData>) {
-    setData((prev) => ({ ...prev, ...patch }))
-    setStep((s) => s + 1)
+    const newData = { ...data, ...patch }
+    const newStep = step + 1
+    saveDraft(newData, newStep)
+    setData(newData)
+    setStep(newStep)
   }
 
   function back() {
-    setStep((s) => Math.max(1, s - 1))
+    const newStep = Math.max(1, step - 1)
+    saveDraft(data, newStep)
+    setStep(newStep)
   }
 
   async function handleSave() {
@@ -163,6 +188,7 @@ export default function MorningJournal() {
         }
       }
 
+      localStorage.removeItem(getMorningDraftKey(todayStr))
       setShowCompletion(true)
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Fehler beim Speichern.')
