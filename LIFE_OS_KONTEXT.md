@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md — Projektgedächtnis
 # Wird nach JEDEM abgeschlossenen Schritt von Claude Code aktualisiert.
 # Nach jeder Session: diese Datei ins Claude Project hochladen (ersetzt alte Version).
-# Zuletzt aktualisiert: 2026-04-09 (Paket 7A + 7B Schritt 6 abgeschlossen)
+# Zuletzt aktualisiert: 2026-04-18 (Paket 7C Schritt 10 abgeschlossen — KI-Impuls Qualität)
 
 ---
 
@@ -31,11 +31,11 @@ Life OS ist eine PWA, live auf https://life-os-henna-xi.vercel.app
 - ✅ Habits im Abendjournal nicht sichtbar — BEHOBEN: Als Schritt 2 direkt nach "Geschafft" in EveningJournal-Flow integriert. Vergangene Tage: readonly in JournalDay.
 - ✅ Vision bearbeiten Loop — BEHOBEN: Inline-Bearbeitung in Journal → Jahr → Planung und Einstellungen → Vision & Identität. Kein Weiterleiten mehr.
 - ✅ KI-Ausgaben rohe Markdown-Formatierung — BEHOBEN: ReactMarkdown in MorningJournal, EveningJournal, JournalWeek/Month/Quarter/Year ergänzt.
-- Zeitperioden-Logik falsch — Woche wird mitten in der Woche als abgeschlossen angezeigt (Schritt 8, 7C)
+- ✅ Zeitperioden-Logik — BEHOBEN: ISO-Woche in utils.ts, Banner-Text kontextabhängig, Reflexion-Hinweis für aktive Perioden, HabitManager Carry-Over nur für aktuellen Monat
 - ✅ Tab-Leiste / App verschiebt sich beim Tippen — BEHOBEN: interactive-widget=resizes-visual, height: 100dvh, overflow: hidden in AppLayout
-- Tagesaufgaben können nicht Wochenzielen zugeordnet werden (Schritt 9, 7C)
+- ✅ Tagesaufgaben → Wochenziel Zuordnung — BEHOBEN: ISO-Woche-Fix in Schritt 8 repariert getWeeklyGoals(); Dashboard zeigt jetzt Wochenziel-Badge an verknüpften Tasks
 - PC: nur halbe Bildschirmbreite genutzt (Schritt 7, 7B)
-- KI-Impuls oft leer oder unbrauchbar (Schritt 10, 7C)
+- ✅ KI-Impuls Qualität — BEHOBEN: max_tokens 120→400, 3–5 konkrete Sätze, Datum + Wochenziele + Vision/Identität im Kontext
 
 ---
 
@@ -175,10 +175,10 @@ Dashboard · Journal · Übersicht · Coach · Ich · Einstellungen
 | 7-4 | Vision bearbeiten: Loop beheben (temporär, wird in P11 neu gebaut) | 7A | ✅ ERLEDIGT 2026-04-09 |
 | 7-5 | KI-Markdown-Rendering überall fixen | 7A | ✅ ERLEDIGT 2026-04-09 |
 | 7-6 | Handy: Tab-Leiste starr, App verschiebt sich nicht | 7B | ✅ ERLEDIGT 2026-04-09 |
-| 7-7 | PC: Volle Bildschirmbreite nutzen | 7B | ⬜ OFFEN |
-| 7-8 | Zeitperioden-Logik: Woche/Monat/Quartal/Jahr korrekt | 7C | ⬜ OFFEN |
-| 7-9 | Tagesaufgaben → Wochenziel Zuordnung im Morgenjournal | 7C | ⬜ OFFEN |
-| 7-10 | KI-Impuls: Qualität verbessern (länger, konkreter) | 7C | ⬜ OFFEN |
+| 7-7 | PC: Volle Bildschirmbreite nutzen | 7B | ✅ ERLEDIGT 2026-04-18 |
+| 7-8 | Zeitperioden-Logik: Woche/Monat/Quartal/Jahr korrekt | 7C | ✅ ERLEDIGT 2026-04-18 |
+| 7-9 | Tagesaufgaben → Wochenziel Zuordnung im Morgenjournal | 7C | ✅ ERLEDIGT 2026-04-18 |
+| 7-10 | KI-Impuls: Qualität verbessern (länger, konkreter) | 7C | ✅ ERLEDIGT 2026-04-18 |
 | 8-1 | Design-System + Lebensbereich-Farben definieren | 8A | ⬜ OFFEN |
 | 8-2 | Dashboard visuell neu gestalten + Motivationssprüche-Button | 8B | ⬜ OFFEN |
 | 8-3 | Journal visuell neu gestalten | 8B | ⬜ OFFEN |
@@ -235,7 +235,7 @@ Grundaufbau, Journal-System, Habit-Tracker, Übersicht, Ziele, Review.
 5C: Vision-Umbenennung + Einstellungen neu strukturiert.
 5D: KI-Ziel-Feedback mit FeedbackPanel, Cache, Rückfrage-Verlauf.
 
-**Paket 7A + 7B-1 (Schritte 1–6) — April 2026 ✅**
+**Paket 7A + 7B (Schritte 1–7) — April 2026 ✅**
 7-1: Tab-Wechsel Datenverlust — synchrones Schreiben in onChange-Handlern.
 7-2: Abendjournal Datenverlust — Supabase-Eintrag beim Mount laden, Bearbeiten-Button.
 7-3: Habits im Abendjournal — als Schritt 2 in EveningJournal-Flow integriert.

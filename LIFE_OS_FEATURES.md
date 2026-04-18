@@ -110,7 +110,7 @@ der Nutzer erneut öffnet.
 
 ---
 
-### Schritt 7 — PC: Volle Bildschirmbreite nutzen ⬜ OFFEN
+### Schritt 7 — PC: Volle Bildschirmbreite nutzen ✅ UMGESETZT (2026-04-18)
 
 **Problem:** Nur schmaler zentrierter Streifen auf dem PC.
 
@@ -126,7 +126,7 @@ der Nutzer erneut öffnet.
 
 ---
 
-### Schritt 8 — Zeitperioden-Logik korrekt implementieren ⬜ OFFEN
+### Schritt 8 — Zeitperioden-Logik korrekt implementieren ✅ UMGESETZT (2026-04-18)
 
 **Problem:** Perioden-Abschluss-Dialoge erscheinen zum falschen Zeitpunkt.
 
@@ -140,7 +140,7 @@ der Nutzer erneut öffnet.
 
 ---
 
-### Schritt 9 — Tagesaufgaben → Wochenziel Zuordnung im Morgenjournal ⬜ OFFEN
+### Schritt 9 — Tagesaufgaben → Wochenziel Zuordnung im Morgenjournal ✅ UMGESETZT (2026-04-18)
 
 **Problem:** Tagesaufgaben können keinem Wochenziel zugeordnet werden.
 
@@ -152,7 +152,7 @@ der Nutzer erneut öffnet.
 
 ---
 
-### Schritt 10 — KI-Impuls: Qualität verbessern ⬜ OFFEN
+### Schritt 10 — KI-Impuls: Qualität verbessern ✅ UMGESETZT (2026-04-18)
 
 **Problem:** KI-Impuls oft leer, zu kurz oder unbrauchbar.
 

@@ -20,7 +20,7 @@ import {
   getTodayGoalTasks,
 } from '../lib/db'
 import { generatePatternAnalysis } from '../lib/claude'
-import { formatDate, daysSince } from '../lib/utils'
+import { formatDate, daysSince, getCurrentWeek } from '../lib/utils'
 import HeatmapGrid from '../components/dashboard/HeatmapGrid'
 import StreakBadge from '../components/dashboard/StreakBadge'
 import GoalCard from '../components/dashboard/GoalCard'
@@ -740,20 +740,30 @@ export default function Dashboard() {
             Heute zu erledigen
           </h2>
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0.85rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-            {dailyTasks.map((task) => (
-              <button
-                key={task.id}
-                onClick={() => handleToggleDailyTask(task)}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem 0', textAlign: 'left' }}
-              >
-                <span style={{ flexShrink: 0, width: 18, height: 18, borderRadius: '4px', border: `2px solid ${task.completed ? 'var(--accent-green)' : 'var(--border)'}`, background: task.completed ? 'var(--accent-green)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {task.completed && <span style={{ color: '#fff', fontSize: '0.65rem', fontWeight: 700 }}>✓</span>}
-                </span>
-                <span style={{ fontSize: '0.9rem', color: task.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: task.completed ? 'line-through' : 'none', lineHeight: 1.4 }}>
-                  {task.title}
-                </span>
-              </button>
-            ))}
+            {dailyTasks.map((task) => {
+              const linkedGoal = task.goal_id ? weeklyGoals.find((g) => g.id === task.goal_id) : null
+              return (
+                <button
+                  key={task.id}
+                  onClick={() => handleToggleDailyTask(task)}
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem 0', textAlign: 'left' }}
+                >
+                  <span style={{ flexShrink: 0, width: 18, height: 18, borderRadius: '4px', border: `2px solid ${task.completed ? 'var(--accent-green)' : 'var(--border)'}`, background: task.completed ? 'var(--accent-green)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '0.1rem' }}>
+                    {task.completed && <span style={{ color: '#fff', fontSize: '0.65rem', fontWeight: 700 }}>✓</span>}
+                  </span>
+                  <span style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', flex: 1 }}>
+                    <span style={{ fontSize: '0.9rem', color: task.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: task.completed ? 'line-through' : 'none', lineHeight: 1.4 }}>
+                      {task.title}
+                    </span>
+                    {linkedGoal && (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 10%, var(--bg-primary))', border: '1px solid color-mix(in srgb, var(--accent) 25%, var(--border))', borderRadius: '4px', padding: '0.05rem 0.4rem', display: 'inline-block', width: 'fit-content', lineHeight: 1.5 }}>
+                        KW {getCurrentWeek()}: {linkedGoal.title}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              )
+            })}
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
               {dailyTasks.filter((t) => t.completed).length} / {dailyTasks.length} erledigt
             </p>

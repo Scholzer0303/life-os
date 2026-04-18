@@ -26,11 +26,12 @@ export function todayISO(): string {
 }
 
 export function getCurrentWeek(): number {
-  const now = new Date()
-  const start = new Date(now.getFullYear(), 0, 1)
-  const diff = now.getTime() - start.getTime()
-  const oneWeek = 7 * 24 * 60 * 60 * 1000
-  return Math.ceil((diff / oneWeek) + 1)
+  const d = new Date()
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  const dayNum = date.getUTCDay() || 7
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+  return Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
 }
 
 export function getCurrentQuarter(): number {

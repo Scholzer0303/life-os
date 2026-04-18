@@ -88,8 +88,10 @@ export default function HabitManager({ month, year }: Props) {
     ]).then(async ([current, monthLogs]) => {
         setLogs(monthLogs)
         setHabits(current)
-        // Carry-over: nur zeigen wenn aktueller Monat noch keine Habits hat
-        if (current.length === 0) {
+        // Carry-over: nur zeigen wenn es der AKTUELLE Monat ist und noch keine Habits hat
+        const todayCheck = new Date()
+        const isCurrentMonthView = month === todayCheck.getMonth() + 1 && year === todayCheck.getFullYear()
+        if (current.length === 0 && isCurrentMonthView) {
           const prev = await getHabitsForMonth(user.id, prevMonth, prevYear)
           if (prev.length > 0) {
             setPrevHabits(prev)

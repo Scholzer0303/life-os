@@ -458,6 +458,19 @@ export default function JournalMonth() {
       {/* ── REFLEXION ── */}
       {!loading && activeSubTab === 'reflexion' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Hinweis: Monat noch aktiv */}
+          {isCurrentMonth && (() => {
+            const today = new Date()
+            const lastDay = new Date(year, month, 0).getDate()
+            const isLastDay = today.getDate() === lastDay
+            if (isLastDay) return null
+            const lastDayLabel = `${lastDay}. ${new Intl.DateTimeFormat('de-DE', { month: 'long' }).format(new Date(year, month - 1, 1))}`
+            return (
+              <div style={{ padding: '0.7rem 0.9rem', background: 'color-mix(in srgb, var(--accent) 6%, var(--bg-card))', border: '1px solid color-mix(in srgb, var(--accent) 20%, var(--border))', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Monat läuft noch bis {lastDayLabel} — Reflexion kann schon jetzt vorbereitet werden.
+              </div>
+            )
+          })()}
           {/* Monatsziele Status */}
           {goals.length > 0 ? (
             <div>

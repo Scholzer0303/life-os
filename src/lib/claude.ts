@@ -627,20 +627,33 @@ export async function getEveningImpulse(
 export async function getMorningImpulse(
   mainGoal: string,
   tasks: string[],
-  profile: Profile | null
+  profile: Profile | null,
+  weeklyGoals: string[] = []
 ): Promise<string> {
   checkRateLimit()
   const client = getClient()
   const name = profile?.name ?? 'du'
+  const today = new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const taskList = tasks.length > 0 ? tasks.map((t, i) => `${i + 1}. ${t}`).join('\n') : 'Keine Tasks definiert.'
+  const weekGoalList = weeklyGoals.length > 0 ? weeklyGoals.map((g, i) => `${i + 1}. ${g}`).join('\n') : 'Keine Wochenziele gesetzt.'
+
+  const contextLines: string[] = [
+    `Heute: ${today}`,
+    `Hauptziel für heute: "${mainGoal || 'nicht definiert'}"`,
+    `Tagesaufgaben:\n${taskList}`,
+    `Wochenziele (aktuell):\n${weekGoalList}`,
+  ]
+  if (profile?.north_star) contextLines.push(`Vision: "${profile.north_star}"`)
+  if (profile?.identity_statement) contextLines.push(`Identität: "${profile.identity_statement}"`)
+  contextLines.push(`\nGib ${name} einen konkreten Mentor-Impuls für den Tagesstart.`)
 
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 120,
-    system: `Du bist ein direkter, sachlicher Lebensmentor für ${name}. Antworte auf Deutsch. Maximal 2 kurze Sätze. Kein Gelaber, keine leeren Floskeln.`,
+    max_tokens: 400,
+    system: `Du bist ein direkter, ehrlicher Lebensmentor für ${name}. Antworte auf Deutsch in 3–5 konkreten Sätzen. Beziehe dich explizit auf die heutigen Aufgaben und/oder Wochenziele. Kein leeres Motivationsgerede — personalisiert und auf den Punkt.`,
     messages: [{
       role: 'user',
-      content: `Heutiges Hauptziel: "${mainGoal}"\n\nAufgaben:\n${taskList}\n\nGib mir einen kurzen Mentor-Impuls für den Start in den Tag.`,
+      content: contextLines.join('\n\n'),
     }],
   })
   const block = response.content[0]

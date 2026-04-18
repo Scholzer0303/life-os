@@ -40,3 +40,19 @@ code, pre {
 #root {
   min-height: 100svh;
 }
+
+/* Responsive Hauptbereich — Mobile zentriert, PC volle Breite */
+.app-main {
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 0;
+}
+
+@media (min-width: 1024px) {
+  .app-main {
+    max-width: 100%;
+    margin: 0;
+    padding: 2rem 2.5rem 0;
+  }
+}

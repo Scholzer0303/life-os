@@ -114,6 +114,13 @@ export default function JournalWeek() {
   const weekMonth = monday.getMonth() + 1
   const weekMonthYear = monday.getFullYear()
 
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const sundayLabel = `${sunday.getDate()}. ${new Intl.DateTimeFormat('de-DE', { month: 'long' }).format(sunday)}`
+  const todayDow = new Date().getDay() // 0=So, 1=Mo, …6=Sa
+  const isMonday = isCurrentWeek && todayDow === 1
+  const isWeekStillRunning = isCurrentWeek && todayDow !== 0 // nicht Sonntag
+
   const hasNoPlanning = isCurrentWeek && !planning.identity_statement?.trim() && goals.length === 0
 
   // Periode + Ziele laden wenn sich die Woche ändert
@@ -387,7 +394,7 @@ export default function JournalWeek() {
           }}
         >
           <span style={{ fontSize: '0.9rem', color: 'var(--accent)', fontWeight: 500 }}>
-            KW {week} startet — Planung ausstehend
+            {isMonday ? `KW ${week} startet heute — Planung ausstehend` : `KW ${week} — Planung noch nicht angelegt`}
           </span>
           <span style={{ color: 'var(--accent)', fontSize: '0.9rem' }}>→</span>
         </div>
@@ -541,6 +548,12 @@ export default function JournalWeek() {
       {/* ── REFLEXION ── */}
       {!loading && activeSubTab === 'reflexion' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Hinweis: Woche noch aktiv */}
+          {isWeekStillRunning && (
+            <div style={{ padding: '0.7rem 0.9rem', background: 'color-mix(in srgb, var(--accent) 6%, var(--bg-card))', border: '1px solid color-mix(in srgb, var(--accent) 20%, var(--border))', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Woche läuft noch bis Sonntag, {sundayLabel} — Reflexion kann schon jetzt vorbereitet werden.
+            </div>
+          )}
           {/* Wochenziele-Status */}
           {goals.length > 0 && (
             <div>

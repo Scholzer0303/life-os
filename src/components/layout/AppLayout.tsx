@@ -17,15 +17,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
       }}
     >
       <main
+        className="app-main"
         style={{
           flex: 1,
           overflowY: 'auto',
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
-          maxWidth: '640px',
-          width: '100%',
-          margin: '0 auto',
-          padding: '1.5rem 1.25rem 0',
           paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
           boxSizing: 'border-box',
         }}

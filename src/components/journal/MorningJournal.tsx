@@ -219,8 +219,11 @@ export default function MorningJournal() {
     setImpulseLoading(true)
     setImpulseError(null)
     try {
-      const taskTitles = data.dailyTasks.map((t) => t.title)
-      const result = await getMorningImpulse(data.mainGoal, taskTitles, profile ?? null)
+      const taskTitles = data.dailyTasks.filter((t) => t.title.trim()).map((t) => t.title)
+      const weeklyGoalTitles = goals
+        .filter((g) => g.type === 'weekly' && g.status === 'active')
+        .map((g) => g.title)
+      const result = await getMorningImpulse(data.mainGoal, taskTitles, profile ?? null, weeklyGoalTitles)
       setImpulse(result)
     } catch (err) {
       console.error('getMorningImpulse Fehler:', err)
