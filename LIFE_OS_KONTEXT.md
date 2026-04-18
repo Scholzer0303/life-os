@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md — Projektgedächtnis
 # Wird nach JEDEM abgeschlossenen Schritt von Claude Code aktualisiert.
 # Nach jeder Session: diese Datei ins Claude Project hochladen (ersetzt alte Version).
-# Zuletzt aktualisiert: 2026-04-18 (Paket 7 + Paket 8 komplett abgeschlossen)
+# Zuletzt aktualisiert: 2026-04-18 (Paket 9A komplett + Paket 9B Schritt 3 komplett)
 
 ---
 
@@ -14,7 +14,7 @@ VISION.md → LIFE_OS_KONTEXT.md → LIFE_OS_FEATURES.md
 
 Life OS ist eine PWA, live auf https://life-os-henna-xi.vercel.app
 
-**Was die App aktuell kann (Stand nach Paket 7 + 8 komplett):**
+**Was die App aktuell kann (Stand nach Paket 9A + 9B Schritt 3):**
 - Navigation: Dashboard · Journal · Coach · Übersicht · Einstellungen
 - Journal: Tag (Morgen/Abend), Woche, Monat, Quartal, Jahr — Pill-Tabs, großzügiges Layout
 - Ziel-Hierarchie: parent_id Dropdown in allen Journal-Komponenten
@@ -27,6 +27,11 @@ Life OS ist eine PWA, live auf https://life-os-henna-xi.vercel.app
 - Design-System: CSS-Variablen, Lebensbereiche-Farben in src/lib/lifeAreas.ts
 - PC: volle Bildschirmbreite genutzt (dashboard-grid, coach-layout, overview-grid)
 - Mobil: App starr, keine Verschiebung beim Tippen
+- Abendjournal: Schritt 6 "Was planst du für morgen?" — 0–4 Tasks, gespeichert als next_day_tasks JSONB
+- Morgenjournal: lädt next_day_tasks vom Vorabend vor, grünes Info-Banner, Tasks änderbar
+- Ziele (alle 4 Ebenen): life_area-Picker (3×2 Farb-Grid) beim Erstellen, Limit-Prüfung, farbiger Badge nach Titel
+- Formular-Reihenfolge: Titel → übergeordnetes Ziel → Lebensbereich → "Ziel hinzufügen"-Button
+- GoalSheet (Goals-Seite): life_area-Picker + Limit-Check + Hint-Banner
 
 **Bekannte kritische Bugs (aus App-Audit 09.04.2026):**
 - ✅ Datenverlust beim Tab-Wechsel — BEHOBEN: onChange schreibt synchron in localStorage; aktiver Journal-Tab + MorningJournal-Schritt werden separat persistiert.
@@ -96,7 +101,7 @@ Gilt für alle Daten inkl. Coach-Gespräche, Ziele, Journal-Einträge.
 | Tabelle | Zweck | Status |
 |---|---|---|
 | profiles | User-Profil, Vision (north_star → life_areas), Identität | aktiv |
-| goals | Ziel-Hierarchie, parent_id, life_area | aktiv — life_area Feld fehlt noch |
+| goals | Ziel-Hierarchie, parent_id, life_area | aktiv — life_area im Code fertig, SQL-Migration ausstehend ⚠️ |
 | journal_entries | Morgen/Abend-Einträge | aktiv |
 | coach_sessions | KI-Coach | aktiv |
 | pattern_events | Pattern-Interrupt-Logs | aktiv |
@@ -109,9 +114,15 @@ Gilt für alle Daten inkl. Coach-Gespräche, Ziele, Journal-Einträge.
 | life_area_snapshots | Jahres-Ist-Stände pro Bereich | NEU — Paket 11 |
 | focus_area_changes | Schwerpunktwechsel-Log | NEU — Paket 11 |
 
+**Ausgeführte Migrations:**
+```sql
+-- Paket 9A: next_day_tasks Feld an journal_entries ✅ 2026-04-18
+ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS next_day_tasks JSONB;
+```
+
 **Ausstehende Migrations:**
 ```sql
--- Paket 9: life_area Feld an goals
+-- Paket 9B: life_area Feld an goals ⚠️ MUSS noch ausgeführt werden
 ALTER TABLE goals ADD COLUMN IF NOT EXISTS life_area TEXT
   CHECK (life_area IN ('body_mind','social','love','finance','career','meaning'));
 
@@ -188,9 +199,9 @@ Dashboard · Journal · Übersicht · Coach · Ich · Einstellungen
 | 8-4 | Coach visuell neu gestalten | 8B | ✅ ERLEDIGT 2026-04-18 |
 | 8-5 | Übersicht visuell neu gestalten | 8B | ✅ ERLEDIGT 2026-04-18 |
 | 8-6 | Einstellungen visuell neu gestalten | 8B | ✅ ERLEDIGT 2026-04-18 |
-| 9-1 | Abendjournal: Tagesaufgaben für morgen vorplanen | 9A | ⬜ OFFEN |
-| 9-2 | Morgenjournal: vorbereitete Tasks aus Abend laden | 9A | ⬜ OFFEN |
-| 9-3 | Ziele: life_area Feld + Limit-Logik (1/2/2/3/4 Regel) | 9B | ⬜ OFFEN |
+| 9-1 | Abendjournal: Tagesaufgaben für morgen vorplanen | 9A | ✅ ERLEDIGT 2026-04-18 |
+| 9-2 | Morgenjournal: vorbereitete Tasks aus Abend laden | 9A | ✅ ERLEDIGT 2026-04-18 |
+| 9-3 | Ziele: life_area Feld + Limit-Logik (1/2/2/3/4 Regel) | 9B | ✅ ERLEDIGT 2026-04-18 |
 | 9-4 | Zielkaskade visuell pro Lebensbereich (verbundene Hierarchie) | 9B | ⬜ OFFEN |
 | 9-5 | Pflichtverknüpfung Quartal→Jahr, Monat→Quartal in UI durchsetzen | 9B | ⬜ OFFEN |
 | 9-6 | Kalender-Klick öffnet Tages-Archiv (alle Einträge des Tages) | 9C | ⬜ OFFEN |
@@ -249,6 +260,16 @@ Grundaufbau, Journal-System, Habit-Tracker, Übersicht, Ziele, Review.
 7-8: Zeitperioden-Logik — ISO-Woche, korrekte Perioden-Abschluss-Logik.
 7-9: Tagesaufgaben → Wochenziel — Dropdown + Dashboard-Badge.
 7-10: KI-Impuls Qualität — max_tokens 400, Vision/Identität/Wochenziele im Kontext.
+
+**Paket 9A (Schritte 1–2) — April 2026 ✅**
+9-1: Abendjournal "Was planst du für morgen?" — neuer Schritt 6, next_day_tasks JSONB in DB, Bug-Fix doppelter AnimatePresence-Key + alter Draft-Format-Schutz.
+9-2: Morgenjournal lädt next_day_tasks vom gestrigen Abend — getYesterdayEveningEntry() in db.ts, Vorausfüllung in dailyTasks, grünes Info-Banner in Schritt 2.
+
+**Paket 9B Schritt 3 (life_area + Limit-Logik + UX) — April 2026 ✅**
+9-3a: GoalSheet — life_area-Picker (3×2 Farb-Grid), LIMIT_PER_AREA-Check, Hint-Banner, life_area in GoalInsert/GoalUpdate. GoalDetailCard zeigt Badge.
+9-3b: JournalWeek, JournalMonth, JournalQuarter, JournalYear — inline life_area-Picker + Limit-Check direkt in addGoal(), Badge (Titel · Bereich) nach Titel in Ziel-Liste.
+9-3c: UX-Fixes — Formular-Reihenfolge: Titel → übergeordnetes Ziel → Lebensbereich → voller Button. Badge direkt neben Titel (gemeinsamer flex-Container). Alle 4 Journal-Ebenen gleichzeitig.
+⚠️ SQL-Migration noch ausstehend: ALTER TABLE goals ADD COLUMN IF NOT EXISTS life_area TEXT CHECK (...);
 
 **Paket 8A + 8B (Schritte 1–6) — April 2026 ✅**
 8-1: Design-System + lifeAreas.ts — CSS-Variablen, 6 Lebensbereich-Farben.

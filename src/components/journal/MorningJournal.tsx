@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
-import { createJournalEntry, getTodayEntries, parseTimeblocks, createGoalTask, updateGoalTask, getTodayGoalTasks, getYesterdayOpenGoalTasks, deleteGoalTask } from '../../lib/db'
+import { createJournalEntry, getTodayEntries, parseTimeblocks, createGoalTask, updateGoalTask, getTodayGoalTasks, getYesterdayOpenGoalTasks, getYesterdayEveningEntry, deleteGoalTask } from '../../lib/db'
 import { getMorningImpulse } from '../../lib/claude'
 import { todayISO } from '../../lib/utils'
 import ProgressBar from '../onboarding/ProgressBar'
@@ -83,6 +83,7 @@ export default function MorningJournal() {
   const [impulse, setImpulse] = useState<string | null>(null)
   const [impulseLoading, setImpulseLoading] = useState(false)
   const [impulseError, setImpulseError] = useState<string | null>(null)
+  const [prefilledFromEvening, setPrefilledFromEvening] = useState(false)
 
   // Heutigen Eintrag laden
   useEffect(() => {
@@ -121,10 +122,23 @@ export default function MorningJournal() {
         })
         // Schritt aus separatem Key wiederherstellen statt auf 1 zurücksetzen
       } else if (!validDraft) {
-        // Kein Draft, kein Supabase-Eintrag → Carry-over Dialog prüfen
-        getYesterdayOpenGoalTasks(user.id)
-          .then(setCarryOverTasks)
-          .catch((err) => console.error('Carry-over Tasks laden:', err))
+        // Kein Draft, kein Supabase-Eintrag → Carry-over Dialog + Abend-Tasks vom Vortag laden
+        Promise.all([
+          getYesterdayOpenGoalTasks(user.id),
+          getYesterdayEveningEntry(user.id),
+        ]).then(([carryOver, yesterdayEvening]) => {
+          setCarryOverTasks(carryOver)
+          const rawTasks = (yesterdayEvening as { next_day_tasks?: unknown } | null)?.next_day_tasks
+          if (Array.isArray(rawTasks) && rawTasks.length > 0) {
+            const prefilled: DailyTask[] = (rawTasks as string[])
+              .filter((t) => typeof t === 'string' && t.trim())
+              .map((title) => ({ id: crypto.randomUUID(), title, completed: false, goal_id: null }))
+            if (prefilled.length > 0) {
+              setData((prev) => ({ ...prev, dailyTasks: prefilled }))
+              setPrefilledFromEvening(true)
+            }
+          }
+        }).catch((err) => console.error('Carry-over / Abend-Tasks laden:', err))
       }
       // Wenn validDraft: useState hat bereits korrekte Werte gesetzt — nichts zu tun
     })
@@ -410,6 +424,7 @@ export default function MorningJournal() {
             initialIdentityAction={data.identityAction}
             initialDailyTasks={data.dailyTasks}
             identityStatement={profile?.identity_statement ?? null}
+            prefilledFromEvening={prefilledFromEvening}
             onNext={(goal, linkedGoalId, identityAction, dailyTasks) => next({ mainGoal: goal, linkedGoalId, identityAction, dailyTasks })}
             onBack={back}
           />

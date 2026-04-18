@@ -1,7 +1,7 @@
 # LIFE_OS_FEATURES.md — Aktive Pakete
 # Claude Code liest diese Datei beim Session-Start automatisch.
 # Nach Abschluss eines Schritts: Status auf ✅ UMGESETZT (Datum) setzen.
-# Zuletzt aktualisiert: 2026-04-18 (Paket 8A Schritt 1 abgeschlossen)
+# Zuletzt aktualisiert: 2026-04-18 (Paket 9A komplett + 9B Schritt 3 komplett)
 
 ---
 
@@ -279,7 +279,7 @@ Rechte Spalte:
 
 ---
 
-### Schritt 1 — Abendjournal: Tagesaufgaben für morgen vorplanen ⬜ OFFEN
+### Schritt 1 — Abendjournal: Tagesaufgaben für morgen vorplanen ✅ UMGESETZT (2026-04-18)
 
 **Was gebaut wird:** Am Ende des Abend-Eintrags optionaler Bereich "Aufgaben für morgen" (0–4).
 
@@ -292,7 +292,7 @@ Rechte Spalte:
 
 ---
 
-### Schritt 2 — Morgenjournal: vorbereitete Tasks aus Abend laden ⬜ OFFEN
+### Schritt 2 — Morgenjournal: vorbereitete Tasks aus Abend laden ✅ UMGESETZT (2026-04-18)
 
 Technische Gegenseite zu Schritt 1 — Tasks vom Vorabend automatisch laden.
 
@@ -302,21 +302,24 @@ Technische Gegenseite zu Schritt 1 — Tasks vom Vorabend automatisch laden.
 
 ---
 
-### Schritt 3 — Ziele: life_area Feld + Limit-Logik einbauen ⬜ OFFEN
+### Schritt 3 — Ziele: life_area Feld + Limit-Logik einbauen ✅ UMGESETZT (2026-04-18)
 
 **Was gebaut wird:**
 
 DB-Migration: `life_area` Feld an goals-Tabelle hinzufügen.
+⚠️ SQL noch ausstehend (Lukas führt aus): ALTER TABLE goals ADD COLUMN IF NOT EXISTS life_area TEXT CHECK (life_area IN ('body_mind','social','love','finance','career','meaning'));
 
-UI-Änderungen:
-- Beim Ziel erstellen/bearbeiten: Lebensbereich Pflichtfeld (Dropdown mit 6 Bereichen + Farbe)
+UI-Änderungen (alle umgesetzt):
+- Beim Ziel erstellen: Lebensbereich 3×2 Farb-Grid (alle 4 Journal-Ebenen + GoalSheet)
 - Limit-Prüfung vor Speichern: wenn Limit erreicht → klare Meldung, kein Speichern
   - Jahr: max. 1 pro Lebensbereich
   - Quartal: max. 2 pro Lebensbereich
   - Monat: max. 2 pro Lebensbereich
   - Woche: max. 3 pro Lebensbereich
-- Hinweisbanner: "Formuliere dein Ziel konkret und messbar" beim Erstellen
-- Lebensbereiche-Farbe überall an Zielen sichtbar (Badge, Punkt, Linie)
+- Hinweisbanner: "Formuliere dein Ziel konkret und messbar" beim Erstellen (GoalSheet)
+- Lebensbereich-Badge farbig direkt nach Titel in Ziel-Listen (alle 4 Journal-Ebenen)
+- Formular-Reihenfolge: Titel → übergeordnetes Ziel → Lebensbereich → "Ziel hinzufügen"-Button
+- Badge-Position: Titel und Badge im gemeinsamen flex-Container (Badge klebt direkt ans Wort)
 
 ---
 

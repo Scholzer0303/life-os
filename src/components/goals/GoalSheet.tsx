@@ -4,6 +4,11 @@ import { X } from 'lucide-react'
 import { getCurrentQuarter, getCurrentWeek } from '../../lib/utils'
 import type { GoalRow, GoalInsert, GoalUpdate } from '../../types/database'
 import type { GoalType } from '../../types'
+import { LIFE_AREAS, LIFE_AREA_ORDER, type LifeArea } from '../../lib/lifeAreas'
+
+const LIMIT_PER_AREA: Partial<Record<GoalType, number>> = {
+  year: 1, quarterly: 2, monthly: 2, weekly: 3,
+}
 
 interface Props {
   open: boolean
@@ -12,6 +17,7 @@ interface Props {
   userId: string
   defaultType?: GoalType
   parentGoals: GoalRow[]          // available parents for the selected type
+  allGoals?: GoalRow[]            // alle Ziele für Limit-Prüfung
   editing?: GoalRow | null        // null = create mode
 }
 
@@ -29,13 +35,14 @@ const STATUS_OPTIONS = [
   { value: 'paused',    label: 'Pausiert' },
 ]
 
-export default function GoalSheet({ open, onClose, onSave, userId, defaultType = 'weekly', parentGoals, editing }: Props) {
+export default function GoalSheet({ open, onClose, onSave, userId, defaultType = 'weekly', parentGoals, allGoals = [], editing }: Props) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [type, setType] = useState<GoalType>(defaultType)
   const [parentId, setParentId] = useState<string | null>(null)
   const [status, setStatus] = useState<'active' | 'completed' | 'paused'>('active')
   const [progress, setProgress] = useState(0)
+  const [lifeArea, setLifeArea] = useState<LifeArea | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -47,15 +54,39 @@ export default function GoalSheet({ open, onClose, onSave, userId, defaultType =
       setParentId(editing.parent_id)
       setStatus(editing.status)
       setProgress(editing.progress)
+      setLifeArea((editing.life_area as LifeArea) ?? null)
     } else {
       setTitle(''); setDescription(''); setType(defaultType)
-      setParentId(null); setStatus('active'); setProgress(0)
+      setParentId(null); setStatus('active'); setProgress(0); setLifeArea(null)
     }
     setError(null)
   }, [editing, defaultType, open])
 
+  function checkLimit(): string | null {
+    if (!lifeArea || editing) return null
+    const limit = LIMIT_PER_AREA[type]
+    if (!limit) return null
+    const now = new Date()
+    const yr = now.getFullYear()
+    const count = allGoals.filter((g) => {
+      if (g.life_area !== lifeArea || g.type !== type || g.status === 'completed') return false
+      if (type === 'year') return g.year === yr
+      if (type === 'quarterly') return g.year === yr && g.quarter === getCurrentQuarter()
+      if (type === 'monthly') return g.year === yr && g.month === now.getMonth() + 1
+      if (type === 'weekly') return g.year === yr && g.week === getCurrentWeek()
+      return false
+    }).length
+    if (count >= limit) {
+      const areaLabel = LIFE_AREAS[lifeArea].label
+      return `Limit erreicht: max. ${limit} ${type === 'year' ? 'Jahresziel' : type === 'quarterly' ? 'Quartalsziel' : type === 'monthly' ? 'Monatsziel' : 'Wochenziel'}${limit > 1 ? 'e' : ''} pro Lebensbereich (${areaLabel}).`
+    }
+    return null
+  }
+
   async function handleSave() {
     if (!title.trim()) return
+    const limitMsg = checkLimit()
+    if (limitMsg) { setError(limitMsg); return }
     setIsSaving(true); setError(null)
 
     const now = new Date()
@@ -65,7 +96,7 @@ export default function GoalSheet({ open, onClose, onSave, userId, defaultType =
     const week = getCurrentWeek()
 
     const payload = editing
-      ? ({ title: title.trim(), description: description.trim() || null, type, status, progress, parent_id: parentId } as GoalUpdate)
+      ? ({ title: title.trim(), description: description.trim() || null, type, status, progress, parent_id: parentId, life_area: lifeArea } as GoalUpdate)
       : ({
           user_id: userId, title: title.trim(), description: description.trim() || null,
           type, status: 'active', progress: 0, parent_id: parentId,
@@ -73,7 +104,7 @@ export default function GoalSheet({ open, onClose, onSave, userId, defaultType =
           quarter: type === 'quarterly' ? quarter : null,
           month:   type === 'monthly'   ? month   : null,
           week:    type === 'weekly'     ? week    : null,
-          // three_year and year have no sub-period fields
+          life_area: lifeArea,
         } as GoalInsert)
 
     try {
@@ -123,6 +154,13 @@ export default function GoalSheet({ open, onClose, onSave, userId, defaultType =
               </button>
             </div>
 
+            {/* Hinweisbanner */}
+            {!editing && (
+              <div style={{ padding: '0.55rem 0.875rem', background: 'color-mix(in srgb, var(--accent) 8%, var(--bg-card))', border: '1px solid color-mix(in srgb, var(--accent) 20%, var(--border))', borderRadius: '8px', marginBottom: '1.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                💡 Formuliere dein Ziel konkret und messbar — z. B. "3× pro Woche 30 Min laufen" statt "mehr Sport".
+              </div>
+            )}
+
             {/* Type selector */}
             {!editing && (
               <div style={{ marginBottom: '1.25rem' }}>
@@ -137,6 +175,32 @@ export default function GoalSheet({ open, onClose, onSave, userId, defaultType =
                 </div>
               </div>
             )}
+
+            {/* Lebensbereich */}
+            <div style={{ marginBottom: '1.25rem' }}>
+              <Label optional={!!editing}>Lebensbereich</Label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' }}>
+                {LIFE_AREA_ORDER.map((key) => {
+                  const area = LIFE_AREAS[key]
+                  const active = lifeArea === key
+                  return (
+                    <button key={key} onClick={() => setLifeArea(active ? null : key)}
+                      style={{
+                        padding: '0.5rem 0.4rem', borderRadius: '8px', cursor: 'pointer',
+                        fontFamily: 'DM Sans, sans-serif', fontSize: '0.78rem', fontWeight: active ? 600 : 400,
+                        display: 'flex', alignItems: 'center', gap: '0.4rem',
+                        background: active ? area.bgAlpha : 'var(--bg-card)',
+                        border: `1.5px solid ${active ? area.color : 'var(--border)'}`,
+                        color: active ? area.color : 'var(--text-secondary)',
+                        transition: 'all 0.12s',
+                      }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: area.color, flexShrink: 0 }} />
+                      {area.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
             {/* Title */}
             <div style={{ marginBottom: '1rem' }}>

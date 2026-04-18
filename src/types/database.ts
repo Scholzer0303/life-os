@@ -64,6 +64,7 @@ export interface Database {
           year: number
           week: number | null
           progress: number
+          life_area: string | null
         }
         Insert: {
           id?: string
@@ -80,6 +81,7 @@ export interface Database {
           year?: number
           week?: number | null
           progress?: number
+          life_area?: string | null
         }
         Update: {
           title?: string
@@ -93,6 +95,7 @@ export interface Database {
           week?: number | null
           progress?: number
           updated_at?: string
+          life_area?: string | null
         }
         Relationships: []
       }
@@ -121,6 +124,7 @@ export interface Database {
           gratitude: string | null
           weight: number | null
           sleep_score: number | null
+          next_day_tasks: Json
         }
         Insert: {
           id?: string
@@ -146,6 +150,7 @@ export interface Database {
           gratitude?: string | null
           weight?: number | null
           sleep_score?: number | null
+          next_day_tasks?: Json
         }
         Update: {
           entry_date?: string
@@ -168,6 +173,7 @@ export interface Database {
           gratitude?: string | null
           weight?: number | null
           sleep_score?: number | null
+          next_day_tasks?: Json
         }
         Relationships: []
       }

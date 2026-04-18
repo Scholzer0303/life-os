@@ -123,6 +123,7 @@ interface EveningData {
   energyLevel: number | null
   freeText: string
   gratitude: string
+  nextDayTasks: string[]
 }
 
 interface EveningDraft { data: EveningData; step: number; date: string }
@@ -147,9 +148,16 @@ export default function EveningJournal() {
   const validDraft = readEveningDraft(todayStr)
 
   const [step, setStep] = useState(() => validDraft?.step ?? 1)
-  const [data, setData] = useState<EveningData>(() =>
-    validDraft?.data ?? { accomplished: '', whatBlocked: '', energyLevel: null, freeText: '', gratitude: '' }
-  )
+  const [data, setData] = useState<EveningData>(() => {
+    const draft = validDraft?.data
+    if (draft) {
+      return {
+        ...draft,
+        nextDayTasks: Array.isArray(draft.nextDayTasks) ? draft.nextDayTasks : [''],
+      }
+    }
+    return { accomplished: '', whatBlocked: '', energyLevel: null, freeText: '', gratitude: '', nextDayTasks: [''] }
+  })
   const [savedEntry, setSavedEntry] = useState<JournalEntryRow | null>(null)
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -198,15 +206,19 @@ export default function EveningJournal() {
       // Bereits gespeicherter Abend-Eintrag → Daten laden, Draft verwerfen, Abschluss-Screen zeigen
       if (evening) {
         localStorage.removeItem(getEveningDraftKey(todayStr))
+        const loadedTasks = Array.isArray((evening as { next_day_tasks?: unknown }).next_day_tasks)
+          ? ((evening as { next_day_tasks: string[] }).next_day_tasks)
+          : ['']
         setData({
           accomplished: (evening as { accomplished?: string | null }).accomplished ?? '',
           whatBlocked: (evening as { what_blocked?: string | null }).what_blocked ?? '',
           energyLevel: (evening as { energy_level?: number | null }).energy_level ?? null,
           freeText: evening.free_text ?? '',
           gratitude: (evening as { gratitude?: string | null }).gratitude ?? '',
+          nextDayTasks: loadedTasks,
         })
         setSavedEntry(evening)
-        setStep(6)
+        setStep(7)
       }
     }).catch(() => {})
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -263,12 +275,14 @@ export default function EveningJournal() {
     if (!user || !data.energyLevel) return
     setIsSaving(true); setSaveError(null)
     try {
+      const filledTasks = data.nextDayTasks.filter((t) => t.trim())
       const payload = {
         accomplished: data.accomplished || null,
         what_blocked: data.whatBlocked || null,
         energy_level: data.energyLevel,
         free_text: data.freeText || null,
         gratitude: data.gratitude || null,
+        next_day_tasks: filledTasks.length > 0 ? filledTasks : null,
       }
       const entry = editingEntryId
         ? await updateJournalEntry(editingEntryId, payload)
@@ -276,7 +290,7 @@ export default function EveningJournal() {
       localStorage.removeItem(getEveningDraftKey(todayStr))
       setEditingEntryId(null)
       setSavedEntry(entry)
-      setStep(6)
+      setStep(7)
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Fehler beim Speichern.')
       setIsSaving(false)
@@ -310,10 +324,10 @@ export default function EveningJournal() {
       <div style={{ marginBottom: '0.25rem' }}>
         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Abend-Journal</span>
       </div>
-      {step < 6 && <ProgressBar current={step} total={5} />}
+      {step < 7 && <ProgressBar current={step} total={6} />}
 
       {/* Morgen-Ziel-Referenz */}
-      {morningGoal && step < 6 && (
+      {morningGoal && step < 7 && (
         <div
           style={{
             padding: '0.55rem 0.875rem',
@@ -452,6 +466,76 @@ export default function EveningJournal() {
 
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button onClick={back} style={BACK_BTN}>←</button>
+              <button onClick={next} style={{ flex: 1, padding: '0.9rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '1rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer' }}>
+                Weiter →
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {step === 6 && (
+          <motion.div key="e6" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.25 }}>
+            <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.6rem', fontWeight: 600, margin: '0 0 0.4rem' }}>Was planst du für morgen?</h2>
+            <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.5rem', lineHeight: 1.5 }}>
+              Optional — max. 4 Aufgaben. Erscheinen morgen früh vorausgefüllt.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '1.5rem' }}>
+              {data.nextDayTasks.map((task, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8rem', color: 'var(--text-muted)', minWidth: '1.2rem' }}>{idx + 1}.</span>
+                  <input
+                    type="text"
+                    value={task}
+                    onChange={(e) => {
+                      const updated = [...data.nextDayTasks]
+                      updated[idx] = e.target.value
+                      patchData({ nextDayTasks: updated })
+                    }}
+                    placeholder={`Aufgabe ${idx + 1}…`}
+                    style={{
+                      flex: 1, padding: '0.7rem 0.9rem',
+                      border: '1.5px solid var(--border)', borderRadius: '10px',
+                      fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif',
+                      background: 'var(--bg-primary)', color: 'var(--text-primary)',
+                      outline: 'none', boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                    onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+                  />
+                  {data.nextDayTasks.length > 1 && (
+                    <button
+                      onClick={() => {
+                        const updated = data.nextDayTasks.filter((_, i) => i !== idx)
+                        patchData({ nextDayTasks: updated })
+                      }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1.1rem', padding: '0 0.25rem', flexShrink: 0 }}
+                      aria-label="Aufgabe entfernen"
+                    >×</button>
+                  )}
+                </div>
+              ))}
+              {data.nextDayTasks.length < 4 && (
+                <button
+                  onClick={() => patchData({ nextDayTasks: [...data.nextDayTasks, ''] })}
+                  style={{
+                    padding: '0.6rem 1rem', background: 'none',
+                    border: '1.5px dashed var(--border)', borderRadius: '10px',
+                    fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif',
+                    color: 'var(--text-muted)', cursor: 'pointer',
+                  }}
+                >
+                  + Aufgabe hinzufügen
+                </button>
+              )}
+            </div>
+
+            {saveError && (
+              <div style={{ padding: '0.75rem 1rem', background: '#FFF0EE', border: '1px solid var(--accent-warm)', borderRadius: '8px', color: 'var(--accent-warm)', fontSize: '0.875rem', marginBottom: '1rem' }}>{saveError}</div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={back} style={BACK_BTN}>←</button>
               <button onClick={handleSave} disabled={isSaving}
                 style={{ flex: 1, padding: '0.9rem', background: isSaving ? 'var(--text-muted)' : 'var(--accent-green)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '1rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 600, cursor: isSaving ? 'not-allowed' : 'pointer' }}>
                 {isSaving ? 'Wird gespeichert…' : 'Journal speichern ✓'}
@@ -460,8 +544,14 @@ export default function EveningJournal() {
           </motion.div>
         )}
 
-        {step === 6 && savedEntry && (
-          <motion.div key="e6" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+        {step === 7 && !savedEntry && (
+          <motion.div key="e7-loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Wird geladen…</div>
+          </motion.div>
+        )}
+
+        {step === 7 && savedEntry && (
+          <motion.div key="e7" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             {/* Header */}
             <div style={{ textAlign: 'center', padding: '1rem 0 1.25rem' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🌙</div>

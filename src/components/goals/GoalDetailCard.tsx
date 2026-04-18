@@ -8,6 +8,7 @@ import {
   getHabitsForMonth, createHabit, updateHabit, deleteHabit,
 } from '../../lib/db'
 import type { GoalRow, GoalTaskRow, HabitRow } from '../../types/database'
+import { getLifeArea } from '../../lib/lifeAreas'
 
 const HABIT_COLORS = ['#863bff', '#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#ec4899']
 
@@ -377,6 +378,15 @@ export default function GoalDetailCard({ goal, parentGoal, treeGoals, linkedEntr
             <span style={{ fontSize: '0.65rem', fontWeight: 700, color: typeColor, background: `${typeColor}18`, padding: '0.15rem 0.45rem', borderRadius: '4px', flexShrink: 0, letterSpacing: '0.04em' }}>
               {TYPE_LABEL[goal.type]}
             </span>
+            {(() => {
+              const area = getLifeArea(goal.life_area)
+              return area ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.65rem', fontWeight: 600, color: area.color, background: area.bgAlpha, padding: '0.15rem 0.45rem', borderRadius: '4px', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: area.color, flexShrink: 0 }} />
+                  {area.label}
+                </span>
+              ) : null
+            })()}
             <span style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)', lineHeight: 1.3, minWidth: 0 }}>{goal.title}</span>
           </div>
           <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0, marginLeft: '0.5rem' }}>

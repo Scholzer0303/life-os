@@ -407,6 +407,7 @@ export default function Goals() {
         userId={user?.id ?? ''}
         defaultType={sheetDefaultType}
         parentGoals={allGoals}
+        allGoals={allGoals}
         editing={editingGoal}
       />
 

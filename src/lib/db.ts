@@ -515,6 +515,21 @@ export async function getTodayGoalTasks(userId: string, date: string): Promise<G
   return data ?? []
 }
 
+export async function getYesterdayEveningEntry(userId: string): Promise<JournalEntryRow | null> {
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterdayStr = yesterday.toISOString().split('T')[0]
+  const { data, error } = await supabase
+    .from('journal_entries')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('entry_date', yesterdayStr)
+    .eq('type', 'evening')
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
 export async function getYesterdayOpenGoalTasks(userId: string): Promise<GoalTaskRow[]> {
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)

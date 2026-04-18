@@ -6,6 +6,7 @@ import { getJournalPeriod, upsertJournalPeriod, getYearlyGoals, createGoal, upda
 import { generatePeriodSummary, getGoalFeedback, getGoalFeedbackFollowup } from '../../lib/claude'
 import FeedbackPanel from './FeedbackPanel'
 import type { GoalRow } from '../../types/database'
+import { LIFE_AREAS, LIFE_AREA_ORDER, type LifeArea } from '../../lib/lifeAreas'
 
 // ─── Typen ───────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,8 @@ export default function JournalYear() {
   const [goals, setGoals] = useState<GoalRow[]>([])
   const [goalsLoading, setGoalsLoading] = useState(false)
   const [newGoalTitle, setNewGoalTitle] = useState('')
+  const [newGoalLifeArea, setNewGoalLifeArea] = useState<LifeArea | null>(null)
+  const [goalLimitError, setGoalLimitError] = useState<string | null>(null)
 
   // Laden
   const loadData = useCallback(async () => {
@@ -184,6 +187,14 @@ export default function JournalYear() {
   // Ziel-Aktionen
   async function addGoal() {
     if (!user || !newGoalTitle.trim()) return
+    if (newGoalLifeArea) {
+      const count = goals.filter((g) => g.life_area === newGoalLifeArea && g.status !== 'completed').length
+      if (count >= 1) {
+        setGoalLimitError(`Limit: max. 1 Jahresziel pro Lebensbereich (${LIFE_AREAS[newGoalLifeArea].label}).`)
+        return
+      }
+    }
+    setGoalLimitError(null)
     try {
       const goal = await createGoal({
         user_id: user.id,
@@ -192,9 +203,11 @@ export default function JournalYear() {
         year,
         status: 'active',
         progress: 0,
+        life_area: newGoalLifeArea,
       })
       setGoals((prev) => [...prev, goal])
       setNewGoalTitle('')
+      setNewGoalLifeArea(null)
     } catch (err) {
       console.error('Ziel erstellen:', err)
     }
@@ -415,7 +428,15 @@ export default function JournalYear() {
                 {goals.map((goal) => (
                   <div key={goal.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.6rem 0.75rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                      <span style={{ flex: 1, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{goal.title}</span>
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+                        <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{goal.title}</span>
+                        {goal.life_area && LIFE_AREAS[goal.life_area as LifeArea] && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.68rem', fontWeight: 600, color: LIFE_AREAS[goal.life_area as LifeArea].color, background: LIFE_AREAS[goal.life_area as LifeArea].bgAlpha, border: `1px solid ${LIFE_AREAS[goal.life_area as LifeArea].color}50`, borderRadius: '4px', padding: '0.1rem 0.35rem', flexShrink: 0 }}>
+                            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: LIFE_AREAS[goal.life_area as LifeArea].color, flexShrink: 0 }} />
+                            {LIFE_AREAS[goal.life_area as LifeArea].label}
+                          </span>
+                        )}
+                      </div>
                       <button onClick={() => handleGetFeedback(goal)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: aiFeedbackGoalId === goal.id ? 'var(--accent)' : 'var(--text-muted)', padding: '0.1rem', display: 'flex', alignItems: 'center', flexShrink: 0 }} aria-label="KI-Bewertung" title="KI-Bewertung">
                         <Sparkles size={14} />
                       </button>
@@ -442,25 +463,36 @@ export default function JournalYear() {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <input
-                value={newGoalTitle}
-                onChange={(e) => setNewGoalTitle(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGoal() } }}
-                placeholder="Was will ich dieses Jahr erreicht haben?"
-                style={{ flex: 1, padding: '0.7rem 0.9rem', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
-                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-              />
-              <button
-                onClick={addGoal}
-                disabled={!newGoalTitle.trim()}
-                style={{ padding: '0.7rem 0.9rem', background: newGoalTitle.trim() ? 'var(--accent)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: '8px', cursor: newGoalTitle.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center' }}
-                aria-label="Ziel hinzufügen"
-              >
-                <Plus size={16} />
-              </button>
+            <input
+              value={newGoalTitle}
+              onChange={(e) => setNewGoalTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGoal() } }}
+              placeholder="Was will ich dieses Jahr erreicht haben?"
+              style={{ width: '100%', padding: '0.7rem 0.9rem', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box', marginBottom: '0.5rem' }}
+              onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+              onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+            />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem', marginBottom: '0.5rem' }}>
+              {LIFE_AREA_ORDER.map((key) => {
+                const area = LIFE_AREAS[key]
+                const active = newGoalLifeArea === key
+                return (
+                  <button key={key} onClick={() => { setNewGoalLifeArea(active ? null : key); setGoalLimitError(null) }}
+                    style={{ padding: '0.35rem 0.3rem', borderRadius: '6px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', fontWeight: active ? 600 : 400, display: 'flex', alignItems: 'center', gap: '0.3rem', background: active ? area.bgAlpha : 'var(--bg-card)', border: `1.5px solid ${active ? area.color : 'var(--border)'}`, color: active ? area.color : 'var(--text-secondary)' }}>
+                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: area.color, flexShrink: 0 }} />
+                    {area.label}
+                  </button>
+                )
+              })}
             </div>
+            {goalLimitError && <p style={{ color: 'var(--accent-warm)', fontSize: '0.8rem', margin: '0 0 0.4rem' }}>{goalLimitError}</p>}
+            <button
+              onClick={addGoal}
+              disabled={!newGoalTitle.trim()}
+              style={{ width: '100%', padding: '0.7rem', background: newGoalTitle.trim() ? 'var(--accent)' : 'var(--border)', color: '#fff', border: 'none', borderRadius: '8px', cursor: newGoalTitle.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontFamily: 'DM Sans, sans-serif', fontSize: '0.9rem', fontWeight: 500 }}
+            >
+              <Plus size={16} /> Ziel hinzufügen
+            </button>
           </div>
 
           {/* Was will ich erreicht haben */}

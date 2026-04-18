@@ -14,11 +14,12 @@ interface Props {
   initialIdentityAction?: string
   initialDailyTasks?: DailyTask[]
   identityStatement?: string | null
+  prefilledFromEvening?: boolean
   onNext: (goal: string, linkedGoalId: string | null, identityAction: string, dailyTasks: DailyTask[]) => void
   onBack: () => void
 }
 
-export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, initialIdentityAction = '', initialDailyTasks = [], identityStatement, onNext, onBack }: Props) {
+export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, initialIdentityAction = '', initialDailyTasks = [], identityStatement, prefilledFromEvening = false, onNext, onBack }: Props) {
   const { user } = useStore()
   const navigate = useNavigate()
   const [goal, setGoal] = useState(initialGoal)
@@ -190,6 +191,21 @@ export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, ini
         onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
         onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
       />
+
+      {/* Vorausgefüllte Tasks vom gestrigen Abend */}
+      {prefilledFromEvening && (
+        <div style={{
+          padding: '0.5rem 0.875rem',
+          background: 'color-mix(in srgb, var(--accent-green) 10%, var(--bg-card))',
+          border: '1px solid color-mix(in srgb, var(--accent-green) 30%, var(--border))',
+          borderRadius: '8px',
+          marginBottom: '0.75rem',
+          fontSize: '0.8rem',
+          color: 'var(--text-secondary)',
+        }}>
+          🌙 Vorausgefüllt vom gestrigen Abend — änderbar.
+        </div>
+      )}
 
       {/* Tages-Tasks */}
       <div style={{ marginBottom: '1.5rem' }}>

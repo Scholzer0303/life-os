@@ -11,7 +11,9 @@
       "Bash(node -e ':*)",
       "Bash(npx tsc:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npm run *)",
+      "Read(//tmp/**)"
     ]
   }
 }
