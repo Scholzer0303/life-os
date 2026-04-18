@@ -110,21 +110,21 @@ export default function OverviewCalendar({ month, year, isCurrentMonth, onPrev, 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.25rem' }}>
         <button
           onClick={onPrev}
-          style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.4rem 0.6rem', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
+          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.45rem 0.65rem', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
           aria-label="Vorheriger Monat"
         >
           <ChevronLeft size={16} />
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, justifyContent: 'center' }}>
-          <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>{monthLabel}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flex: 1, justifyContent: 'center' }}>
+          <span style={{ fontFamily: 'Lora, serif', fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>{monthLabel}</span>
           {!isCurrentMonth && (
             <button
               onClick={onGoToToday}
-              style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', padding: '0.2rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'DM Sans, sans-serif' }}
+              style={{ background: 'color-mix(in srgb, var(--accent) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)', borderRadius: '6px', padding: '0.2rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--accent)', fontFamily: 'DM Sans, sans-serif', fontWeight: 500 }}
             >
               Heute
             </button>
@@ -134,7 +134,7 @@ export default function OverviewCalendar({ month, year, isCurrentMonth, onPrev, 
         <button
           onClick={onNext}
           disabled={isCurrentMonth}
-          style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.4rem 0.6rem', cursor: isCurrentMonth ? 'default' : 'pointer', color: isCurrentMonth ? 'var(--border)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
+          style={{ background: isCurrentMonth ? 'transparent' : 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.45rem 0.65rem', cursor: isCurrentMonth ? 'default' : 'pointer', color: isCurrentMonth ? 'var(--border)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
           aria-label="Nächster Monat"
         >
           <ChevronRight size={16} />
@@ -204,23 +204,24 @@ export default function OverviewCalendar({ month, year, isCurrentMonth, onPrev, 
       {/* Monatsstatistiken */}
       {!loading && (
         <div>
-          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.65rem' }}>
             {monthLabel} — Statistiken
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.6rem' }}>
-            <StatTile label="Journal-Quote" value={`${stats.journalQuote}%`} sub={`${stats.morningDays} / ${stats.elapsedDays} Tage`} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+            <StatTile label="Journal" value={`${stats.journalQuote}%`} sub={`${stats.morningDays}/${stats.elapsedDays} Tage`}
+              valueColor={stats.journalQuote >= 70 ? 'var(--accent-green)' : stats.journalQuote >= 40 ? 'var(--streak)' : 'var(--accent-warm)'} />
             <StatTile
-              label="Habit-Rate"
+              label="Habits"
               value={habitMonthRate !== null && habitMonthRate !== undefined ? `${habitMonthRate}%` : '–'}
-              sub={habitMonthRate !== null && habitMonthRate !== undefined ? 'Ø aller Habits' : 'keine Habits'}
+              sub={habitMonthRate !== null && habitMonthRate !== undefined ? 'Ø Habits' : 'keine'}
               valueColor={habitMonthRate !== null && habitMonthRate !== undefined
-                ? (habitMonthRate >= 70 ? '#22c55e' : habitMonthRate >= 40 ? '#f59e0b' : '#ef4444')
+                ? (habitMonthRate >= 70 ? 'var(--accent-green)' : habitMonthRate >= 40 ? 'var(--streak)' : 'var(--accent-warm)')
                 : undefined}
             />
-            <StatTile label="Ø Energie" value={stats.avgEnergy ?? '–'} sub={stats.avgEnergy ? 'von 10' : 'kein Wert'} />
-            <StatTile label="Ø Schlaf-Score" value={stats.avgSleep !== null ? String(stats.avgSleep) : '–'} sub={stats.avgSleep !== null ? 'von 100' : 'kein Wert'} />
+            <StatTile label="Energie" value={stats.avgEnergy ? `${stats.avgEnergy}` : '–'} sub={stats.avgEnergy ? '/10 Ø' : 'kein Wert'} />
+            <StatTile label="Schlaf" value={stats.avgSleep !== null ? `${stats.avgSleep}` : '–'} sub={stats.avgSleep !== null ? '/100 Ø' : 'kein Wert'} />
             <div style={{ gridColumn: 'span 2' }}>
-              <StatTile label="Ø Gewicht" value={stats.avgWeight ? `${stats.avgWeight} kg` : '–'} sub={stats.avgWeight ? '' : 'kein Wert'} />
+              <StatTile label="Gewicht" value={stats.avgWeight ? `${stats.avgWeight} kg` : '–'} sub={stats.avgWeight ? 'Ø Monat' : 'kein Wert'} />
             </div>
           </div>
         </div>
@@ -233,7 +234,7 @@ export default function OverviewCalendar({ month, year, isCurrentMonth, onPrev, 
 
 function StatTile({ label, value, sub, valueColor }: { label: string; value: string; sub?: string; valueColor?: string }) {
   return (
-    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.85rem 1rem' }}>
+    <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.75rem 0.85rem' }}>
       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.3rem' }}>{label}</div>
       <div style={{ fontSize: '1.3rem', fontWeight: 700, color: valueColor ?? (value === '–' ? 'var(--text-muted)' : 'var(--text-primary)') }}>{value}</div>
       {sub && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>{sub}</div>}

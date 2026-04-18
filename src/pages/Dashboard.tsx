@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sun, Moon, Compass, Flame, BookOpen, MessageCircle, X, Info } from 'lucide-react'
+import { Sun, Moon, MessageCircle, X, Info, Sparkles, BookOpen, Flame } from 'lucide-react'
+import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer } from 'recharts'
 import { useStore } from '../store/useStore'
 import {
   getTodayEntries,
@@ -21,11 +22,22 @@ import {
 } from '../lib/db'
 import { generatePatternAnalysis } from '../lib/claude'
 import { formatDate, daysSince, getCurrentWeek } from '../lib/utils'
-import HeatmapGrid from '../components/dashboard/HeatmapGrid'
 import StreakBadge from '../components/dashboard/StreakBadge'
 import GoalCard from '../components/dashboard/GoalCard'
+import { LIFE_AREAS, LIFE_AREA_ORDER } from '../lib/lifeAreas'
 import type { GoalRow, GoalTaskRow } from '../types/database'
 import type { DailyTask } from '../types'
+
+const MOTIVATION_QUOTES = [
+  'Erfolgreiche Menschen sind nicht immer motiviert, sie sind diszipliniert. Motivation ist ein flüchtiges Gefühl — wer darauf wartet, fängt nie an.',
+  'Alles was gut für dich ist, fühlt sich kurzfristig unangenehm an. Alles Schädliche fühlt sich kurzfristig gut an. Das ist kein Zufall — es ist ein Muster.',
+  'Nach 4–6 Wochen wird eine neue Gewohnheit automatisch. Vorher ist es harte Arbeit. Das ist normal — kein Zeichen von Schwäche.',
+  'Du wählst sowieso zwischen zwei Schmerzen: dem Schmerz der Disziplin oder dem Schmerz des Bedauerns. Der erste wiegt weniger.',
+  'Der Weg ist das Ziel. Wer aufhört, verliert alles was er aufgebaut hat — fang klein an, aber fang an.',
+  'Du kannst nicht noch 50 Silvester feiern und gleichzeitig so leben als hättest du unendlich Zeit.',
+  'Klein anfangen. Einen Bereich wählen. Vier Wochen durchhalten. Der Hunger kommt von selbst.',
+  'Nicht überladen. Nicht tausend Bälle jonglieren. Was sind deine wichtigsten Bälle — und hältst du sie wirklich?',
+]
 
 function InfoTooltip({ text }: { text: string }) {
   const [visible, setVisible] = useState(false)
@@ -35,10 +47,7 @@ function InfoTooltip({ text }: { text: string }) {
         onMouseEnter={() => setVisible(true)}
         onMouseLeave={() => setVisible(false)}
         onTouchStart={() => setVisible((v) => !v)}
-        style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          padding: '0.15rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
-        }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
         aria-label="Info"
       >
         <Info size={14} />
@@ -46,22 +55,11 @@ function InfoTooltip({ text }: { text: string }) {
       {visible && (
         <div
           style={{
-            position: 'absolute',
-            bottom: '100%',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            marginBottom: '6px',
-            background: 'var(--bg-primary, #1a1a2e)',
-            color: 'var(--text-primary)',
-            fontSize: '0.72rem',
-            lineHeight: 1.45,
-            padding: '0.5rem 0.7rem',
-            borderRadius: '8px',
-            width: '220px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
-            zIndex: 50,
-            pointerEvents: 'none',
-            whiteSpace: 'normal',
+            position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+            marginBottom: '6px', background: 'var(--bg-primary)', color: 'var(--text-primary)',
+            fontSize: '0.72rem', lineHeight: 1.45, padding: '0.5rem 0.7rem',
+            borderRadius: '8px', width: '220px', boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+            zIndex: 50, pointerEvents: 'none', whiteSpace: 'normal', border: '1px solid var(--border)',
           }}
         >
           {text}
@@ -79,6 +77,13 @@ function getGreeting(name: string | null): string {
   return `Guten Abend, ${n}`
 }
 
+// Lebensrad-Miniatur: Placeholder-Daten (Paket 11 liefert echte Werte)
+const radarPlaceholder = LIFE_AREA_ORDER.map((key) => ({
+  area: LIFE_AREAS[key].label,
+  value: 5,
+  color: LIFE_AREAS[key].color,
+}))
+
 export default function Dashboard() {
   const { profile, user } = useStore()
   const navigate = useNavigate()
@@ -93,7 +98,6 @@ export default function Dashboard() {
   const [streak, setStreak] = useState(0)
   const [bestStreak, setBestStreak] = useState(0)
   const [weekActiveDays, setWeekActiveDays] = useState(0)
-  const [heatmapData, setHeatmapData] = useState<{ entry_date: string; type: string }[]>([])
   const [showPatternInterrupt, setShowPatternInterrupt] = useState(false)
   const [showPatternTooltip, setShowPatternTooltip] = useState(false)
   const tooltipRef = useRef<HTMLDivElement>(null)
@@ -102,21 +106,21 @@ export default function Dashboard() {
   const [identityModalOpen, setIdentityModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [recentEntries, setRecentEntries] = useState<import('../types/database').JournalEntryRow[]>([])
+  const [motivationQuote, setMotivationQuote] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
     loadDashboardData(user.id)
   }, [user])
 
-  // Auto pattern analysis: ab 14 Einträgen, alle 14 Tage
   useEffect(() => {
     if (!profile || !recentEntries || recentEntries.length < 14) return
     const aiProfile = profile.ai_profile as Record<string, string> | null
     const lastAnalysis = aiProfile?.generatedAt
-    const daysSince = lastAnalysis
+    const days = lastAnalysis
       ? Math.floor((Date.now() - new Date(lastAnalysis).getTime()) / 86400000)
       : 999
-    if (daysSince >= 14) {
+    if (days >= 14) {
       generatePatternAnalysis(profile, recentEntries, weeklyGoals)
         .then((analysis) => updateProfile(profile.id, { ai_profile: analysis as unknown as import('../types/database').Json }))
         .catch((err) => console.error('Pattern analysis (silent):', err))
@@ -126,10 +130,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!profile?.identity_statement) return
     const dismissed = localStorage.getItem('identity_reminder_dismissed')
-    if (!dismissed) {
-      setShowIdentityReminder(true)
-      return
-    }
+    if (!dismissed) { setShowIdentityReminder(true); return }
     const daysSinceDismiss = Math.floor((Date.now() - Number(dismissed)) / 86400000)
     if (daysSinceDismiss >= 3) setShowIdentityReminder(true)
   }, [profile?.identity_statement])
@@ -164,11 +165,8 @@ export default function Dashboard() {
           ? morningEntry.daily_tasks as unknown as DailyTask[]
           : []
         const linkedTasks: DailyTask[] = todayGoalTasks.map((gt) => ({
-          id: gt.id,
-          title: gt.title,
-          completed: gt.completed,
-          goal_id: gt.goal_id,
-          goal_task_id: gt.id,
+          id: gt.id, title: gt.title, completed: gt.completed,
+          goal_id: gt.goal_id, goal_task_id: gt.id,
         }))
         setDailyTasks([...unlinkedTasks, ...linkedTasks])
       }
@@ -182,29 +180,20 @@ export default function Dashboard() {
       setRecentEntries(recent)
       setStreak(streakCount)
       setBestStreak(best)
-      setHeatmapData(heatmap)
 
-      // Unique active days this week (Mon–today)
       const monday = new Date()
       monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
       monday.setHours(0, 0, 0, 0)
       const uniqueThisWeek = new Set(
-        heatmap
-          .filter((e) => new Date(e.entry_date) >= monday)
-          .map((e) => e.entry_date)
+        heatmap.filter((e) => new Date(e.entry_date) >= monday).map((e) => e.entry_date)
       )
       setWeekActiveDays(uniqueThisWeek.size)
 
-      // Pattern interrupt: nur zeigen wenn Account > 3 Tage alt UND kein Eintrag in letzten 3 Tagen
       const accountCreatedAt = profile?.created_at
       const accountAgeInDays = accountCreatedAt
-        ? Math.floor((Date.now() - new Date(accountCreatedAt).getTime()) / 86400000)
-        : 0
-      const accountIsOldEnough = accountAgeInDays >= 3
-      if (accountIsOldEnough) {
-        if (!lastDate || daysSince(lastDate) >= 3) {
-          setShowPatternInterrupt(true)
-        }
+        ? Math.floor((Date.now() - new Date(accountCreatedAt).getTime()) / 86400000) : 0
+      if (accountAgeInDays >= 3 && (!lastDate || daysSince(lastDate) >= 3)) {
+        setShowPatternInterrupt(true)
       }
     } catch (err) {
       console.error('Dashboard load error:', err)
@@ -225,17 +214,12 @@ export default function Dashboard() {
   async function handleToggleDailyTask(task: DailyTask) {
     const updatedList = dailyTasks.map((t) => (t.id === task.id ? { ...t, completed: !t.completed } : t))
     setDailyTasks(updatedList)
-
     if (task.goal_task_id) {
-      // Verknüpfter Task → goal_task updaten + Wochenziel-State synchronisieren
       setWeeklyGoalTasks((prev) => prev.map((t) => t.id === task.goal_task_id ? { ...t, completed: !task.completed } : t))
       try {
         await updateGoalTask(task.goal_task_id, { completed: !task.completed })
-        // Fortschritt des Wochenziels neu berechnen
         if (task.goal_id) {
-          const allGoalTasks = weeklyGoalTasks.map((t) =>
-            t.id === task.goal_task_id ? { ...t, completed: !task.completed } : t
-          )
+          const allGoalTasks = weeklyGoalTasks.map((t) => t.id === task.goal_task_id ? { ...t, completed: !task.completed } : t)
           const goalTasks = allGoalTasks.filter((t) => t.goal_id === task.goal_id)
           if (goalTasks.length > 0) {
             const progress = Math.round((goalTasks.filter((t) => t.completed).length / goalTasks.length) * 100)
@@ -248,7 +232,6 @@ export default function Dashboard() {
         setWeeklyGoalTasks((prev) => prev.map((t) => t.id === task.goal_task_id ? { ...t, completed: task.completed } : t))
       }
     } else {
-      // Unverknüpfter Task → nur daily_tasks JSON aktualisieren
       if (!morningEntryId) return
       const unlinkedOnly = updatedList.filter((t) => !t.goal_task_id)
       updateJournalEntry(morningEntryId, { daily_tasks: unlinkedOnly as unknown as import('../types/database').Json })
@@ -256,14 +239,12 @@ export default function Dashboard() {
     }
   }
 
-  async function handleToggleTask(task: import('../types/database').GoalTaskRow) {
+  async function handleToggleTask(task: GoalTaskRow) {
     const updated = { ...task, completed: !task.completed }
     setWeeklyGoalTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)))
-    // dailyTasks synchronisieren wenn dieser Task dort als verknüpfter Task vorkommt
     setDailyTasks((prev) => prev.map((t) => t.goal_task_id === task.id ? { ...t, completed: !task.completed } : t))
     try {
       await updateGoalTask(task.id, { completed: updated.completed })
-      // Fortschritt neu berechnen
       const allTasks = weeklyGoalTasks.map((t) => (t.id === task.id ? updated : t))
       const goalTasks = allTasks.filter((t) => t.goal_id === task.goal_id)
       if (goalTasks.length > 0) {
@@ -276,30 +257,15 @@ export default function Dashboard() {
     }
   }
 
-  function handlePatternReset() {
-    navigate('/pattern-interrupt')
+  function handleShowQuote() {
+    const idx = Math.floor(Math.random() * MOTIVATION_QUOTES.length)
+    setMotivationQuote(MOTIVATION_QUOTES[idx])
   }
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '50vh',
-        }}
-      >
-        <div
-          style={{
-            width: '28px',
-            height: '28px',
-            border: '3px solid var(--border)',
-            borderTop: '3px solid var(--accent)',
-            borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite',
-          }}
-        />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
+        <div style={{ width: '28px', height: '28px', border: '3px solid var(--border)', borderTop: '3px solid var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     )
@@ -307,113 +273,49 @@ export default function Dashboard() {
 
   return (
     <div>
-      {/* ── Pattern Interrupt Banner ──────────────────────────────── */}
+      {/* ── Pattern Interrupt Banner ──────────────────────────── */}
       <AnimatePresence>
         {showPatternInterrupt && (
           <motion.div
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
+            initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.25 }}
             style={{
-              background: '#FFF5F0',
-              border: '1px solid var(--accent-warm)',
-              borderRadius: '12px',
-              padding: '1rem 1rem 1rem 1.25rem',
-              marginBottom: '1.5rem',
-              position: 'relative',
+              background: '#FFF5F0', border: '1px solid var(--accent-warm)',
+              borderRadius: '12px', padding: '1rem 1rem 1rem 1.25rem',
+              marginBottom: '1.5rem', position: 'relative',
             }}
           >
             <button
               onClick={() => setShowPatternInterrupt(false)}
-              style={{
-                position: 'absolute',
-                top: '0.75rem',
-                right: '0.75rem',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--text-muted)',
-                padding: '0.1rem',
-                lineHeight: 1,
-              }}
+              style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', lineHeight: 1 }}
               aria-label="Schließen"
             >
               <X size={16} />
             </button>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.35rem' }}>
-              <p style={{ margin: 0, fontWeight: 600, color: 'var(--accent-warm)' }}>
-                Hey — Leben passiert.
-              </p>
+              <p style={{ margin: 0, fontWeight: 600, color: 'var(--accent-warm)' }}>Hey — Leben passiert.</p>
               <div ref={tooltipRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                 <button
-                  onMouseEnter={() => setShowPatternTooltip(true)}
-                  onMouseLeave={() => setShowPatternTooltip(false)}
+                  onMouseEnter={() => setShowPatternTooltip(true)} onMouseLeave={() => setShowPatternTooltip(false)}
                   onTouchStart={() => setShowPatternTooltip((v) => !v)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: '0.1rem',
-                    color: 'var(--accent-warm)',
-                    opacity: 0.7,
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.1rem', color: 'var(--accent-warm)', opacity: 0.7, display: 'flex', alignItems: 'center' }}
                   aria-label="Info"
                 >
                   <Info size={14} />
                 </button>
                 {showPatternTooltip && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: '100%',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      marginBottom: '6px',
-                      background: 'var(--bg-primary, #1a1a2e)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.75rem',
-                      lineHeight: 1.4,
-                      padding: '0.5rem 0.75rem',
-                      borderRadius: '8px',
-                      whiteSpace: 'nowrap',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                      zIndex: 10,
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    Dieser Hinweis erscheint wenn du 3 oder mehr
-                    <br />
-                    Tage keinen Eintrag gemacht hast.
+                  <div style={{ position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: '6px', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.75rem', lineHeight: 1.4, padding: '0.5rem 0.75rem', borderRadius: '8px', whiteSpace: 'nowrap', boxShadow: 'var(--shadow-modal)', zIndex: 10, pointerEvents: 'none', border: '1px solid var(--border)' }}>
+                    Dieser Hinweis erscheint wenn du 3 oder mehr<br />Tage keinen Eintrag gemacht hast.
                   </div>
                 )}
               </div>
             </div>
-            <p
-              style={{
-                margin: '0 0 0.85rem',
-                fontSize: '0.9rem',
-                color: 'var(--text-secondary)',
-                lineHeight: 1.5,
-              }}
-            >
+            <p style={{ margin: '0 0 0.85rem', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               Du warst eine Weile weg. Kein Vorwurf — aber was ist gerade los?
             </p>
             <button
-              onClick={handlePatternReset}
-              style={{
-                padding: '0.5rem 1rem',
-                background: 'var(--accent-warm)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '0.875rem',
-                fontFamily: 'DM Sans, sans-serif',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
+              onClick={() => navigate('/pattern-interrupt')}
+              style={{ padding: '0.5rem 1rem', background: 'var(--accent-warm)', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer' }}
             >
               Reset starten →
             </button>
@@ -421,25 +323,10 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      {/* ── Header ───────────────────────────────────────────────── */}
+      {/* ── Header ────────────────────────────────────────────── */}
       <div style={{ marginBottom: '1.75rem' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            marginBottom: '0.25rem',
-          }}
-        >
-          <h1
-            style={{
-              fontFamily: 'Lora, serif',
-              fontSize: 'clamp(1.5rem, 4vw, 2rem)',
-              fontWeight: 600,
-              margin: 0,
-              lineHeight: 1.2,
-            }}
-          >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
+          <h1 style={{ fontFamily: 'Lora, serif', fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 600, margin: 0, lineHeight: 1.2 }}>
             {getGreeting(profile?.name ?? null)}
           </h1>
           <StreakBadge streak={streak} />
@@ -449,121 +336,367 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* ── Vision ───────────────────────────────────────────────── */}
-      {profile?.north_star && (
-        <div
-          style={{
-            padding: '0.85rem 1rem',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: '10px',
-            borderLeft: '3px solid var(--accent)',
-            marginBottom: '1.75rem',
-          }}
-        >
+      {/* ── 2-Spalten-Grid ───────────────────────────────────── */}
+      <div className="dashboard-grid">
+
+        {/* ══ LINKE SPALTE ══════════════════════════════════════ */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+          {/* Lebensrad-Miniatur */}
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              marginBottom: '0.3rem',
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-card)', padding: '1.25rem',
+              boxShadow: 'var(--shadow-card)',
             }}
           >
-            <Compass size={13} color="var(--accent)" />
-            <span
-              style={{
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                color: 'var(--accent)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}
-            >
-              Vision
-            </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>
+                Lebensrad
+              </h2>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Detailansicht im Ich-Tab</span>
+            </div>
+            <ResponsiveContainer width="100%" height={200}>
+              <RadarChart data={radarPlaceholder} margin={{ top: 8, right: 20, bottom: 8, left: 20 }}>
+                <PolarGrid stroke="var(--border)" />
+                <PolarAngleAxis
+                  dataKey="area"
+                  tick={{ fontSize: 11, fill: 'var(--text-secondary)', fontFamily: 'DM Sans, sans-serif' }}
+                />
+                <Radar
+                  name="Lebensrad"
+                  dataKey="value"
+                  stroke="var(--accent)"
+                  fill="var(--accent)"
+                  fillOpacity={0.15}
+                  strokeWidth={2}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+            {/* Legende */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem 0.75rem', marginTop: '0.5rem' }}>
+              {LIFE_AREA_ORDER.map((key) => (
+                <span key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: LIFE_AREAS[key].color, flexShrink: 0 }} />
+                  {LIFE_AREAS[key].label}
+                </span>
+              ))}
+            </div>
           </div>
-          <p
-            style={{
-              margin: 0,
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)',
-              lineHeight: 1.5,
-            }}
-          >
-            {profile.north_star}
-          </p>
-        </div>
-      )}
 
-      {/* ── Identitäts-Reminder ──────────────────────────────────── */}
-      <AnimatePresence>
-        {showIdentityReminder && profile?.identity_statement && (
-          <motion.div
-            key="identity-reminder"
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25 }}
-            style={{
-              padding: '0.75rem 1rem',
-              background: 'rgba(134,59,255,0.08)',
-              border: '1px solid rgba(134,59,255,0.2)',
-              borderRadius: '10px',
-              marginBottom: '1.25rem',
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '0.5rem',
-            }}
-          >
-            <span style={{ fontSize: '1rem', lineHeight: 1.4, flexShrink: 0 }}>💫</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                {profile.identity_statement.length > 60
-                  ? profile.identity_statement.slice(0, 60) + '…'
-                  : profile.identity_statement}
-              </p>
-              <button
-                onClick={() => setIdentityModalOpen(true)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '0.8rem', padding: '0.25rem 0 0', fontFamily: 'DM Sans, sans-serif' }}
+          {/* Identitäts-Affirmation */}
+          <AnimatePresence>
+            {showIdentityReminder && profile?.identity_statement && (
+              <motion.div
+                key="identity-reminder"
+                initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25 }}
+                style={{
+                  background: 'var(--bg-card)', border: '1px solid var(--border)',
+                  borderLeft: '3px solid #a855f7', borderRadius: 'var(--radius-card)',
+                  padding: '1rem 1rem 1rem 1.25rem', boxShadow: 'var(--shadow-card)',
+                  display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
+                }}
               >
-                Vollständig lesen
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#a855f7', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.4rem' }}>
+                    Dein zukünftiges Ich
+                  </span>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.5, fontStyle: 'italic' }}>
+                    {profile.identity_statement.length > 120
+                      ? profile.identity_statement.slice(0, 120) + '…'
+                      : profile.identity_statement}
+                  </p>
+                  {profile.identity_statement.length > 120 && (
+                    <button
+                      onClick={() => setIdentityModalOpen(true)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#a855f7', fontSize: '0.8rem', padding: '0.3rem 0 0', fontFamily: 'DM Sans, sans-serif' }}
+                    >
+                      Vollständig lesen
+                    </button>
+                  )}
+                </div>
+                <button
+                  onClick={() => { localStorage.setItem('identity_reminder_dismissed', String(Date.now())); setShowIdentityReminder(false) }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', flexShrink: 0 }}
+                  aria-label="Schließen"
+                >
+                  <X size={15} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Tages-Tasks */}
+          {hasMorningEntry && dailyTasks.length > 0 && (
+            <section style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)', padding: '1.25rem', boxShadow: 'var(--shadow-card)' }}>
+              <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1rem', fontWeight: 600, margin: '0 0 0.85rem', color: 'var(--text-primary)' }}>
+                Heute zu erledigen
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {dailyTasks.map((task) => {
+                  const linkedGoal = task.goal_id ? weeklyGoals.find((g) => g.id === task.goal_id) : null
+                  return (
+                    <button
+                      key={task.id}
+                      onClick={() => handleToggleDailyTask(task)}
+                      style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem 0', textAlign: 'left' }}
+                    >
+                      <span style={{ flexShrink: 0, width: 18, height: 18, borderRadius: '4px', border: `2px solid ${task.completed ? 'var(--accent-green)' : 'var(--border-strong)'}`, background: task.completed ? 'var(--accent-green)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '0.15rem' }}>
+                        {task.completed && <span style={{ color: '#fff', fontSize: '0.65rem', fontWeight: 700 }}>✓</span>}
+                      </span>
+                      <span style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1 }}>
+                        <span style={{ fontSize: '0.9rem', color: task.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: task.completed ? 'line-through' : 'none', lineHeight: 1.4 }}>
+                          {task.title}
+                        </span>
+                        {linkedGoal && (
+                          <span style={{ fontSize: '0.72rem', color: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 25%, transparent)', borderRadius: '4px', padding: '0.05rem 0.4rem', display: 'inline-block', width: 'fit-content', lineHeight: 1.5 }}>
+                            KW {getCurrentWeek()}: {linkedGoal.title}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.65rem 0 0' }}>
+                {dailyTasks.filter((t) => t.completed).length} / {dailyTasks.length} erledigt
+              </p>
+            </section>
+          )}
+
+          {/* Wochenziele */}
+          <section style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-card)', padding: '1.25rem', boxShadow: 'var(--shadow-card)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+              <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1rem', fontWeight: 600, margin: 0 }}>
+                Wochenziele
+              </h2>
+              <button
+                onClick={() => navigate('/goals')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--accent)', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, padding: 0 }}
+              >
+                Alle →
               </button>
             </div>
+            {weeklyGoals.length === 0 ? (
+              <div style={{ padding: '1.25rem', background: 'var(--bg-secondary)', border: '1px dashed var(--border)', borderRadius: '10px', textAlign: 'center' }}>
+                <p style={{ color: 'var(--text-muted)', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>Noch keine Wochenziele gesetzt.</p>
+                <button
+                  onClick={() => navigate('/goals')}
+                  style={{ padding: '0.5rem 1rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius-btn)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: '0.85rem', fontWeight: 500 }}
+                >
+                  Ziel erstellen →
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {weeklyGoals.map((goal) => (
+                  <GoalCard
+                    key={goal.id}
+                    goal={goal}
+                    tasks={weeklyGoalTasks.filter((t) => t.goal_id === goal.id)}
+                    onToggleTask={handleToggleTask}
+                    parentName={goal.parent_id ? monthlyGoals.find((m) => m.id === goal.parent_id)?.title : undefined}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+        </div>{/* Ende linke Spalte */}
+
+        {/* ══ RECHTE SPALTE ═════════════════════════════════════ */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+          {/* Streak-Karte */}
+          <div
+            style={{
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-card)', padding: '1.25rem',
+              boxShadow: 'var(--shadow-card)',
+            }}
+          >
+            <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1rem', fontWeight: 600, margin: '0 0 1rem', color: 'var(--text-primary)' }}>
+              Dein Fortschritt
+            </h2>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <div style={{ flex: 1, background: 'var(--bg-secondary)', borderRadius: '10px', padding: '0.85rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--streak)', lineHeight: 1, marginBottom: '0.25rem' }}>
+                  {streak}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Tage Streak</div>
+              </div>
+              <div style={{ flex: 1, background: 'var(--bg-secondary)', borderRadius: '10px', padding: '0.85rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--accent)', lineHeight: 1, marginBottom: '0.25rem' }}>
+                  {weekActiveDays}<span style={{ fontSize: '1rem', fontWeight: 400, color: 'var(--text-muted)' }}>/7</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Diese Woche</div>
+              </div>
+              <div style={{ flex: 1, background: 'var(--bg-secondary)', borderRadius: '10px', padding: '0.85rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-secondary)', lineHeight: 1, marginBottom: '0.25rem' }}>
+                  {bestStreak}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Rekord</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Fokus-Banner + Heute-Buttons */}
+          <div
+            style={{
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-card)', padding: '1.25rem',
+              boxShadow: 'var(--shadow-card)', display: 'flex', flexDirection: 'column', gap: '1rem',
+            }}
+          >
+            <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>
+              Heute
+            </h2>
+
+            {/* Fokus */}
+            {morningGoalToday ? (
+              <div style={{ padding: '0.75rem 1rem', background: 'color-mix(in srgb, var(--accent) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--accent) 20%, transparent)', borderRadius: '10px' }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.25rem' }}>
+                  Dein Fokus
+                </span>
+                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                  {morningGoalToday}
+                </p>
+              </div>
+            ) : !hasMorningEntry && (
+              <div style={{ padding: '0.75rem 1rem', background: 'var(--bg-secondary)', border: '1px dashed var(--border)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Starte deinen Tag — Ziel setzen</span>
+                <button
+                  onClick={() => navigate('/journal?type=morning')}
+                  style={{ padding: '0.4rem 0.75rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', whiteSpace: 'nowrap' }}
+                >
+                  Starten →
+                </button>
+              </div>
+            )}
+
+            {/* Journal-Buttons */}
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                onClick={() => navigate('/journal?type=morning')}
+                style={{
+                  flex: 1, padding: '0.85rem 0.5rem',
+                  background: hasMorningEntry ? 'var(--bg-secondary)' : 'var(--accent)',
+                  color: hasMorningEntry ? 'var(--text-secondary)' : '#fff',
+                  border: hasMorningEntry ? '1px solid var(--border)' : 'none',
+                  borderRadius: '12px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
+                  fontWeight: 500, fontSize: '0.875rem', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', gap: '0.35rem', transition: 'all 0.15s',
+                }}
+              >
+                <Sun size={20} strokeWidth={hasMorningEntry ? 1.5 : 2} />
+                <span>{hasMorningEntry ? 'Morgen ✓' : 'Morgen-Journal'}</span>
+              </button>
+              <button
+                onClick={() => navigate('/journal?type=evening')}
+                style={{
+                  flex: 1, padding: '0.85rem 0.5rem',
+                  background: hasEveningEntry ? 'var(--bg-secondary)' : 'var(--bg-card)',
+                  color: hasEveningEntry ? 'var(--text-muted)' : 'var(--text-primary)',
+                  border: '1px solid var(--border)', borderRadius: '12px', cursor: 'pointer',
+                  fontFamily: 'DM Sans, sans-serif', fontWeight: 500, fontSize: '0.875rem',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem', transition: 'all 0.15s',
+                }}
+              >
+                <Moon size={20} strokeWidth={hasEveningEntry ? 1.5 : 2} />
+                <span>{hasEveningEntry ? 'Abend ✓' : 'Abend-Journal'}</span>
+              </button>
+            </div>
+
+            {/* Quick-Links */}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button onClick={() => navigate('/coach')} style={quickBtnStyle}>
+                <MessageCircle size={14} />
+                Coach
+              </button>
+              <button onClick={() => navigate('/journal?type=freeform')} style={quickBtnStyle}>
+                <BookOpen size={14} />
+                Freeform
+              </button>
+              <button onClick={() => navigate('/review')} style={quickBtnStyle}>
+                <Flame size={14} />
+                Review
+              </button>
+            </div>
+          </div>
+
+          {/* Motivationssprüche */}
+          <div
+            style={{
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-card)', padding: '1.25rem',
+              boxShadow: 'var(--shadow-card)',
+            }}
+          >
+            <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1rem', fontWeight: 600, margin: '0 0 0.85rem', color: 'var(--text-primary)' }}>
+              Brauch ich heute
+            </h2>
+            {motivationQuote ? (
+              <div>
+                <p style={{ margin: '0 0 0.85rem', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, fontStyle: 'italic' }}>
+                  „{motivationQuote}"
+                </p>
+                <button
+                  onClick={handleShowQuote}
+                  style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.4rem 0.85rem', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}
+                >
+                  Anderen Spruch
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleShowQuote}
+                style={{
+                  width: '100%', padding: '0.85rem 1rem',
+                  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                  borderRadius: '10px', cursor: 'pointer', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                  fontFamily: 'DM Sans, sans-serif', fontSize: '0.875rem',
+                  color: 'var(--text-secondary)', fontWeight: 500, transition: 'all 0.15s',
+                }}
+              >
+                <Sparkles size={16} color="var(--accent)" />
+                Zeig mir etwas
+              </button>
+            )}
+          </div>
+
+          {/* Pattern interrupt link */}
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.25rem' }}>
             <button
-              onClick={() => {
-                localStorage.setItem('identity_reminder_dismissed', String(Date.now()))
-                setShowIdentityReminder(false)
-              }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', flexShrink: 0, display: 'flex' }}
-              aria-label="Schließen"
+              onClick={() => navigate('/pattern-interrupt')}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', textDecoration: 'underline', padding: '0.25rem' }}
             >
-              <X size={15} />
+              Ich bin gerade raus aus dem Rhythmus
             </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <InfoTooltip text="Wenn du hier tippst, öffnet sich ein kurzer geführter Flow der dir hilft wieder in deinen Rhythmus zu finden." />
+          </div>
+
+        </div>{/* Ende rechte Spalte */}
+      </div>{/* Ende dashboard-grid */}
 
       {/* Identitäts-Modal */}
       <AnimatePresence>
         {identityModalOpen && profile?.identity_statement && (
           <motion.div
             key="identity-modal"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
             onClick={() => setIdentityModalOpen(false)}
           >
             <motion.div
-              initial={{ y: 60, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 60, opacity: 0 }}
+              initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               onClick={(e) => e.stopPropagation()}
               style={{ background: 'var(--bg-card)', borderRadius: '16px 16px 0 0', padding: '1.5rem 1.25rem 2rem', width: '100%', maxWidth: '520px' }}
             >
               <div style={{ width: '36px', height: '4px', background: 'var(--border)', borderRadius: '2px', margin: '0 auto 1.25rem' }} />
-              <h3 style={{ fontFamily: 'Lora, serif', fontSize: '1.1rem', fontWeight: 600, marginBottom: '1rem' }}>💫 Dein zukünftiges Ich</h3>
+              <h3 style={{ fontFamily: 'Lora, serif', fontSize: '1.1rem', fontWeight: 600, marginBottom: '1rem' }}>Dein zukünftiges Ich</h3>
               <p style={{ fontSize: '0.95rem', color: 'var(--text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                 {profile.identity_statement}
               </p>
@@ -571,358 +704,17 @@ export default function Dashboard() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* ── Heutiger Status ──────────────────────────────────────── */}
-      <section style={{ marginBottom: '1.75rem' }}>
-        <h2
-          style={{
-            fontFamily: 'Lora, serif',
-            fontSize: '1.1rem',
-            fontWeight: 600,
-            margin: '0 0 0.85rem',
-            color: 'var(--text-primary)',
-          }}
-        >
-          Heute
-        </h2>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          {/* Morning */}
-          <button
-            onClick={() => navigate('/journal?type=morning')}
-            style={{
-              flex: 1,
-              padding: '0.85rem',
-              background: hasMorningEntry ? 'var(--bg-secondary)' : 'var(--accent)',
-              color: hasMorningEntry ? 'var(--text-secondary)' : '#fff',
-              border: hasMorningEntry ? '1px solid var(--border)' : 'none',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              fontFamily: 'DM Sans, sans-serif',
-              fontWeight: 500,
-              fontSize: '0.9rem',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '0.35rem',
-              transition: 'all 0.15s',
-            }}
-          >
-            <Sun size={20} strokeWidth={hasMorningEntry ? 1.5 : 2} />
-            <span>{hasMorningEntry ? 'Morgen ✓' : 'Morgen-Journal'}</span>
-          </button>
-
-          {/* Evening */}
-          <button
-            onClick={() => navigate('/journal?type=evening')}
-            style={{
-              flex: 1,
-              padding: '0.85rem',
-              background: hasEveningEntry ? 'var(--bg-secondary)' : 'var(--bg-card)',
-              color: hasEveningEntry ? 'var(--text-muted)' : 'var(--text-primary)',
-              border: `1px solid ${hasEveningEntry ? 'var(--border)' : 'var(--border)'}`,
-              borderRadius: '12px',
-              cursor: 'pointer',
-              fontFamily: 'DM Sans, sans-serif',
-              fontWeight: 500,
-              fontSize: '0.9rem',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '0.35rem',
-              transition: 'all 0.15s',
-            }}
-          >
-            <Moon size={20} strokeWidth={hasEveningEntry ? 1.5 : 2} />
-            <span>{hasEveningEntry ? 'Abend ✓' : 'Abend-Journal'}</span>
-          </button>
-        </div>
-      </section>
-
-      {/* ── Quick Access ─────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '0.6rem',
-          marginBottom: '1.75rem',
-        }}
-      >
-        <button
-          onClick={() => navigate('/journal?type=freeform')}
-          style={quickBtnStyle}
-        >
-          <BookOpen size={15} />
-          Freeform
-        </button>
-        <button
-          onClick={() => navigate('/coach')}
-          style={quickBtnStyle}
-        >
-          <MessageCircle size={15} />
-          Coach fragen
-        </button>
-        <button
-          onClick={() => navigate('/review')}
-          style={quickBtnStyle}
-        >
-          <Flame size={15} />
-          Wochenreview
-        </button>
-      </div>
-
-      {/* ── Fokus-Banner ─────────────────────────────────────────── */}
-      {morningGoalToday ? (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          style={{
-            padding: '0.75rem 1rem',
-            background: 'rgba(134,59,255,0.1)',
-            border: '1px solid rgba(134,59,255,0.25)',
-            borderRadius: '10px',
-            marginBottom: '1.25rem',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '0.5rem',
-          }}
-        >
-          <span style={{ fontSize: '1rem', lineHeight: 1 }}>🎯</span>
-          <div>
-            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Dein Fokus heute
-            </span>
-            <p style={{ margin: '0.15rem 0 0', fontSize: '0.875rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>
-              {morningGoalToday}
-            </p>
-          </div>
-        </motion.div>
-      ) : !hasMorningEntry && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          style={{
-            padding: '0.75rem 1rem',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: '10px',
-            marginBottom: '1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-            Starte deinen Tag — Ziel setzen
-          </span>
-          <button
-            onClick={() => navigate('/journal?type=morning')}
-            style={{
-              padding: '0.4rem 0.75rem',
-              background: 'var(--accent)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Starten →
-          </button>
-        </motion.div>
-      )}
-
-      {/* ── Heute zu erledigen ───────────────────────────────────── */}
-      {hasMorningEntry && dailyTasks.length > 0 && (
-        <section style={{ marginBottom: '1.75rem' }}>
-          <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.1rem', fontWeight: 600, margin: '0 0 0.75rem', color: 'var(--text-primary)' }}>
-            Heute zu erledigen
-          </h2>
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0.85rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-            {dailyTasks.map((task) => {
-              const linkedGoal = task.goal_id ? weeklyGoals.find((g) => g.id === task.goal_id) : null
-              return (
-                <button
-                  key={task.id}
-                  onClick={() => handleToggleDailyTask(task)}
-                  style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem 0', textAlign: 'left' }}
-                >
-                  <span style={{ flexShrink: 0, width: 18, height: 18, borderRadius: '4px', border: `2px solid ${task.completed ? 'var(--accent-green)' : 'var(--border)'}`, background: task.completed ? 'var(--accent-green)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '0.1rem' }}>
-                    {task.completed && <span style={{ color: '#fff', fontSize: '0.65rem', fontWeight: 700 }}>✓</span>}
-                  </span>
-                  <span style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', flex: 1 }}>
-                    <span style={{ fontSize: '0.9rem', color: task.completed ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: task.completed ? 'line-through' : 'none', lineHeight: 1.4 }}>
-                      {task.title}
-                    </span>
-                    {linkedGoal && (
-                      <span style={{ fontSize: '0.72rem', color: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 10%, var(--bg-primary))', border: '1px solid color-mix(in srgb, var(--accent) 25%, var(--border))', borderRadius: '4px', padding: '0.05rem 0.4rem', display: 'inline-block', width: 'fit-content', lineHeight: 1.5 }}>
-                        KW {getCurrentWeek()}: {linkedGoal.title}
-                      </span>
-                    )}
-                  </span>
-                </button>
-              )
-            })}
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
-              {dailyTasks.filter((t) => t.completed).length} / {dailyTasks.length} erledigt
-            </p>
-          </div>
-        </section>
-      )}
-
-      {/* ── Wochenziele ──────────────────────────────────────────── */}
-      <section style={{ marginBottom: '1.75rem' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '0.85rem',
-          }}
-        >
-          <h2
-            style={{
-              fontFamily: 'Lora, serif',
-              fontSize: '1.1rem',
-              fontWeight: 600,
-              margin: 0,
-            }}
-          >
-            Wochenziele
-          </h2>
-          <button
-            onClick={() => navigate('/goals')}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '0.8rem',
-              color: 'var(--accent)',
-              fontFamily: 'DM Sans, sans-serif',
-              fontWeight: 500,
-              padding: 0,
-            }}
-          >
-            Alle →
-          </button>
-        </div>
-
-        {weeklyGoals.length === 0 ? (
-          <div
-            style={{
-              padding: '1.5rem',
-              background: 'var(--bg-card)',
-              border: '1px dashed var(--border)',
-              borderRadius: '12px',
-              textAlign: 'center',
-            }}
-          >
-            <p style={{ color: 'var(--text-muted)', margin: '0 0 0.75rem', fontSize: '0.9rem' }}>
-              Noch keine Wochenziele gesetzt.
-            </p>
-            <button
-              onClick={() => navigate('/goals')}
-              style={{
-                padding: '0.5rem 1rem',
-                background: 'var(--accent)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontFamily: 'DM Sans, sans-serif',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-              }}
-            >
-              Ziel erstellen →
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {weeklyGoals.map((goal) => (
-              <GoalCard
-                key={goal.id}
-                goal={goal}
-                tasks={weeklyGoalTasks.filter((t) => t.goal_id === goal.id)}
-                onToggleTask={handleToggleTask}
-                parentName={goal.parent_id ? monthlyGoals.find((m) => m.id === goal.parent_id)?.title : undefined}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* ── Heatmap ──────────────────────────────────────────────── */}
-      <section style={{ marginBottom: '1rem' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '0.85rem',
-          }}
-        >
-          <h2
-            style={{
-              fontFamily: 'Lora, serif',
-              fontSize: '1.1rem',
-              fontWeight: 600,
-              margin: 0,
-            }}
-          >
-            Letzte 60 Tage
-          </h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Diese Woche: {weekActiveDays}/7
-            </span>
-            <StreakBadge streak={streak} bestStreak={bestStreak} />
-          </div>
-        </div>
-        <div
-          style={{
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: '12px',
-            padding: '1rem',
-            overflowX: 'auto',
-          }}
-        >
-          <HeatmapGrid data={heatmapData} days={60} />
-        </div>
-      </section>
-
-      {/* ── Manual Pattern Interrupt ──────────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', paddingBottom: '1rem', gap: '0.25rem' }}>
-        <button
-          onClick={() => navigate('/pattern-interrupt')}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-muted)',
-            fontSize: '0.8rem',
-            cursor: 'pointer',
-            fontFamily: 'DM Sans, sans-serif',
-            textDecoration: 'underline',
-            padding: '0.25rem',
-          }}
-        >
-          Ich bin gerade raus aus dem Rhythmus
-        </button>
-        <InfoTooltip text="Wenn du hier tippst, öffnet sich ein kurzer geführter Flow der dir hilft wieder in deinen Rhythmus zu finden." />
-      </div>
     </div>
   )
 }
 
 const quickBtnStyle: React.CSSProperties = {
   flex: 1,
-  padding: '0.6rem 0.5rem',
-  background: 'var(--bg-card)',
+  padding: '0.5rem 0.4rem',
+  background: 'var(--bg-secondary)',
   color: 'var(--text-secondary)',
   border: '1px solid var(--border)',
-  borderRadius: '10px',
+  borderRadius: '8px',
   cursor: 'pointer',
   fontFamily: 'DM Sans, sans-serif',
   fontSize: '0.78rem',

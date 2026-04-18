@@ -1,7 +1,7 @@
 # LIFE_OS_FEATURES.md — Aktive Pakete
 # Claude Code liest diese Datei beim Session-Start automatisch.
 # Nach Abschluss eines Schritts: Status auf ✅ UMGESETZT (Datum) setzen.
-# Zuletzt aktualisiert: 2026-04-09 (Paket 7A + 7B Schritt 6 abgeschlossen)
+# Zuletzt aktualisiert: 2026-04-18 (Paket 8A Schritt 1 abgeschlossen)
 
 ---
 
@@ -170,7 +170,7 @@ der Nutzer erneut öffnet.
 
 ---
 
-### Schritt 1 — Design-System + Lebensbereiche-Farben definieren ⬜ OFFEN
+### Schritt 1 — Design-System + Lebensbereiche-Farben definieren ✅ UMGESETZT (2026-04-18)
 
 **Was gebaut wird:** Einheitliches Design-System für die gesamte App.
 
@@ -203,7 +203,7 @@ der Nutzer erneut öffnet.
 
 ---
 
-### Schritt 2 — Dashboard visuell neu gestalten + Motivationssprüche ⬜ OFFEN
+### Schritt 2 — Dashboard visuell neu gestalten + Motivationssprüche ✅ UMGESETZT (2026-04-18)
 
 **Desktop (2 Spalten):**
 
@@ -237,7 +237,7 @@ Rechte Spalte:
 
 ---
 
-### Schritt 3 — Journal visuell neu gestalten ⬜ OFFEN
+### Schritt 3 — Journal visuell neu gestalten ✅ UMGESETZT (2026-04-18)
 
 - Tab-Navigation oben: klare aktive/inaktive Zustände
 - Formularfelder: großzügige Abstände, gut lesbare Labels
@@ -249,7 +249,7 @@ Rechte Spalte:
 
 ---
 
-### Schritt 4 — Coach visuell neu gestalten ⬜ OFFEN
+### Schritt 4 — Coach visuell neu gestalten ✅ UMGESETZT (2026-04-18)
 
 - Chat-Blasen: klar unterscheidbar (Nutzer vs. KI)
 - Ton-Auswahl: prominent sichtbar
@@ -258,7 +258,7 @@ Rechte Spalte:
 
 ---
 
-### Schritt 5 — Übersicht visuell neu gestalten ⬜ OFFEN
+### Schritt 5 — Übersicht visuell neu gestalten ✅ UMGESETZT (2026-04-18)
 
 - Kalender: Lebensbereiche-Farbpunkte an Tagen mit Zielen
 - Habit-Grid: konsistente Farben, gut lesbar
@@ -266,7 +266,7 @@ Rechte Spalte:
 
 ---
 
-### Schritt 6 — Einstellungen visuell neu gestalten ⬜ OFFEN
+### Schritt 6 — Einstellungen visuell neu gestalten ✅ UMGESETZT (2026-04-18)
 
 - Sektionen: klarer Header, schöner Pfeil
 - Gefahrenzone: visuell klar abgetrennt, rotes Design

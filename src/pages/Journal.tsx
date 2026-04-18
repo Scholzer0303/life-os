@@ -79,13 +79,15 @@ export default function Journal() {
 
   return (
     <div style={{ paddingTop: '0.25rem' }}>
-      {/* Tab-Leiste */}
+      {/* Tab-Leiste — Pill Style */}
       <div
         style={{
           display: 'flex',
           gap: '0.25rem',
-          borderBottom: '1px solid var(--border)',
-          marginBottom: '1.25rem',
+          background: 'var(--bg-secondary)',
+          borderRadius: '12px',
+          padding: '0.3rem',
+          marginBottom: '1.5rem',
           overflowX: 'auto',
           scrollbarWidth: 'none',
         }}
@@ -95,18 +97,19 @@ export default function Journal() {
             key={tab.id}
             onClick={() => handleTabChange(tab.id)}
             style={{
-              background: 'none',
+              flex: 1,
+              background: activeTab === tab.id ? 'var(--bg-card)' : 'transparent',
               border: 'none',
               cursor: 'pointer',
-              padding: '0.6rem 1rem',
+              padding: '0.5rem 0.75rem',
               fontSize: '0.875rem',
               fontWeight: activeTab === tab.id ? 600 : 400,
-              color: activeTab === tab.id ? 'var(--accent)' : 'var(--text-muted)',
-              borderBottom: activeTab === tab.id ? '2px solid var(--accent)' : '2px solid transparent',
-              marginBottom: '-1px',
+              color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-muted)',
+              borderRadius: '9px',
               whiteSpace: 'nowrap',
-              transition: 'color 0.15s',
+              transition: 'all 0.15s',
               fontFamily: 'DM Sans, sans-serif',
+              boxShadow: activeTab === tab.id ? 'var(--shadow-card)' : 'none',
             }}
           >
             {tab.label}

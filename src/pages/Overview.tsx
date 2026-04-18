@@ -9,6 +9,14 @@ function getMonthAtOffset(offset: number): { month: number; year: number } {
   return { month: d.getMonth() + 1, year: d.getFullYear() }
 }
 
+const cardStyle: React.CSSProperties = {
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius-card)',
+  padding: '1.5rem',
+  boxShadow: 'var(--shadow-card)',
+}
+
 export default function Overview() {
   const [monthOffset, setMonthOffset] = useState(0)
   const [habitMonthRate, setHabitMonthRate] = useState<number | null>(null)
@@ -21,28 +29,35 @@ export default function Overview() {
   }, [])
 
   return (
-    <div style={{ paddingTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <OverviewCalendar
-        month={month}
-        year={year}
-        isCurrentMonth={isCurrentMonth}
-        onPrev={() => setMonthOffset((m) => m - 1)}
-        onNext={() => setMonthOffset((m) => m + 1)}
-        onGoToToday={() => setMonthOffset(0)}
-        habitMonthRate={habitMonthRate}
-      />
+    <div className="overview-grid">
 
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
-        <HabitGrid
+      {/* Linke Spalte: Kalender */}
+      <div style={cardStyle}>
+        <OverviewCalendar
           month={month}
           year={year}
-          onRateComputed={handleHabitRate}
+          isCurrentMonth={isCurrentMonth}
+          onPrev={() => setMonthOffset((m) => m - 1)}
+          onNext={() => setMonthOffset((m) => m + 1)}
+          onGoToToday={() => setMonthOffset(0)}
+          habitMonthRate={habitMonthRate}
         />
       </div>
 
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
-        <MetricChart month={month} year={year} />
+      {/* Rechte Spalte: Habit-Grid + Charts */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div style={cardStyle}>
+          <HabitGrid
+            month={month}
+            year={year}
+            onRateComputed={handleHabitRate}
+          />
+        </div>
+        <div style={cardStyle}>
+          <MetricChart month={month} year={year} />
+        </div>
       </div>
+
     </div>
   )
 }

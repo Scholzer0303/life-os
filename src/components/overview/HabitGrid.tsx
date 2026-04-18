@@ -177,7 +177,7 @@ export default function HabitGrid({ month, year, onRateComputed }: Props) {
                 textAlign: 'left', padding: '0.3rem 0.75rem 0.3rem 0',
                 fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600,
                 textTransform: 'uppercase', letterSpacing: '0.04em',
-                position: 'sticky', left: 0, background: 'var(--bg-primary)', zIndex: 1,
+                position: 'sticky', left: 0, background: 'var(--bg-card)', zIndex: 1,
                 borderRight: '1px solid var(--border)', whiteSpace: 'nowrap',
                 minWidth: '130px',
               }}>
@@ -220,7 +220,7 @@ export default function HabitGrid({ month, year, onRateComputed }: Props) {
                     padding: '0.3rem 0.75rem 0.3rem 0',
                     fontSize: '0.8rem', color: 'var(--text-primary)',
                     whiteSpace: 'nowrap', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis',
-                    position: 'sticky', left: 0, background: 'var(--bg-primary)', zIndex: 1,
+                    position: 'sticky', left: 0, background: 'var(--bg-card)', zIndex: 1,
                     borderRight: '1px solid var(--border)',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>

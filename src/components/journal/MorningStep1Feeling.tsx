@@ -116,43 +116,58 @@ export default function MorningStep1Feeling({ initialScore, initialText, initial
       {/* Metriken — optional, nur wenn aktiviert */}
       {metricsEnabled && (
         <div style={{ marginBottom: '1.5rem' }}>
-          <p style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 0.75rem' }}>
+          <p style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 1rem' }}>
             Heutige Metriken <span style={{ fontWeight: 400, textTransform: 'none' }}>(optional)</span>
           </p>
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
-                ⚖️ Gewicht (kg)
+
+          {/* Gewicht */}
+          <div style={{ marginBottom: '1.1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                Gewicht (kg)
               </label>
-              <input
-                type="number"
-                step="0.1"
-                min="30"
-                max="300"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                placeholder="z.B. 82.5"
-                style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
-                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-              />
+              {weight !== '' && (
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'JetBrains Mono, monospace' }}>
+                  {weight} kg
+                </span>
+              )}
             </div>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
-                😴 Schlafscore (/100)
+            <input
+              type="number"
+              step="0.1"
+              min="30"
+              max="300"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              placeholder="z.B. 82.5"
+              style={{ width: '100%', padding: '0.65rem 0.9rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '1rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
+              onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+              onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+            />
+          </div>
+
+          {/* Schlafscore — Slider */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <label style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                Schlafscore
               </label>
-              <input
-                type="number"
-                step="1"
-                min="0"
-                max="100"
-                value={sleepScore}
-                onChange={(e) => setSleepScore(e.target.value)}
-                placeholder="z.B. 78"
-                style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }}
-                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-              />
+              <span style={{ fontSize: '0.82rem', fontWeight: 600, fontFamily: 'JetBrains Mono, monospace', color: sleepScore === '' ? 'var(--text-muted)' : Number(sleepScore) >= 70 ? 'var(--accent-green)' : Number(sleepScore) >= 40 ? 'var(--streak)' : 'var(--accent-warm)' }}>
+                {sleepScore === '' ? '—' : `${sleepScore}/100`}
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value={sleepScore === '' ? 0 : Number(sleepScore)}
+              onChange={(e) => setSleepScore(e.target.value)}
+              style={{ width: '100%', accentColor: 'var(--accent)', height: '6px', cursor: 'pointer' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Schlecht</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Perfekt</span>
             </div>
           </div>
         </div>

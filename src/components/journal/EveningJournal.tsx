@@ -18,44 +18,70 @@ function energyColor(n: number): string {
   return 'var(--accent-green)'
 }
 
+function energyLabel(n: number): string {
+  if (n <= 2) return 'Sehr niedrig'
+  if (n <= 4) return 'Niedrig'
+  if (n <= 6) return 'Mittel'
+  if (n <= 8) return 'Hoch'
+  return 'Sehr hoch'
+}
+
 function EnergyScale({ value, onChange }: { value: number | null; onChange: (v: number) => void }) {
   const [hovered, setHovered] = useState<number | null>(null)
   const levels = Array.from({ length: 10 }, (_, i) => i + 1)
+  const display = hovered ?? value
   return (
-    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-      {levels.map((n) => {
-        const isSelected = value === n
-        const isHovered = hovered === n
-        const color = energyColor(n)
-        const active = isSelected || isHovered
-        return (
-          <button
-            key={n}
-            onClick={() => onChange(n)}
-            onMouseEnter={() => setHovered(n)}
-            onMouseLeave={() => setHovered(null)}
-            aria-label={`Energie-Level ${n}`}
-            aria-pressed={isSelected}
-            style={{
-              width: '2.4rem',
-              height: '2.4rem',
-              background: active ? color : 'var(--bg-card)',
-              color: active ? '#fff' : 'var(--text-secondary)',
-              border: `2px solid ${active ? color : 'var(--border)'}`,
-              borderRadius: '8px',
-              fontFamily: 'JetBrains Mono, monospace',
-              fontWeight: 600,
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-              transition: 'all 0.12s',
-              transform: isSelected ? 'scale(1.1)' : 'scale(1)',
-              opacity: isHovered && !isSelected ? 0.8 : 1,
-            }}
-          >
-            {n}
-          </button>
-        )
-      })}
+    <div>
+      {/* Label-Anzeige */}
+      <div style={{ height: '1.75rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {display !== null ? (
+          <>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1.25rem', fontWeight: 700, color: energyColor(display), lineHeight: 1 }}>
+              {display}
+            </span>
+            <span style={{ fontSize: '0.875rem', color: energyColor(display), fontWeight: 500 }}>
+              — {energyLabel(display)}
+            </span>
+          </>
+        ) : (
+          <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Wie war deine Energie heute?</span>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: '0.35rem' }}>
+        {levels.map((n) => {
+          const isSelected = value === n
+          const isHovered = hovered === n
+          const color = energyColor(n)
+          const active = isSelected || isHovered
+          return (
+            <button
+              key={n}
+              onClick={() => onChange(n)}
+              onMouseEnter={() => setHovered(n)}
+              onMouseLeave={() => setHovered(null)}
+              aria-label={`Energie-Level ${n}`}
+              aria-pressed={isSelected}
+              style={{
+                flex: 1,
+                height: '2.6rem',
+                background: active ? color : 'var(--bg-secondary)',
+                color: active ? '#fff' : 'var(--text-muted)',
+                border: `2px solid ${active ? color : 'transparent'}`,
+                borderRadius: '8px',
+                fontFamily: 'JetBrains Mono, monospace',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                transition: 'all 0.12s',
+                transform: isSelected ? 'translateY(-2px)' : 'none',
+                boxShadow: isSelected ? `0 3px 8px ${color}40` : 'none',
+              }}
+            >
+              {n}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

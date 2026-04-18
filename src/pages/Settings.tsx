@@ -52,34 +52,45 @@ function CollapsibleSection({
 }) {
   return (
     <div style={{
-      background: dangerStyle ? 'rgba(239,68,68,0.06)' : 'var(--bg-card)',
-      border: `1px solid ${dangerStyle ? 'rgba(239,68,68,0.3)' : 'var(--border)'}`,
-      borderRadius: '12px',
-      marginBottom: '0.75rem',
+      background: dangerStyle ? 'rgba(239,68,68,0.04)' : 'var(--bg-card)',
+      border: `1px solid ${dangerStyle ? 'rgba(239,68,68,0.35)' : 'var(--border)'}`,
+      borderRadius: 'var(--radius-card)',
+      marginBottom: '0.65rem',
       overflow: 'hidden',
+      boxShadow: dangerStyle ? 'none' : 'var(--shadow-card)',
     }}>
       <button
         onClick={onToggle}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '1rem 1.25rem', background: 'none', border: 'none', cursor: 'pointer',
+          padding: '0.9rem 1.25rem', background: 'none', border: 'none', cursor: 'pointer',
+          gap: '0.75rem',
         }}
       >
         <span style={{
-          fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase',
-          letterSpacing: '0.06em', color: dangerStyle ? '#ef4444' : 'var(--text-muted)',
+          fontSize: '0.92rem', fontWeight: 600,
+          color: dangerStyle ? '#ef4444' : 'var(--text-primary)',
+          textAlign: 'left',
         }}>
           {title}
         </span>
-        <ChevronDown
-          size={16}
-          color="var(--text-muted)"
-          style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}
-        />
+        <div style={{
+          width: '24px', height: '24px', borderRadius: '6px',
+          background: dangerStyle ? 'rgba(239,68,68,0.1)' : 'var(--bg-secondary)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          <ChevronDown
+            size={14}
+            color={dangerStyle ? '#ef4444' : 'var(--text-muted)'}
+            style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+          />
+        </div>
       </button>
       {isOpen && (
-        <div style={{ padding: '0 1.25rem 1.25rem' }}>
-          {children}
+        <div style={{ padding: '0 1.25rem 1.25rem', borderTop: `1px solid ${dangerStyle ? 'rgba(239,68,68,0.15)' : 'var(--border)'}` }}>
+          <div style={{ paddingTop: '1rem' }}>
+            {children}
+          </div>
         </div>
       )}
     </div>
@@ -402,9 +413,8 @@ export default function Settings() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ minHeight: '100svh', background: 'var(--bg-primary)', paddingBottom: 'calc(72px + env(safe-area-inset-bottom))' }}>
-      <div style={{ maxWidth: '520px', margin: '0 auto', padding: '1.5rem 1rem 0' }}>
-        <h1 style={{ fontFamily: 'Lora, serif', fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1.25rem' }}>
+    <div style={{ maxWidth: '640px', paddingBottom: '2rem' }}>
+        <h1 style={{ fontFamily: 'Lora, serif', fontSize: 'clamp(1.4rem, 3vw, 1.75rem)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '1.5rem' }}>
           Einstellungen
         </h1>
 
@@ -742,7 +752,12 @@ export default function Settings() {
           </div>
         </CollapsibleSection>
 
-        {/* ── 9. Gefahrenzone ── */}
+        {/* ── 9. Gefahrenzone — visuell abgesetzt ── */}
+        <div style={{ margin: '1.25rem 0 0.65rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ flex: 1, height: '1px', background: 'rgba(239,68,68,0.2)' }} />
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'rgba(239,68,68,0.6)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Gefahrenzone</span>
+          <div style={{ flex: 1, height: '1px', background: 'rgba(239,68,68,0.2)' }} />
+        </div>
         <CollapsibleSection title="Gefahrenzone" isOpen={openSections.has('danger')} onToggle={() => toggleSection('danger')} dangerStyle>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: 1.4 }}>
             Diese Aktionen sind dauerhaft und können nicht rückgängig gemacht werden.
@@ -797,8 +812,6 @@ export default function Settings() {
             <InfoTooltip text="Meldet dich aus der App ab. Deine Daten bleiben gespeichert." />
           </div>
         </CollapsibleSection>
-
-      </div>
 
       {/* ─── Modals ─── */}
       <AnimatePresence>
