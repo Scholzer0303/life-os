@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md — Projektgedächtnis
 # Wird nach JEDEM abgeschlossenen Schritt von Claude Code aktualisiert.
 # Nach jeder Session: diese Datei ins Claude Project hochladen (ersetzt alte Version).
-# Zuletzt aktualisiert: 2026-04-18 (Paket 8B Schritt 2 abgeschlossen — Dashboard visuell neu gestaltet)
+# Zuletzt aktualisiert: 2026-04-18 (Paket 7 + Paket 8 komplett abgeschlossen)
 
 ---
 
@@ -14,16 +14,19 @@ VISION.md → LIFE_OS_KONTEXT.md → LIFE_OS_FEATURES.md
 
 Life OS ist eine PWA, live auf https://life-os-henna-xi.vercel.app
 
-**Was die App aktuell kann (Stand nach Paket 7A komplett):**
+**Was die App aktuell kann (Stand nach Paket 7 + 8 komplett):**
 - Navigation: Dashboard · Journal · Coach · Übersicht · Einstellungen
-- Journal: Tag (Morgen/Abend), Woche, Monat, Quartal, Jahr
+- Journal: Tag (Morgen/Abend), Woche, Monat, Quartal, Jahr — Pill-Tabs, großzügiges Layout
 - Ziel-Hierarchie: parent_id Dropdown in allen Journal-Komponenten
 - KI-Feedback an Zielen: FeedbackPanel mit Markdown, Cache, Rückfrage-Verlauf
 - Habits: Tabellen habits + habit_logs, Monatsübergang-Dialog
-- Übersicht: Kalender, Habit-Grid, Metriken-Charts
-- Coach: 4 Modi, Ton-Auswahl, vergangene Sessions
-- Einstellungen: 11 eingeklappte Sektionen
-- Dashboard: Vision-Banner, Streak, Tasks, Wochenziele, Heatmap
+- Übersicht: Kalender, Habit-Grid, Metriken-Charts — 2-Spalten-Layout auf Desktop
+- Coach: 4 Modi, Ton-Auswahl, vergangene Sessions — Chat-Bubbles, 2-Spalten-Layout
+- Einstellungen: 11 eingeklappte Sektionen — neue CollapsibleSection, Gefahrenzone-Trenner
+- Dashboard: Lebensrad-Miniatur (Placeholder), Identität, Tasks, Wochenziele, Motivationssprüche
+- Design-System: CSS-Variablen, Lebensbereiche-Farben in src/lib/lifeAreas.ts
+- PC: volle Bildschirmbreite genutzt (dashboard-grid, coach-layout, overview-grid)
+- Mobil: App starr, keine Verschiebung beim Tippen
 
 **Bekannte kritische Bugs (aus App-Audit 09.04.2026):**
 - ✅ Datenverlust beim Tab-Wechsel — BEHOBEN: onChange schreibt synchron in localStorage; aktiver Journal-Tab + MorningJournal-Schritt werden separat persistiert.
@@ -179,12 +182,12 @@ Dashboard · Journal · Übersicht · Coach · Ich · Einstellungen
 | 7-8 | Zeitperioden-Logik: Woche/Monat/Quartal/Jahr korrekt | 7C | ✅ ERLEDIGT 2026-04-18 |
 | 7-9 | Tagesaufgaben → Wochenziel Zuordnung im Morgenjournal | 7C | ✅ ERLEDIGT 2026-04-18 |
 | 7-10 | KI-Impuls: Qualität verbessern (länger, konkreter) | 7C | ✅ ERLEDIGT 2026-04-18 |
-| 8-1 | Design-System + Lebensbereich-Farben definieren | 8A | ⬜ OFFEN |
-| 8-2 | Dashboard visuell neu gestalten + Motivationssprüche-Button | 8B | ⬜ OFFEN |
-| 8-3 | Journal visuell neu gestalten | 8B | ⬜ OFFEN |
-| 8-4 | Coach visuell neu gestalten | 8B | ⬜ OFFEN |
-| 8-5 | Übersicht visuell neu gestalten | 8B | ⬜ OFFEN |
-| 8-6 | Einstellungen visuell neu gestalten | 8B | ⬜ OFFEN |
+| 8-1 | Design-System + Lebensbereich-Farben definieren | 8A | ✅ ERLEDIGT 2026-04-18 |
+| 8-2 | Dashboard visuell neu gestalten + Motivationssprüche-Button | 8B | ✅ ERLEDIGT 2026-04-18 |
+| 8-3 | Journal visuell neu gestalten | 8B | ✅ ERLEDIGT 2026-04-18 |
+| 8-4 | Coach visuell neu gestalten | 8B | ✅ ERLEDIGT 2026-04-18 |
+| 8-5 | Übersicht visuell neu gestalten | 8B | ✅ ERLEDIGT 2026-04-18 |
+| 8-6 | Einstellungen visuell neu gestalten | 8B | ✅ ERLEDIGT 2026-04-18 |
 | 9-1 | Abendjournal: Tagesaufgaben für morgen vorplanen | 9A | ⬜ OFFEN |
 | 9-2 | Morgenjournal: vorbereitete Tasks aus Abend laden | 9A | ⬜ OFFEN |
 | 9-3 | Ziele: life_area Feld + Limit-Logik (1/2/2/3/4 Regel) | 9B | ⬜ OFFEN |
@@ -235,10 +238,22 @@ Grundaufbau, Journal-System, Habit-Tracker, Übersicht, Ziele, Review.
 5C: Vision-Umbenennung + Einstellungen neu strukturiert.
 5D: KI-Ziel-Feedback mit FeedbackPanel, Cache, Rückfrage-Verlauf.
 
-**Paket 7A + 7B (Schritte 1–7) — April 2026 ✅**
+**Paket 7A + 7B + 7C (Schritte 1–10) — April 2026 ✅**
 7-1: Tab-Wechsel Datenverlust — synchrones Schreiben in onChange-Handlern.
 7-2: Abendjournal Datenverlust — Supabase-Eintrag beim Mount laden, Bearbeiten-Button.
 7-3: Habits im Abendjournal — als Schritt 2 in EveningJournal-Flow integriert.
 7-4: Vision-Bearbeiten-Loop — Inline-Textarea in Journal → Jahr und Einstellungen.
 7-5: KI-Markdown-Rendering — ReactMarkdown in 6 Journal-Komponenten ergänzt.
-7-6: Handy-Layout starr �� interactive-widget=resizes-visual, height: 100dvh, overflow: hidden.
+7-6: Handy-Layout starr — interactive-widget=resizes-visual, height: 100dvh, overflow: hidden.
+7-7: PC-Vollbreite — CSS Grid-Klassen in index.css, 2-Spalten-Layouts ab 1024px.
+7-8: Zeitperioden-Logik — ISO-Woche, korrekte Perioden-Abschluss-Logik.
+7-9: Tagesaufgaben → Wochenziel — Dropdown + Dashboard-Badge.
+7-10: KI-Impuls Qualität — max_tokens 400, Vision/Identität/Wochenziele im Kontext.
+
+**Paket 8A + 8B (Schritte 1–6) — April 2026 ✅**
+8-1: Design-System + lifeAreas.ts — CSS-Variablen, 6 Lebensbereich-Farben.
+8-2: Dashboard neu — Lebensrad-Miniatur (Placeholder), Motivationssprüche, 2-Spalten.
+8-3: Journal neu — Pill-Tabs, Schlafscore-Slider, Energie-Labels.
+8-4: Coach neu — Chat-Blasen, Modus-/Ton-Karten, 2-Spalten.
+8-5: Übersicht neu — Card-Wrapper, 2-Spalten, Statistik-Kacheln 3-spaltig.
+8-6: Einstellungen neu — CollapsibleSection mit Chevron-Box, Gefahrenzone-Trenner.
