@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { ChevronLeft, ChevronRight, Plus, Trash2, Loader, Sparkles } from 'lucide-react'
 import { useStore } from '../../store/useStore'
-import { getJournalPeriod, upsertJournalPeriod, getYearlyGoals, createGoal, updateGoal, deleteGoal, updateProfile } from '../../lib/db'
+import { getJournalPeriod, upsertJournalPeriod, getYearlyGoals, getAllGoalsForYear, createGoal, updateGoal, deleteGoal, updateProfile, getLifeAreaSnapshot, upsertLifeAreaSnapshot } from '../../lib/db'
+import type { LifeAreaSnapshotRow } from '../../lib/db'
 import { generatePeriodSummary, getGoalFeedback, getGoalFeedbackFollowup } from '../../lib/claude'
 import FeedbackPanel from './FeedbackPanel'
+import GoalCascade from './GoalCascade'
 import type { GoalRow } from '../../types/database'
 import { LIFE_AREAS, LIFE_AREA_ORDER, type LifeArea } from '../../lib/lifeAreas'
 
@@ -56,6 +58,25 @@ export default function JournalYear() {
   const [followupLoading, setFollowupLoading] = useState(false)
   const [showFollowup, setShowFollowup] = useState(false)
 
+  // Ist-Stand (life_area_snapshots)
+  const [startSnapshot, setStartSnapshot] = useState<LifeAreaSnapshotRow | null>(null)
+  const [endSnapshot, setEndSnapshot] = useState<LifeAreaSnapshotRow | null>(null)
+  const [startScores, setStartScores] = useState<Record<string, number>>({})
+  const [startNotes, setStartNotes] = useState<Record<string, string>>({})
+  const [endScores, setEndScores] = useState<Record<string, number>>({})
+  const [endNotes, setEndNotes] = useState<Record<string, string>>({})
+  const [savingSnapshot, setSavingSnapshot] = useState(false)
+  const [snapshotSaved, setSnapshotSaved] = useState(false)
+
+  // Schwerpunktbereiche (aus profiles.ai_profile.focus_areas)
+  const [focusAreas, setFocusAreas] = useState<LifeArea[]>(() => {
+    try {
+      const ap = profile?.ai_profile as Record<string, unknown> | null
+      return Array.isArray(ap?.focus_areas) ? (ap!.focus_areas as LifeArea[]) : []
+    } catch { return [] }
+  })
+  const [savingFocus, setSavingFocus] = useState(false)
+
   // Vision inline edit
   const [editingVision, setEditingVision] = useState(false)
   const [visionDraft, setVisionDraft] = useState('')
@@ -77,6 +98,7 @@ export default function JournalYear() {
 
   // Jahresziele (goals table)
   const [goals, setGoals] = useState<GoalRow[]>([])
+  const [allGoals, setAllGoals] = useState<GoalRow[]>([])
   const [goalsLoading, setGoalsLoading] = useState(false)
   const [newGoalTitle, setNewGoalTitle] = useState('')
   const [newGoalLifeArea, setNewGoalLifeArea] = useState<LifeArea | null>(null)
@@ -88,10 +110,19 @@ export default function JournalYear() {
     setLoading(true)
     setGoalsLoading(true)
     try {
-      const [p, g] = await Promise.all([
+      const [p, g, all, snap0, snap1] = await Promise.all([
         getJournalPeriod(user.id, 'year', periodKey),
         getYearlyGoals(user.id, year),
+        getAllGoalsForYear(user.id, year),
+        getLifeAreaSnapshot(user.id, year, 'start'),
+        getLifeAreaSnapshot(user.id, year, 'end'),
       ])
+      setStartSnapshot(snap0)
+      setEndSnapshot(snap1)
+      setStartScores(snap0?.scores ?? {})
+      setStartNotes((snap0?.notes as Record<string, string>) ?? {})
+      setEndScores(snap1?.scores ?? {})
+      setEndNotes((snap1?.notes as Record<string, string>) ?? {})
       const supabasePlanning: YearPlanningData = p ? ((p.planning_data as YearPlanningData) ?? {}) : {}
       const supabaseReflection: YearReflectionData = p ? ((p.reflection_data as YearReflectionData) ?? {}) : {}
       setAiSummary(p?.ai_summary ?? null)
@@ -112,6 +143,7 @@ export default function JournalYear() {
       }
 
       setGoals(g)
+      setAllGoals(all)
     } catch (err) {
       console.error('JournalYear laden:', err)
     } finally {
@@ -161,6 +193,41 @@ export default function JournalYear() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function saveStartSnapshot() {
+    if (!user) return
+    setSavingSnapshot(true); setSnapshotSaved(false)
+    try {
+      const saved = await upsertLifeAreaSnapshot(user.id, year, 'start', startScores, startNotes)
+      setStartSnapshot(saved)
+      setSnapshotSaved(true)
+      setTimeout(() => setSnapshotSaved(false), 2000)
+    } catch (err) { console.error('Ist-Stand speichern:', err) }
+    finally { setSavingSnapshot(false) }
+  }
+
+  async function saveEndSnapshot() {
+    if (!user) return
+    setSavingSnapshot(true); setSnapshotSaved(false)
+    try {
+      const saved = await upsertLifeAreaSnapshot(user.id, year, 'end', endScores, endNotes)
+      setEndSnapshot(saved)
+      setSnapshotSaved(true)
+      setTimeout(() => setSnapshotSaved(false), 2000)
+    } catch (err) { console.error('Jahresende-Stand speichern:', err) }
+    finally { setSavingSnapshot(false) }
+  }
+
+  async function saveFocusAreas(areas: LifeArea[]) {
+    if (!user) return
+    setSavingFocus(true)
+    try {
+      const currentAp = (profile?.ai_profile as Record<string, unknown> | null) ?? {}
+      await updateProfile(user.id, { ai_profile: { ...currentAp, focus_areas: areas } as unknown as import('../../types/database').Json })
+      setFocusAreas(areas)
+    } catch (err) { console.error('Schwerpunkte speichern:', err) }
+    finally { setSavingFocus(false) }
   }
 
   // KI-Zusammenfassung
@@ -347,6 +414,79 @@ export default function JournalYear() {
       {/* ── PLANUNG ── */}
       {!loading && activeSubTab === 'planung' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+          {/* Ist-Stand Jahresbeginn */}
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1rem' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.85rem' }}>
+              Ist-Stand Jahresbeginn {year}
+              {startSnapshot && <span style={{ marginLeft: '0.5rem', fontWeight: 400, textTransform: 'none', color: 'var(--accent)' }}>✓ gespeichert</span>}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {LIFE_AREA_ORDER.map((key) => {
+                const def = LIFE_AREAS[key]
+                const val = startScores[key] ?? 5
+                return (
+                  <div key={key}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 500, color: def.color }}>{def.label}</span>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: def.color }}>{val}/10</span>
+                    </div>
+                    <input
+                      type="range" min={1} max={10} value={val}
+                      onChange={(e) => setStartScores((s) => ({ ...s, [key]: Number(e.target.value) }))}
+                      style={{ width: '100%', accentColor: def.color, cursor: 'pointer' }}
+                    />
+                    <input
+                      value={startNotes[key] ?? ''}
+                      onChange={(e) => setStartNotes((n) => ({ ...n, [key]: e.target.value }))}
+                      placeholder="Kurze Notiz (optional)…"
+                      style={{ marginTop: '0.3rem', width: '100%', padding: '0.4rem 0.7rem', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '0.8rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-secondary)', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+            <button
+              onClick={saveStartSnapshot}
+              disabled={savingSnapshot}
+              style={{ marginTop: '1rem', width: '100%', padding: '0.7rem', background: snapshotSaved ? '#22c55e' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: savingSnapshot ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
+            >
+              {savingSnapshot ? 'Speichert…' : snapshotSaved ? '✓ Gespeichert' : 'Ist-Stand speichern'}
+            </button>
+          </div>
+
+          {/* Schwerpunktbereiche */}
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1rem' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+              Schwerpunktbereiche {year} <span style={{ fontWeight: 400, textTransform: 'none', color: 'var(--text-muted)' }}>(2–3 wählen)</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', marginBottom: '0.75rem' }}>
+              {LIFE_AREA_ORDER.map((key) => {
+                const def = LIFE_AREAS[key]
+                const active = focusAreas.includes(key)
+                return (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      const next = active
+                        ? focusAreas.filter((a) => a !== key)
+                        : focusAreas.length < 3 ? [...focusAreas, key] : focusAreas
+                      saveFocusAreas(next)
+                    }}
+                    style={{ padding: '0.5rem 0.3rem', borderRadius: '7px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', fontWeight: active ? 600 : 400, display: 'flex', alignItems: 'center', gap: '0.3rem', background: active ? def.bgAlpha : 'var(--bg-primary)', border: `1.5px solid ${active ? def.color : 'var(--border)'}`, color: active ? def.color : 'var(--text-secondary)', transition: 'all 0.12s' }}
+                    disabled={savingFocus}
+                  >
+                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: def.color, flexShrink: 0 }} />
+                    {def.label}
+                  </button>
+                )
+              })}
+            </div>
+            {focusAreas.length === 0 && (
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 }}>Noch keine Schwerpunkte gewählt — klicke auf 2–3 Bereiche.</p>
+            )}
+          </div>
+
           {/* Vision */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
@@ -495,21 +635,19 @@ export default function JournalYear() {
             </button>
           </div>
 
-          {/* Was will ich erreicht haben */}
+          {/* Zielkaskade */}
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.5rem' }}>
-              Was will ich {year} erreicht haben?
-            </label>
-            <textarea
-              value={planning.achievements ?? ''}
-              onChange={(e) => { const u = { ...planning, achievements: e.target.value }; setPlanning(u); saveDraft(u, reflection) }}
-              placeholder={`Am 31. Dezember ${year} blicke ich zurück und bin stolz auf…`}
-              rows={4}
-              style={{ width: '100%', padding: '0.85rem 1rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5 }}
-              onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-              onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-            />
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.6rem' }}>
+              Zielkaskade {year}
+            </div>
+            {goalsLoading ? (
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Lade…</div>
+            ) : (
+              <GoalCascade allGoals={allGoals} year={year} />
+            )}
           </div>
+
+          {/* "Was will ich {year} erreicht haben?" — deaktiviert (Paket 9D) */}
 
           {/* Speichern */}
           <button
@@ -576,6 +714,55 @@ export default function JournalYear() {
               />
             </div>
           ))}
+
+          {/* Ist-Stand Jahresende */}
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1rem' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.85rem' }}>
+              Ist-Stand Jahresende {year}
+              {endSnapshot && <span style={{ marginLeft: '0.5rem', fontWeight: 400, textTransform: 'none', color: 'var(--accent)' }}>✓ gespeichert</span>}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {LIFE_AREA_ORDER.map((key) => {
+                const def = LIFE_AREAS[key]
+                const val = endScores[key] ?? 5
+                const startVal = startSnapshot?.scores?.[key]
+                const diff = startVal != null ? val - startVal : null
+                return (
+                  <div key={key}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 500, color: def.color }}>{def.label}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {diff != null && (
+                          <span style={{ fontSize: '0.75rem', color: diff > 0 ? '#22c55e' : diff < 0 ? 'var(--accent-warm, #f59e0b)' : 'var(--text-muted)' }}>
+                            {diff > 0 ? `+${diff}` : diff === 0 ? '±0' : diff}
+                          </span>
+                        )}
+                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: def.color }}>{val}/10</span>
+                      </div>
+                    </div>
+                    <input
+                      type="range" min={1} max={10} value={val}
+                      onChange={(e) => setEndScores((s) => ({ ...s, [key]: Number(e.target.value) }))}
+                      style={{ width: '100%', accentColor: def.color, cursor: 'pointer' }}
+                    />
+                    <input
+                      value={endNotes[key] ?? ''}
+                      onChange={(e) => setEndNotes((n) => ({ ...n, [key]: e.target.value }))}
+                      placeholder="Kurze Notiz (optional)…"
+                      style={{ marginTop: '0.3rem', width: '100%', padding: '0.4rem 0.7rem', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '0.8rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-secondary)', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+            <button
+              onClick={saveEndSnapshot}
+              disabled={savingSnapshot}
+              style={{ marginTop: '1rem', width: '100%', padding: '0.7rem', background: snapshotSaved ? '#22c55e' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: savingSnapshot ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
+            >
+              {savingSnapshot ? 'Speichert…' : snapshotSaved ? '✓ Gespeichert' : 'Jahresende-Stand speichern'}
+            </button>
+          </div>
 
           {/* KI-Zusammenfassung */}
           <div>

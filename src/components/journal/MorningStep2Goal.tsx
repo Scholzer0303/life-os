@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, ChevronUp, Link, Plus, Trash2 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { Plus, Trash2 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
-import { getWeeklyGoals, getActiveGoalHierarchy } from '../../lib/db'
+import { getWeeklyGoals } from '../../lib/db'
 import type { GoalRow } from '../../types/database'
-import type { ActiveGoalHierarchy } from '../../lib/db'
 import type { DailyTask } from '../../types'
 
 interface Props {
@@ -19,18 +17,15 @@ interface Props {
   onBack: () => void
 }
 
-export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, initialIdentityAction = '', initialDailyTasks = [], identityStatement, prefilledFromEvening = false, onNext, onBack }: Props) {
+export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, initialIdentityAction = '', initialDailyTasks = [], prefilledFromEvening = false, onNext, onBack }: Props) {
   const { user } = useStore()
-  const navigate = useNavigate()
-  const [goal, setGoal] = useState(initialGoal)
+  const [goal] = useState(initialGoal)
   const [linkedGoalId, setLinkedGoalId] = useState<string | null>(initialLinkedGoalId)
-  const [identityAction, setIdentityAction] = useState(initialIdentityAction)
+  const [identityAction] = useState(initialIdentityAction)
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>(
     initialDailyTasks.length > 0 ? initialDailyTasks : [{ id: crypto.randomUUID(), title: '', completed: false, goal_id: null }]
   )
   const [weeklyGoals, setWeeklyGoals] = useState<GoalRow[]>([])
-  const [hierarchy, setHierarchy] = useState<ActiveGoalHierarchy | null>(null)
-  const [hierarchyOpen, setHierarchyOpen] = useState(true)
 
   function addTask() {
     if (dailyTasks.length >= 5) return
@@ -52,10 +47,9 @@ export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, ini
   useEffect(() => {
     if (!user) return
     getWeeklyGoals(user.id).then(setWeeklyGoals).catch(console.error)
-    getActiveGoalHierarchy(user.id).then(setHierarchy).catch(console.error)
   }, [user])
 
-  const canProceed = goal.trim().length > 0
+  const canProceed = true
 
   return (
     <motion.div
@@ -71,126 +65,9 @@ export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, ini
         Nur eines. Das Wichtigste, das heute passieren soll.
       </p>
 
-      {/* Kontext-Banner */}
-      {hierarchy && (hierarchy.week || hierarchy.month || hierarchy.quarter) ? (
-        <div
-          style={{
-            background: 'rgba(134,59,255,0.07)',
-            border: '1px solid rgba(134,59,255,0.2)',
-            borderRadius: '10px',
-            marginBottom: '1.25rem',
-            overflow: 'hidden',
-          }}
-        >
-          <button
-            onClick={() => setHierarchyOpen((o) => !o)}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0.6rem 0.875rem',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--accent)',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <Link size={12} />
-              Dein Ziel-Kontext
-            </span>
-            {hierarchyOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-          <AnimatePresence>
-            {hierarchyOpen && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                style={{ overflow: 'hidden' }}
-              >
-                <div style={{ padding: '0 0.875rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  {hierarchy.quarter && (
-                    <HierarchyRow label="Quartal" title={hierarchy.quarter.title} />
-                  )}
-                  {hierarchy.month && (
-                    <HierarchyRow label="Monat" title={hierarchy.month.title} />
-                  )}
-                  {hierarchy.week ? (
-                    <HierarchyRow label="Woche" title={hierarchy.week.title} highlight />
-                  ) : (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      Noch kein Wochenziel —{' '}
-                      <button
-                        onClick={() => navigate('/goals')}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '0.8rem', padding: 0, textDecoration: 'underline' }}
-                      >
-                        Jetzt setzen
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      ) : hierarchy && !hierarchy.week && !hierarchy.month && !hierarchy.quarter ? (
-        <div style={{ padding: '0.6rem 0.875rem', background: 'rgba(134,59,255,0.05)', borderRadius: '8px', marginBottom: '1.25rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          Noch kein Wochenziel gesetzt —{' '}
-          <button
-            onClick={() => navigate('/goals')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: '0.8rem', padding: 0, textDecoration: 'underline' }}
-          >
-            Jetzt setzen →
-          </button>
-        </div>
-      ) : null}
+      {/* Kontext-Banner — deaktiviert (Paket 9D) */}
 
-      <label
-        htmlFor="main-goal"
-        style={{
-          display: 'block',
-          fontSize: '0.8rem',
-          fontWeight: 500,
-          color: 'var(--text-secondary)',
-          marginBottom: '0.4rem',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em',
-        }}
-      >
-        Mein Ziel für heute
-      </label>
-      <textarea
-        id="main-goal"
-        value={goal}
-        onChange={(e) => setGoal(e.target.value)}
-        placeholder="Heute ist der Tag ein Erfolg, wenn…"
-        rows={3}
-        autoFocus
-        style={{
-          width: '100%',
-          padding: '0.85rem 1rem',
-          border: '1.5px solid var(--border)',
-          borderRadius: '10px',
-          fontSize: '0.95rem',
-          fontFamily: 'DM Sans, sans-serif',
-          background: 'var(--bg-primary)',
-          color: 'var(--text-primary)',
-          outline: 'none',
-          resize: 'none',
-          boxSizing: 'border-box',
-          lineHeight: 1.5,
-          marginBottom: '1.25rem',
-        }}
-        onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-        onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-      />
+      {/* "Mein Ziel für heute" Textarea — deaktiviert (Paket 9D) */}
 
       {/* Vorausgefüllte Tasks vom gestrigen Abend */}
       {prefilledFromEvening && (
@@ -255,39 +132,7 @@ export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, ini
         )}
       </div>
 
-      {/* Identitäts-Anker */}
-      {identityStatement && (
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label
-            htmlFor="identity-action"
-            style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
-          >
-            Welche Handlung heute beweist wer du bist?{' '}
-            <span style={{ color: 'var(--text-muted)', textTransform: 'none', fontWeight: 400 }}>(optional)</span>
-          </label>
-          <input
-            id="identity-action"
-            type="text"
-            value={identityAction}
-            onChange={(e) => setIdentityAction(e.target.value)}
-            placeholder="Ich werde heute … tun, weil ich jemand bin der …"
-            style={{
-              width: '100%',
-              padding: '0.75rem 1rem',
-              border: '1.5px solid var(--border)',
-              borderRadius: '10px',
-              fontSize: '0.9rem',
-              fontFamily: 'DM Sans, sans-serif',
-              background: 'var(--bg-primary)',
-              color: 'var(--text-primary)',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
-            onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-            onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-          />
-        </div>
-      )}
+      {/* "Welche Handlung beweist wer du bist?" — deaktiviert (Paket 9D) */}
 
       {/* Weekly goal link */}
       {weeklyGoals.length > 0 && (
@@ -354,29 +199,6 @@ export default function MorningStep2Goal({ initialGoal, initialLinkedGoalId, ini
         </button>
       </div>
     </motion.div>
-  )
-}
-
-function HierarchyRow({ label, title, highlight = false }: { label: string; title: string; highlight?: boolean }) {
-  return (
-    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-      <span
-        style={{
-          fontSize: '0.7rem',
-          fontWeight: 600,
-          color: highlight ? 'var(--accent)' : 'var(--text-muted)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.04em',
-          minWidth: '52px',
-          paddingTop: '0.1rem',
-        }}
-      >
-        {label}
-      </span>
-      <span style={{ fontSize: '0.82rem', color: highlight ? 'var(--text-primary)' : 'var(--text-secondary)', lineHeight: 1.4 }}>
-        {title}
-      </span>
-    </div>
   )
 }
 

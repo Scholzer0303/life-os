@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, BookOpen, BarChart2, MessageCircle, Settings } from 'lucide-react'
+import { LayoutDashboard, BookOpen, BarChart2, MessageCircle, Settings, User } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 const NAV_ITEMS: { to: string; icon: LucideIcon; label: string; end?: boolean }[] = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/journal', icon: BookOpen, label: 'Journal' },
-  { to: '/coach', icon: MessageCircle, label: 'Coach' },
   { to: '/overview', icon: BarChart2, label: 'Übersicht' },
+  { to: '/coach', icon: MessageCircle, label: 'Coach' },
+  { to: '/me', icon: User, label: 'Ich' },
   { to: '/settings', icon: Settings, label: 'Einstellungen' },
 ]
 

@@ -467,7 +467,11 @@ export default function JournalWeek() {
             ) : (
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                  {goals.map((goal) => (
+                  {goals.map((goal) => {
+                    const goalParents = goal.life_area
+                      ? parentGoals.filter((pg) => !pg.life_area || pg.life_area === goal.life_area)
+                      : parentGoals
+                    return (
                     <div key={goal.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.6rem 0.75rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
@@ -505,20 +509,21 @@ export default function JournalWeek() {
                           onFollowupSubmit={() => handleFollowup(goal)}
                         />
                       )}
-                      {parentGoals.length > 0 && (
+                      {goalParents.length > 0 && (
                         <select
                           value={goal.parent_id ?? ''}
                           onChange={(e) => updateGoalParent(goal.id, e.target.value || null)}
                           style={{ marginTop: '0.35rem', width: '100%', padding: '0.3rem 0.5rem', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '0.75rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: goal.parent_id ? 'var(--accent)' : 'var(--text-muted)', outline: 'none', cursor: 'pointer' }}
                         >
                           <option value="">Teil von Monatsziel… (optional)</option>
-                          {parentGoals.map((pg) => (
+                          {goalParents.map((pg) => (
                             <option key={pg.id} value={pg.id}>{pg.title}</option>
                           ))}
                         </select>
                       )}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
                 <input
                   value={newGoalTitle}
@@ -529,24 +534,37 @@ export default function JournalWeek() {
                   onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
                   onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
                 />
-                {parentGoals.length > 0 && (
-                  <select
-                    value={newGoalParentId}
-                    onChange={(e) => setNewGoalParentId(e.target.value)}
-                    style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: newGoalParentId ? 'var(--text-primary)' : 'var(--text-muted)', outline: 'none', marginBottom: '0.5rem', cursor: 'pointer' }}
-                  >
-                    <option value="">Monatsziel zuordnen… (optional)</option>
-                    {parentGoals.map((pg) => (
-                      <option key={pg.id} value={pg.id}>{pg.title}</option>
-                    ))}
-                  </select>
-                )}
+                {(() => {
+                  const fp = newGoalLifeArea
+                    ? parentGoals.filter((pg) => !pg.life_area || pg.life_area === newGoalLifeArea)
+                    : parentGoals
+                  return fp.length > 0 ? (
+                    <select
+                      value={newGoalParentId}
+                      onChange={(e) => setNewGoalParentId(e.target.value)}
+                      style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1.5px solid var(--border)', borderRadius: '8px', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: newGoalParentId ? 'var(--text-primary)' : 'var(--text-muted)', outline: 'none', marginBottom: '0.5rem', cursor: 'pointer' }}
+                    >
+                      <option value="">Monatsziel zuordnen… (optional)</option>
+                      {fp.map((pg) => (
+                        <option key={pg.id} value={pg.id}>{pg.title}</option>
+                      ))}
+                    </select>
+                  ) : null
+                })()}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem', marginBottom: '0.5rem' }}>
                   {LIFE_AREA_ORDER.map((key) => {
                     const area = LIFE_AREAS[key]
                     const active = newGoalLifeArea === key
                     return (
-                      <button key={key} onClick={() => { setNewGoalLifeArea(active ? null : key); setGoalLimitError(null) }}
+                      <button key={key} onClick={() => {
+                        const newArea = active ? null : key
+                        setNewGoalLifeArea(newArea)
+                        setGoalLimitError(null)
+                        if (newGoalParentId && newArea) {
+                          const parent = parentGoals.find((p) => p.id === newGoalParentId)
+                          if (parent && parent.life_area && parent.life_area !== newArea) setNewGoalParentId('')
+                        }
+                      }}
                         style={{ padding: '0.35rem 0.3rem', borderRadius: '6px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: '0.72rem', fontWeight: active ? 600 : 400, display: 'flex', alignItems: 'center', gap: '0.3rem', background: active ? area.bgAlpha : 'var(--bg-card)', border: `1.5px solid ${active ? area.color : 'var(--border)'}`, color: active ? area.color : 'var(--text-secondary)' }}>
                         <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: area.color, flexShrink: 0 }} />
                         {area.label}

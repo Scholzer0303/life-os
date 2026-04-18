@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store/useStore'
 import { getEntriesForMonth } from '../../lib/db'
 import type { JournalEntryRow } from '../../types/database'
@@ -65,13 +64,14 @@ interface Props {
   onNext: () => void
   onGoToToday: () => void
   habitMonthRate?: number | null
+  selectedDate: string | null
+  onSelectDate: (date: string | null) => void
 }
 
 // ─── Haupt-Komponente ─────────────────────────────────────────────────────────
 
-export default function OverviewCalendar({ month, year, isCurrentMonth, onPrev, onNext, onGoToToday, habitMonthRate }: Props) {
+export default function OverviewCalendar({ month, year, isCurrentMonth, onPrev, onNext, onGoToToday, habitMonthRate, selectedDate, onSelectDate }: Props) {
   const { user } = useStore()
-  const navigate = useNavigate()
   const [entries, setEntries] = useState<JournalEntryRow[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -163,19 +163,22 @@ export default function OverviewCalendar({ month, year, isCurrentMonth, onPrev, 
             const hasEvening = types.has('evening')
             const isToday = iso === today
             const isFuture = iso > today
+            const isSelected = iso === selectedDate
             return (
               <button
                 key={day}
-                onClick={() => !isFuture && navigate(`/journal?tab=tag&date=${iso}`)}
+                onClick={() => !isFuture && onSelectDate(isSelected ? null : iso)}
                 disabled={isFuture}
                 style={{
                   aspectRatio: '1',
-                  border: isToday ? '2px solid var(--accent)' : '1px solid var(--border)',
+                  border: isSelected ? '2px solid var(--accent-warm, #f59e0b)' : isToday ? '2px solid var(--accent)' : '1px solid var(--border)',
                   borderRadius: '8px',
-                  background: isToday ? 'color-mix(in srgb, var(--accent) 10%, var(--bg-card))' : 'var(--bg-card)',
+                  background: isSelected
+                    ? 'color-mix(in srgb, var(--accent-warm, #f59e0b) 15%, var(--bg-card))'
+                    : isToday ? 'color-mix(in srgb, var(--accent) 10%, var(--bg-card))' : 'var(--bg-card)',
                   cursor: isFuture ? 'default' : 'pointer',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  gap: '3px', padding: '2px', opacity: isFuture ? 0.35 : 1, transition: 'background 0.1s',
+                  gap: '3px', padding: '2px', opacity: isFuture ? 0.35 : 1, transition: 'background 0.1s, border 0.1s',
                 }}
               >
                 <span style={{ fontSize: '0.8rem', fontWeight: isToday ? 700 : 400, color: isToday ? 'var(--accent)' : 'var(--text-primary)', lineHeight: 1 }}>

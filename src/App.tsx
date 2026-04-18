@@ -16,6 +16,7 @@ import Review from './pages/Review'
 import PatternInterrupt from './pages/PatternInterrupt'
 import Settings from './pages/Settings'
 import Overview from './pages/Overview'
+import Me from './pages/Me'
 
 
 function AppRoutes() {
@@ -37,6 +38,7 @@ function AppRoutes() {
         {/* <Route path="/calendar" element={<Calendar />} /> */}
         <Route path="/review" element={<Review />} />
         <Route path="/pattern-interrupt" element={<PatternInterrupt />} />
+        <Route path="/me" element={<Me />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

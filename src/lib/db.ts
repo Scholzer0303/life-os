@@ -190,6 +190,17 @@ export async function getGoalsByParent(userId: string, parentId: string): Promis
   return data ?? []
 }
 
+export async function getAllGoalsForYear(userId: string, year: number): Promise<GoalRow[]> {
+  const { data, error } = await supabase
+    .from('goals')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('year', year)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
 // ─── Journal Entries ──────────────────────────────────────────────────────────
 
 export async function getJournalEntries(userId: string, limit = 30): Promise<JournalEntryRow[]> {
@@ -776,6 +787,30 @@ export async function deleteExceptionsFrom(blockId: string, fromDate: string): P
 
 // ─── Habits ───────────────────────────────────────────────────────────────────
 
+export async function getHabitLogsForDate(userId: string, date: string): Promise<HabitLogRow[]> {
+  const { data, error } = await db
+    .from('habit_logs')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('log_date', date)
+  if (error) throw error
+  return (data ?? []) as HabitLogRow[]
+}
+
+export async function getCoachSessionsForDate(userId: string, date: string): Promise<CoachSessionRow[]> {
+  const from = `${date}T00:00:00.000Z`
+  const to = `${date}T23:59:59.999Z`
+  const { data, error } = await supabase
+    .from('coach_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('created_at', from)
+    .lte('created_at', to)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return data ?? []
+}
+
 export async function getHabitsForMonth(
   userId: string,
   month: number,
@@ -927,4 +962,72 @@ export async function listJournalPeriods(
     .order('period_key', { ascending: false })
   if (error) throw error
   return (data ?? []) as JournalPeriod[]
+}
+
+// ─── Life Area Snapshots ──────────────────────────────────────────────────────
+
+export interface LifeAreaSnapshotRow {
+  id: string
+  user_id: string
+  year: number
+  snapshot_type: 'start' | 'end'
+  scores: Record<string, number>
+  notes: Record<string, string> | null
+  created_at: string
+}
+
+export async function getLifeAreaSnapshot(
+  userId: string,
+  year: number,
+  snapshotType: 'start' | 'end'
+): Promise<LifeAreaSnapshotRow | null> {
+  const { data, error } = await db
+    .from('life_area_snapshots')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('year', year)
+    .eq('snapshot_type', snapshotType)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return data as LifeAreaSnapshotRow | null
+}
+
+export async function upsertLifeAreaSnapshot(
+  userId: string,
+  year: number,
+  snapshotType: 'start' | 'end',
+  scores: Record<string, number>,
+  notes: Record<string, string>
+): Promise<LifeAreaSnapshotRow> {
+  const existing = await getLifeAreaSnapshot(userId, year, snapshotType)
+  if (existing) {
+    const { data, error } = await db
+      .from('life_area_snapshots')
+      .update({ scores, notes, created_at: new Date().toISOString() })
+      .eq('id', existing.id)
+      .select()
+      .single()
+    if (error) throw error
+    return data as LifeAreaSnapshotRow
+  }
+  const { data, error } = await db
+    .from('life_area_snapshots')
+    .insert({ user_id: userId, year, snapshot_type: snapshotType, scores, notes })
+    .select()
+    .single()
+  if (error) throw error
+  return data as LifeAreaSnapshotRow
+}
+
+export async function updateLifeAreas(
+  userId: string,
+  lifeAreas: Record<string, string>
+): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ life_areas: lifeAreas } as ProfileUpdate)
+    .eq('id', userId)
+  if (error) throw error
 }

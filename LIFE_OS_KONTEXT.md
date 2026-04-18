@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md — Projektgedächtnis
 # Wird nach JEDEM abgeschlossenen Schritt von Claude Code aktualisiert.
 # Nach jeder Session: diese Datei ins Claude Project hochladen (ersetzt alte Version).
-# Zuletzt aktualisiert: 2026-04-18 (Paket 9A komplett + Paket 9B Schritt 3 komplett)
+# Zuletzt aktualisiert: 2026-04-18 (Paket 9B+9C komplett — Schritte 4–6)
 
 ---
 
@@ -14,7 +14,7 @@ VISION.md → LIFE_OS_KONTEXT.md → LIFE_OS_FEATURES.md
 
 Life OS ist eine PWA, live auf https://life-os-henna-xi.vercel.app
 
-**Was die App aktuell kann (Stand nach Paket 9A + 9B Schritt 3):**
+**Was die App aktuell kann (Stand nach Paket 9B + 9C):**
 - Navigation: Dashboard · Journal · Coach · Übersicht · Einstellungen
 - Journal: Tag (Morgen/Abend), Woche, Monat, Quartal, Jahr — Pill-Tabs, großzügiges Layout
 - Ziel-Hierarchie: parent_id Dropdown in allen Journal-Komponenten
@@ -32,6 +32,9 @@ Life OS ist eine PWA, live auf https://life-os-henna-xi.vercel.app
 - Ziele (alle 4 Ebenen): life_area-Picker (3×2 Farb-Grid) beim Erstellen, Limit-Prüfung, farbiger Badge nach Titel
 - Formular-Reihenfolge: Titel → übergeordnetes Ziel → Lebensbereich → "Ziel hinzufügen"-Button
 - GoalSheet (Goals-Seite): life_area-Picker + Limit-Check + Hint-Banner
+- Pflichtverknüpfung in UI: Quartalsziele müssen Jahresziel haben, Monatsziele müssen Quartalsziel haben
+- Zielkaskade (GoalCascade): visuelle Hierarchie pro Lebensbereich in Journal → Jahr → Planung
+- Übersicht Kalender: Klick auf Tag öffnet DayArchive-Panel darunter (Morgen, Abend, Habits, Coach-Gespräche)
 
 **Bekannte kritische Bugs (aus App-Audit 09.04.2026):**
 - ✅ Datenverlust beim Tab-Wechsel — BEHOBEN: onChange schreibt synchron in localStorage; aktiver Journal-Tab + MorningJournal-Schritt werden separat persistiert.
@@ -202,16 +205,16 @@ Dashboard · Journal · Übersicht · Coach · Ich · Einstellungen
 | 9-1 | Abendjournal: Tagesaufgaben für morgen vorplanen | 9A | ✅ ERLEDIGT 2026-04-18 |
 | 9-2 | Morgenjournal: vorbereitete Tasks aus Abend laden | 9A | ✅ ERLEDIGT 2026-04-18 |
 | 9-3 | Ziele: life_area Feld + Limit-Logik (1/2/2/3/4 Regel) | 9B | ✅ ERLEDIGT 2026-04-18 |
-| 9-4 | Zielkaskade visuell pro Lebensbereich (verbundene Hierarchie) | 9B | ⬜ OFFEN |
-| 9-5 | Pflichtverknüpfung Quartal→Jahr, Monat→Quartal in UI durchsetzen | 9B | ⬜ OFFEN |
-| 9-6 | Kalender-Klick öffnet Tages-Archiv (alle Einträge des Tages) | 9C | ⬜ OFFEN |
-| 9-7 | Morgenjournal: überflüssige Felder deaktivieren | 9D | ⬜ OFFEN |
-| 9-8 | Journal: weitere überflüssige Felder bereinigen | 9D | ⬜ OFFEN |
-| 10-1 | Login: Magic Link ersetzen durch PIN/Code oder Auto-Login | 10A | ⬜ OFFEN |
-| 11-1 | Neuer Tab "Ich": Lebensrad + Identität/Affirmationen | 11A | ⬜ OFFEN |
-| 11-2 | Lebensrad: Radar-Diagramm + aufklappbare Bereiche | 11A | ⬜ OFFEN |
-| 11-3 | Neue DB-Tabellen: life_area_snapshots + focus_area_changes | 11A | ⬜ OFFEN |
-| 11-4 | Journal → Jahr: Ist-Stand + Schwerpunkt + Jahresvergleich | 11B | ⬜ OFFEN |
+| 9-4 | Pflichtverknüpfung Quartal→Jahr, Monat→Quartal in UI durchsetzen | 9B | ✅ ERLEDIGT 2026-04-18 |
+| 9-5 | Zielkaskade visuell pro Lebensbereich (verbundene Hierarchie) | 9B | ✅ ERLEDIGT 2026-04-18 |
+| 9-6 | Kalender-Klick öffnet Tages-Archiv (alle Einträge des Tages) | 9C | ✅ ERLEDIGT 2026-04-18 |
+| 9-7 | Morgenjournal: überflüssige Felder deaktivieren | 9D | ✅ ERLEDIGT 2026-04-18 |
+| 9-8 | Journal: weitere überflüssige Felder bereinigen | 9D | ✅ ERLEDIGT 2026-04-18 |
+| 10-1 | Login: PIN-Schutz (4-stellig, SHA-256-Hash, localStorage) | 10A | ✅ ERLEDIGT 2026-04-18 |
+| 11-1 | Neuer Tab "Ich": Lebensrad + Identität/Affirmationen | 11A | ✅ ERLEDIGT 2026-04-18 |
+| 11-2 | Lebensrad: Radar-Diagramm + aufklappbare Bereiche | 11A | ✅ ERLEDIGT 2026-04-18 |
+| 11-3 | Neue DB-Tabellen: life_area_snapshots + focus_area_changes | 11A | ✅ ERLEDIGT 2026-04-18 |
+| 11-4 | Journal → Jahr: Ist-Stand + Schwerpunkt + Jahresvergleich | 11B | ✅ ERLEDIGT 2026-04-18 |
 | 11-5 | Schwerpunktwechsel: Button + Pflichtnotiz + Speicherung | 11B | ⬜ OFFEN |
 | 11-6 | Einstellungen bereinigen | 11C | ⬜ OFFEN |
 | 6-1 | Lebensrad KI-Flow: 10/10-Vision pro Bereich erarbeiten | 6A | ⬜ OFFEN |
@@ -265,10 +268,12 @@ Grundaufbau, Journal-System, Habit-Tracker, Übersicht, Ziele, Review.
 9-1: Abendjournal "Was planst du für morgen?" — neuer Schritt 6, next_day_tasks JSONB in DB, Bug-Fix doppelter AnimatePresence-Key + alter Draft-Format-Schutz.
 9-2: Morgenjournal lädt next_day_tasks vom gestrigen Abend — getYesterdayEveningEntry() in db.ts, Vorausfüllung in dailyTasks, grünes Info-Banner in Schritt 2.
 
-**Paket 9B Schritt 3 (life_area + Limit-Logik + UX) — April 2026 ✅**
+**Paket 9B Schritt 3+4 (life_area + Limit-Logik + Pflichtverknüpfung) — April 2026 ✅**
 9-3a: GoalSheet — life_area-Picker (3×2 Farb-Grid), LIMIT_PER_AREA-Check, Hint-Banner, life_area in GoalInsert/GoalUpdate. GoalDetailCard zeigt Badge.
 9-3b: JournalWeek, JournalMonth, JournalQuarter, JournalYear — inline life_area-Picker + Limit-Check direkt in addGoal(), Badge (Titel · Bereich) nach Titel in Ziel-Liste.
 9-3c: UX-Fixes — Formular-Reihenfolge: Titel → übergeordnetes Ziel → Lebensbereich → voller Button. Badge direkt neben Titel (gemeinsamer flex-Container). Alle 4 Journal-Ebenen gleichzeitig.
+9-4: Pflichtverknüpfung — JournalQuarter: parent_id Pflicht (Jahresziel), addGoal() blockiert ohne parent. JournalMonth: parent_id Pflicht (Quartalsziel). JournalWeek: optional bleibt optional. Alle 3 Ebenen: Dropdown filtert nach life_area des Ziels. Hilfsmeldung wenn kein passendes übergeordnetes Ziel vorhanden. Life-Area-Wechsel resettet parent wenn Bereichs-Mismatch.
+9-5: Zielkaskade — neue GoalCascade.tsx Komponente. Neue DB-Funktion getAllGoalsForYear(). JournalYear lädt alle Ziele des Jahres + rendert Kaskade unter Jahreszielen in Planung. Pro Lebensbereich aufklappbar. Hierarchie: Jahresziel → Quartal (Q1/Q2…) → Monat (Jan…) → Woche (KW…). Orphaned goals separat angezeigt. Ziele ohne Lebensbereich in "Ohne Bereich".
 ⚠️ SQL-Migration noch ausstehend: ALTER TABLE goals ADD COLUMN IF NOT EXISTS life_area TEXT CHECK (...);
 
 **Paket 8A + 8B (Schritte 1–6) — April 2026 ✅**

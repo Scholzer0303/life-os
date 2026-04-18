@@ -380,15 +380,7 @@ export default function EveningJournal() {
               </div>
             )}
 
-            <textarea
-              value={data.accomplished}
-              onChange={(e) => patch({ accomplished: e.target.value })}
-              placeholder="Heute habe ich…"
-              rows={4} autoFocus
-              style={{ width: '100%', padding: '0.85rem 1rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.95rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5, marginBottom: '1.5rem' }}
-              onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-              onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-            />
+            {/* "Heute habe ich…" Textarea — deaktiviert (Paket 9D) */}
             <div style={{ display: 'flex', gap: '0.75rem' }}>
               <button onClick={() => navigate(-1)} style={BACK_BTN}>←</button>
               <button onClick={next} style={{ flex: 1, padding: '0.9rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '1rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer' }}>

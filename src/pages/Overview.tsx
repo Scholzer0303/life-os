@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import OverviewCalendar from '../components/overview/OverviewCalendar'
 import HabitGrid from '../components/overview/HabitGrid'
 import MetricChart from '../components/overview/MetricChart'
+import DayArchive from '../components/overview/DayArchive'
 
 function getMonthAtOffset(offset: number): { month: number; year: number } {
   const now = new Date()
@@ -20,6 +21,7 @@ const cardStyle: React.CSSProperties = {
 export default function Overview() {
   const [monthOffset, setMonthOffset] = useState(0)
   const [habitMonthRate, setHabitMonthRate] = useState<number | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const { month, year } = getMonthAtOffset(monthOffset)
   const isCurrentMonth = monthOffset === 0
@@ -41,6 +43,8 @@ export default function Overview() {
           onNext={() => setMonthOffset((m) => m + 1)}
           onGoToToday={() => setMonthOffset(0)}
           habitMonthRate={habitMonthRate}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
         />
       </div>
 
@@ -57,6 +61,12 @@ export default function Overview() {
           <MetricChart month={month} year={year} />
         </div>
       </div>
+
+      {selectedDate && (
+        <div style={{ gridColumn: '1 / -1' }}>
+          <DayArchive date={selectedDate} onClose={() => setSelectedDate(null)} />
+        </div>
+      )}
 
     </div>
   )

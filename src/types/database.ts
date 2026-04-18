@@ -19,6 +19,7 @@ export interface Database {
           onboarding_completed: boolean
           ai_profile: Json
           identity_statement: string | null
+          life_areas: Json | null
         }
         Insert: {
           id: string
@@ -33,6 +34,7 @@ export interface Database {
           onboarding_completed?: boolean
           ai_profile?: Json
           identity_statement?: string | null
+          life_areas?: Json | null
         }
         Update: {
           name?: string | null
@@ -45,6 +47,7 @@ export interface Database {
           updated_at?: string
           ai_profile?: Json
           identity_statement?: string | null
+          life_areas?: Json | null
         }
         Relationships: []
       }

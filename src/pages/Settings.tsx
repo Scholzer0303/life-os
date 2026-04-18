@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Plus, LogOut, RefreshCw, AlertTriangle, Info, ChevronDown } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { updateProfile, countJournalEntries, countGoals, deleteAllJournalEntries, deleteAllGoals, deleteAllUserData } from '../lib/db'
+import { clearPin } from '../lib/pin'
 import { generatePatternAnalysis } from '../lib/claude'
 import { useStore } from '../store/useStore'
 
@@ -801,15 +802,26 @@ export default function Settings() {
 
         {/* ── 11. Account ── */}
         <CollapsibleSection title="Account" isOpen={openSections.has('account')} onToggle={() => toggleSection('account')}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <button
-              onClick={async () => { await supabase.auth.signOut(); navigate('/login') }}
-              style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-primary)', fontSize: '0.875rem', cursor: 'pointer' }}
-            >
-              <LogOut size={15} />
-              Abmelden
-            </button>
-            <InfoTooltip text="Meldet dich aus der App ab. Deine Daten bleiben gespeichert." />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                onClick={async () => { clearPin(); await supabase.auth.signOut(); navigate('/login') }}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: '0.875rem', cursor: 'pointer' }}
+              >
+                PIN ändern
+              </button>
+              <InfoTooltip text="Löscht deinen PIN und meldet dich ab. Nach dem Anmelden per Magic Link kannst du einen neuen PIN festlegen." />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                onClick={async () => { await supabase.auth.signOut(); navigate('/login') }}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-primary)', fontSize: '0.875rem', cursor: 'pointer' }}
+              >
+                <LogOut size={15} />
+                Abmelden
+              </button>
+              <InfoTooltip text="Meldet dich aus der App ab. Deine Daten bleiben gespeichert." />
+            </div>
           </div>
         </CollapsibleSection>
 

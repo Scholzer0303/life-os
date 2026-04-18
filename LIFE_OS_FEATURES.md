@@ -1,7 +1,7 @@
 # LIFE_OS_FEATURES.md — Aktive Pakete
 # Claude Code liest diese Datei beim Session-Start automatisch.
 # Nach Abschluss eines Schritts: Status auf ✅ UMGESETZT (Datum) setzen.
-# Zuletzt aktualisiert: 2026-04-18 (Paket 9A komplett + 9B Schritt 3 komplett)
+# Zuletzt aktualisiert: 2026-04-18 (Paket 9B+9C komplett — Schritt 4–6)
 
 ---
 
@@ -323,7 +323,7 @@ UI-Änderungen (alle umgesetzt):
 
 ---
 
-### Schritt 4 — Pflichtverknüpfung Quartal→Jahr und Monat→Quartal ⬜ OFFEN
+### Schritt 4 — Pflichtverknüpfung Quartal→Jahr und Monat→Quartal ✅ UMGESETZT (2026-04-18)
 
 **Was gebaut wird:**
 
@@ -334,7 +334,7 @@ UI-Änderungen (alle umgesetzt):
 
 ---
 
-### Schritt 5 — Zielkaskade visuell pro Lebensbereich ⬜ OFFEN
+### Schritt 5 — Zielkaskade visuell pro Lebensbereich ✅ UMGESETZT (2026-04-18)
 
 **Was gebaut wird:**
 
@@ -361,7 +361,7 @@ Lebensbereiche-Farben konsistent in der Kaskade.
 
 ---
 
-### Schritt 6 — Kalender-Klick öffnet Tages-Archiv ⬜ OFFEN
+### Schritt 6 — Kalender-Klick öffnet Tages-Archiv ✅ UMGESETZT (2026-04-18)
 
 **Was gebaut wird:**
 
@@ -385,7 +385,7 @@ Gelöschte Einträge erscheinen hier nicht mehr.
 
 ---
 
-### Schritt 7 — Morgenjournal: überflüssige Felder deaktivieren ⬜ OFFEN
+### Schritt 7 — Morgenjournal: überflüssige Felder deaktivieren ✅ UMGESETZT (2026-04-18)
 
 **Was deaktiviert wird (Code bleibt):**
 - "Dein Ziel Kontext"
@@ -394,7 +394,7 @@ Gelöschte Einträge erscheinen hier nicht mehr.
 
 ---
 
-### Schritt 8 — Journal: weitere überflüssige Felder bereinigen ⬜ OFFEN
+### Schritt 8 — Journal: weitere überflüssige Felder bereinigen ✅ UMGESETZT (2026-04-18)
 
 **Was deaktiviert wird (Code bleibt):**
 - Woche: "Wofür steht diese Woche?"
@@ -408,7 +408,7 @@ Gelöschte Einträge erscheinen hier nicht mehr.
 
 ---
 
-### Schritt 1 — Magic Link ersetzen oder vereinfachen ⬜ OFFEN
+### Schritt 1 — Magic Link ersetzen oder vereinfachen ✅ UMGESETZT (2026-04-18)
 
 **Problem:** Magic Link per E-Mail ist umständlich auf dem Handy.
 
@@ -428,7 +428,7 @@ Claude Code soll beste Option empfehlen und begründen.
 
 ---
 
-### Schritt 1 — DB-Migration: neue Tabellen und Felder ⬜ OFFEN
+### Schritt 1 — DB-Migration: neue Tabellen und Felder ✅ UMGESETZT (2026-04-18)
 
 **SQL-Migrationen (Lukas führt im Supabase SQL Editor aus):**
 
@@ -460,7 +460,7 @@ CREATE TABLE IF NOT EXISTS focus_area_changes (
 
 ---
 
-### Schritt 2 — Neuer Tab "Ich" erstellen ⬜ OFFEN
+### Schritt 2 — Neuer Tab "Ich" erstellen ✅ UMGESETZT (2026-04-18)
 
 **Navigation:** Zwischen Coach und Einstellungen einfügen.
 
@@ -486,7 +486,7 @@ CREATE TABLE IF NOT EXISTS focus_area_changes (
 
 ---
 
-### Schritt 3 — Journal → Jahr: Ist-Stand pro Lebensbereich ⬜ OFFEN
+### Schritt 3 — Journal → Jahr: Ist-Stand pro Lebensbereich ✅ UMGESETZT (2026-04-18)
 
 **Was gebaut wird:**
 
