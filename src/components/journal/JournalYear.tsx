@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { ChevronLeft, ChevronRight, Plus, Trash2, Loader, Sparkles } from 'lucide-react'
 import { useStore } from '../../store/useStore'
-import { getJournalPeriod, upsertJournalPeriod, getYearlyGoals, getAllGoalsForYear, createGoal, updateGoal, deleteGoal, updateProfile, getLifeAreaSnapshot, upsertLifeAreaSnapshot } from '../../lib/db'
+import { getJournalPeriod, upsertJournalPeriod, getYearlyGoals, getAllGoalsForYear, createGoal, updateGoal, deleteGoal, updateProfile, getLifeAreaSnapshot, upsertLifeAreaSnapshot, insertFocusAreaChange } from '../../lib/db'
 import type { LifeAreaSnapshotRow } from '../../lib/db'
-import { generatePeriodSummary, getGoalFeedback, getGoalFeedbackFollowup } from '../../lib/claude'
+import { generatePeriodSummary, getGoalFeedback, getGoalFeedbackFollowup, generateYearStartAnalysis, type YearStartAnalysis } from '../../lib/claude'
 import FeedbackPanel from './FeedbackPanel'
 import GoalCascade from './GoalCascade'
 import type { GoalRow } from '../../types/database'
@@ -27,6 +27,15 @@ interface YearReflectionData {
 const goalFeedbackCache = new Map<string, string>()
 const followupHistoryCache = new Map<string, Array<{ question: string; answer: string }>>()
 let openGoalId: string | null = null
+
+function sliderGradientStyle(value: number, color: string): React.CSSProperties {
+  const pct = ((value - 1) / 9) * 100
+  return {
+    width: '100%',
+    cursor: 'pointer',
+    background: `linear-gradient(to right, ${color} ${pct}%, var(--border) ${pct}%)`,
+  }
+}
 
 export default function JournalYear() {
   const { user, profile, setProfile } = useStore()
@@ -75,7 +84,55 @@ export default function JournalYear() {
       return Array.isArray(ap?.focus_areas) ? (ap!.focus_areas as LifeArea[]) : []
     } catch { return [] }
   })
-  const [savingFocus, setSavingFocus] = useState(false)
+  const [, setSavingFocus] = useState(false)
+
+  // Schwerpunktwechsel-Dialog
+  const [showFocusChangeDialog, setShowFocusChangeDialog] = useState(false)
+  const [focusChangeDraft, setFocusChangeDraft] = useState<LifeArea[]>([])
+  const [focusChangeReason, setFocusChangeReason] = useState('')
+  const [savingFocusChange, setSavingFocusChange] = useState(false)
+  const [focusChangeError, setFocusChangeError] = useState<string | null>(null)
+
+  // Jahresstart-Analyse
+  const [yearStartLoading, setYearStartLoading] = useState(false)
+  const [yearStartAnalysis, setYearStartAnalysis] = useState<YearStartAnalysis | null>(null)
+  const [yearStartError, setYearStartError] = useState<string | null>(null)
+
+  async function handleYearStartAnalysis() {
+    if (!user) return
+    setYearStartLoading(true); setYearStartError(null); setYearStartAnalysis(null)
+    try {
+      const visions = (profile as Record<string, unknown> | null)?.life_areas as Record<string, string> | null ?? {}
+      const analysis = await generateYearStartAnalysis(visions, profile, year)
+      setYearStartAnalysis(analysis)
+    } catch (err) {
+      setYearStartError(err instanceof Error ? err.message : 'KI momentan nicht verfügbar — bitte erneut versuchen.')
+    } finally {
+      setYearStartLoading(false)
+    }
+  }
+
+  function applyAnalysisScores() {
+    if (!yearStartAnalysis) return
+    const newScores: Record<string, number> = {}
+    Object.entries(yearStartAnalysis.scores).forEach(([k, v]) => { newScores[k] = v.score })
+    setStartScores(newScores)
+  }
+
+  function applyAnalysisFocusAreas() {
+    if (!yearStartAnalysis) return
+    saveFocusAreas(yearStartAnalysis.focusAreas as LifeArea[])
+  }
+
+  async function applyAnalysisGoal(areaKey: string, title: string) {
+    if (!user) return
+    const count = goals.filter((g) => g.life_area === areaKey && g.status !== 'completed').length
+    if (count >= 1) return
+    try {
+      const goal = await createGoal({ user_id: user.id, title, type: 'year', year, status: 'active', progress: 0, life_area: areaKey as LifeArea })
+      setGoals((prev) => [...prev, goal])
+    } catch (err) { console.error('Ziel aus Analyse hinzufügen:', err) }
+  }
 
   // Vision inline edit
   const [editingVision, setEditingVision] = useState(false)
@@ -228,6 +285,32 @@ export default function JournalYear() {
       setFocusAreas(areas)
     } catch (err) { console.error('Schwerpunkte speichern:', err) }
     finally { setSavingFocus(false) }
+  }
+
+  async function handleFocusAreaChange() {
+    if (!user) return
+    if (!focusChangeReason.trim()) {
+      setFocusChangeError('Bitte erkläre kurz warum du den Schwerpunkt änderst.')
+      return
+    }
+    if (focusChangeDraft.length < 2 || focusChangeDraft.length > 3) {
+      setFocusChangeError('Bitte wähle 2–3 Schwerpunktbereiche.')
+      return
+    }
+    setSavingFocusChange(true)
+    setFocusChangeError(null)
+    try {
+      await insertFocusAreaChange(user.id, focusAreas, focusChangeDraft, focusChangeReason.trim())
+      await saveFocusAreas(focusChangeDraft)
+      setShowFocusChangeDialog(false)
+      setFocusChangeReason('')
+      setFocusChangeDraft([])
+    } catch (err) {
+      console.error('Schwerpunktwechsel speichern:', err)
+      setFocusChangeError('Fehler beim Speichern — bitte erneut versuchen.')
+    } finally {
+      setSavingFocusChange(false)
+    }
   }
 
   // KI-Zusammenfassung
@@ -415,6 +498,119 @@ export default function JournalYear() {
       {!loading && activeSubTab === 'planung' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
+          {/* Jahresstart-Analyse */}
+          <div style={{ background: 'color-mix(in srgb, var(--accent) 5%, var(--bg-card))', border: '1px solid color-mix(in srgb, var(--accent) 20%, var(--border))', borderRadius: '10px', padding: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: yearStartAnalysis ? '1rem' : 0 }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Jahresstart-Analyse {year}
+              </div>
+              {!yearStartAnalysis && (
+                <button
+                  onClick={handleYearStartAnalysis}
+                  disabled={yearStartLoading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.9rem', background: yearStartLoading ? 'var(--text-muted)' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: '7px', cursor: yearStartLoading ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500 }}
+                >
+                  {yearStartLoading
+                    ? <><Loader size={13} style={{ animation: 'spin 1s linear infinite' }} /> Analysiere…</>
+                    : <><Sparkles size={13} /> Mit KI analysieren</>}
+                </button>
+              )}
+              {yearStartAnalysis && (
+                <button onClick={() => setYearStartAnalysis(null)} style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif' }}>
+                  Schließen ×
+                </button>
+              )}
+            </div>
+            {!yearStartAnalysis && !yearStartLoading && (
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                KI analysiert deine Lebens-Visionen und schlägt Ist-Stand-Werte, Schwerpunktbereiche und Jahresziele vor.
+              </p>
+            )}
+            {yearStartError && (
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.82rem', color: 'var(--accent-warm, #f59e0b)' }}>{yearStartError}</p>
+            )}
+
+            {yearStartAnalysis && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                {/* Empfohlene Ist-Stand-Scores */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Empfohlene Ist-Stände</span>
+                    <button onClick={applyAnalysisScores} style={{ fontSize: '0.75rem', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 500 }}>
+                      Übernehmen →
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {LIFE_AREA_ORDER.map((key) => {
+                      const def = LIFE_AREAS[key]
+                      const s = yearStartAnalysis.scores[key]
+                      if (!s) return null
+                      return (
+                        <div key={key} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: def.color, minWidth: '22px', paddingTop: '0.1rem' }}>{s.score}</span>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: def.color }}>{def.label}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.4rem' }}>— {s.reason}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Empfohlene Schwerpunktbereiche */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Empfohlene Schwerpunkte</span>
+                    <button onClick={applyAnalysisFocusAreas} style={{ fontSize: '0.75rem', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontWeight: 500 }}>
+                      Übernehmen →
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    {yearStartAnalysis.focusAreas.map((key) => {
+                      const def = LIFE_AREAS[key as LifeArea]
+                      if (!def) return null
+                      return (
+                        <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.65rem', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600, background: def.bgAlpha, border: `1.5px solid ${def.color}`, color: def.color }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: def.color }} />
+                          {def.label}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Empfohlene Jahresziele */}
+                {Object.keys(yearStartAnalysis.goals).length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Empfohlene Jahresziele</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      {Object.entries(yearStartAnalysis.goals).map(([key, title]) => {
+                        const def = LIFE_AREAS[key as LifeArea]
+                        if (!def) return null
+                        const alreadyExists = goals.some((g) => g.life_area === key && g.status !== 'completed')
+                        return (
+                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem 0.75rem', background: 'var(--bg-primary)', borderRadius: '8px', border: `1px solid ${def.color}20` }}>
+                            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: def.color, flexShrink: 0 }} />
+                            <span style={{ flex: 1, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{title}</span>
+                            <button
+                              onClick={() => applyAnalysisGoal(key, title)}
+                              disabled={alreadyExists}
+                              style={{ fontSize: '0.72rem', fontWeight: 600, color: alreadyExists ? 'var(--text-muted)' : def.color, background: 'none', border: `1px solid ${alreadyExists ? 'var(--border)' : def.color}`, borderRadius: '5px', padding: '0.2rem 0.5rem', cursor: alreadyExists ? 'not-allowed' : 'pointer', fontFamily: 'DM Sans, sans-serif', flexShrink: 0 }}
+                            >
+                              {alreadyExists ? '✓' : '+ Hinzufügen'}
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Ist-Stand Jahresbeginn */}
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1rem' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.85rem' }}>
@@ -431,16 +627,18 @@ export default function JournalYear() {
                       <span style={{ fontSize: '0.82rem', fontWeight: 500, color: def.color }}>{def.label}</span>
                       <span style={{ fontSize: '0.82rem', fontWeight: 700, color: def.color }}>{val}/10</span>
                     </div>
-                    <input
-                      type="range" min={1} max={10} value={val}
-                      onChange={(e) => setStartScores((s) => ({ ...s, [key]: Number(e.target.value) }))}
-                      style={{ width: '100%', accentColor: def.color, cursor: 'pointer' }}
-                    />
+                    <div style={{ overflow: 'visible' }}>
+                      <input
+                        type="range" min={1} max={10} value={val}
+                        onChange={(e) => setStartScores((s) => ({ ...s, [key]: Number(e.target.value) }))}
+                        style={sliderGradientStyle(val, def.color)}
+                      />
+                    </div>
                     <input
                       value={startNotes[key] ?? ''}
                       onChange={(e) => setStartNotes((n) => ({ ...n, [key]: e.target.value }))}
                       placeholder="Kurze Notiz (optional)…"
-                      style={{ marginTop: '0.3rem', width: '100%', padding: '0.4rem 0.7rem', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '0.8rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-secondary)', outline: 'none', boxSizing: 'border-box' }}
+                      style={{ marginTop: 'calc(6px + 0.3rem)', width: '100%', padding: '0.4rem 0.7rem', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '0.8rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-secondary)', outline: 'none', boxSizing: 'border-box' }}
                     />
                   </div>
                 )
@@ -457,33 +655,102 @@ export default function JournalYear() {
 
           {/* Schwerpunktbereiche */}
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1rem' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
-              Schwerpunktbereiche {year} <span style={{ fontWeight: 400, textTransform: 'none', color: 'var(--text-muted)' }}>(2–3 wählen)</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Schwerpunktbereiche {year}
+              </div>
+              {!showFocusChangeDialog && (
+                <button
+                  onClick={() => { setFocusChangeDraft([...focusAreas]); setFocusChangeReason(''); setFocusChangeError(null); setShowFocusChangeDialog(true) }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: 'var(--accent)', fontFamily: 'DM Sans, sans-serif', padding: 0 }}
+                >
+                  {focusAreas.length === 0 ? 'Schwerpunkte wählen →' : 'Ändern →'}
+                </button>
+              )}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', marginBottom: '0.75rem' }}>
-              {LIFE_AREA_ORDER.map((key) => {
-                const def = LIFE_AREAS[key]
-                const active = focusAreas.includes(key)
-                return (
+
+            {/* Aktuelle Schwerpunkte — Anzeige */}
+            {!showFocusChangeDialog && (
+              focusAreas.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                  {focusAreas.map((key) => {
+                    const def = LIFE_AREAS[key]
+                    return (
+                      <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.7rem', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600, background: def.bgAlpha, border: `1.5px solid ${def.color}`, color: def.color }}>
+                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: def.color }} />
+                        {def.label}
+                      </span>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 }}>Noch keine Schwerpunkte gewählt.</p>
+              )
+            )}
+
+            {/* Änderungs-Dialog */}
+            {showFocusChangeDialog && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                  Wähle 2–3 neue Schwerpunktbereiche:
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' }}>
+                  {LIFE_AREA_ORDER.map((key) => {
+                    const def = LIFE_AREAS[key]
+                    const active = focusChangeDraft.includes(key)
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => {
+                          setFocusChangeDraft((prev) =>
+                            active ? prev.filter((a) => a !== key) : prev.length < 3 ? [...prev, key] : prev
+                          )
+                          setFocusChangeError(null)
+                        }}
+                        style={{ padding: '0.5rem 0.3rem', borderRadius: '7px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', fontWeight: active ? 600 : 400, display: 'flex', alignItems: 'center', gap: '0.3rem', background: active ? def.bgAlpha : 'var(--bg-primary)', border: `1.5px solid ${active ? def.color : 'var(--border)'}`, color: active ? def.color : 'var(--text-secondary)', transition: 'all 0.12s' }}
+                      >
+                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: def.color, flexShrink: 0 }} />
+                        {def.label}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.35rem' }}>
+                    Warum änderst du den Schwerpunkt? <span style={{ color: 'var(--accent-warm, #f59e0b)' }}>*</span>
+                  </label>
+                  <textarea
+                    value={focusChangeReason}
+                    onChange={(e) => { setFocusChangeReason(e.target.value); setFocusChangeError(null) }}
+                    placeholder="z.B. Ich habe meinen Karriere-Bereich vernachlässigt und möchte ihn jetzt priorisieren…"
+                    rows={3}
+                    style={{ width: '100%', padding: '0.7rem 0.9rem', border: `1.5px solid ${focusChangeError && !focusChangeReason.trim() ? 'var(--accent-warm, #f59e0b)' : 'var(--border)'}`, borderRadius: '8px', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5 }}
+                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                    onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+                  />
+                </div>
+
+                {focusChangeError && (
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--accent-warm, #f59e0b)' }}>{focusChangeError}</p>
+                )}
+
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button
-                    key={key}
-                    onClick={() => {
-                      const next = active
-                        ? focusAreas.filter((a) => a !== key)
-                        : focusAreas.length < 3 ? [...focusAreas, key] : focusAreas
-                      saveFocusAreas(next)
-                    }}
-                    style={{ padding: '0.5rem 0.3rem', borderRadius: '7px', cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', fontSize: '0.75rem', fontWeight: active ? 600 : 400, display: 'flex', alignItems: 'center', gap: '0.3rem', background: active ? def.bgAlpha : 'var(--bg-primary)', border: `1.5px solid ${active ? def.color : 'var(--border)'}`, color: active ? def.color : 'var(--text-secondary)', transition: 'all 0.12s' }}
-                    disabled={savingFocus}
+                    onClick={() => { setShowFocusChangeDialog(false); setFocusChangeReason(''); setFocusChangeDraft([]); setFocusChangeError(null) }}
+                    style={{ padding: '0.6rem 1rem', background: 'none', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--text-secondary)' }}
                   >
-                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: def.color, flexShrink: 0 }} />
-                    {def.label}
+                    Abbrechen
                   </button>
-                )
-              })}
-            </div>
-            {focusAreas.length === 0 && (
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 }}>Noch keine Schwerpunkte gewählt — klicke auf 2–3 Bereiche.</p>
+                  <button
+                    onClick={handleFocusAreaChange}
+                    disabled={savingFocusChange}
+                    style={{ flex: 1, padding: '0.6rem 1rem', background: savingFocusChange ? 'var(--text-muted)' : 'var(--accent)', color: '#fff', border: 'none', borderRadius: '8px', cursor: savingFocusChange ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500 }}
+                  >
+                    {savingFocusChange ? 'Wird gespeichert…' : 'Schwerpunkte speichern'}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 
@@ -740,16 +1007,18 @@ export default function JournalYear() {
                         <span style={{ fontSize: '0.82rem', fontWeight: 700, color: def.color }}>{val}/10</span>
                       </div>
                     </div>
-                    <input
-                      type="range" min={1} max={10} value={val}
-                      onChange={(e) => setEndScores((s) => ({ ...s, [key]: Number(e.target.value) }))}
-                      style={{ width: '100%', accentColor: def.color, cursor: 'pointer' }}
-                    />
+                    <div style={{ overflow: 'visible' }}>
+                      <input
+                        type="range" min={1} max={10} value={val}
+                        onChange={(e) => setEndScores((s) => ({ ...s, [key]: Number(e.target.value) }))}
+                        style={sliderGradientStyle(val, def.color)}
+                      />
+                    </div>
                     <input
                       value={endNotes[key] ?? ''}
                       onChange={(e) => setEndNotes((n) => ({ ...n, [key]: e.target.value }))}
                       placeholder="Kurze Notiz (optional)…"
-                      style={{ marginTop: '0.3rem', width: '100%', padding: '0.4rem 0.7rem', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '0.8rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-secondary)', outline: 'none', boxSizing: 'border-box' }}
+                      style={{ marginTop: 'calc(6px + 0.3rem)', width: '100%', padding: '0.4rem 0.7rem', border: '1px solid var(--border)', borderRadius: '7px', fontSize: '0.8rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-secondary)', outline: 'none', boxSizing: 'border-box' }}
                     />
                   </div>
                 )

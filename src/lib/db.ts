@@ -1031,3 +1031,29 @@ export async function updateLifeAreas(
     .eq('id', userId)
   if (error) throw error
 }
+
+// ─── Focus Area Changes ───────────────────────────────────────────────────────
+
+export interface FocusAreaChangeRow {
+  id: string
+  user_id: string
+  changed_at: string
+  old_areas: string[] | null
+  new_areas: string[] | null
+  reason: string
+}
+
+export async function insertFocusAreaChange(
+  userId: string,
+  oldAreas: string[],
+  newAreas: string[],
+  reason: string
+): Promise<FocusAreaChangeRow> {
+  const { data, error } = await db
+    .from('focus_area_changes')
+    .insert({ user_id: userId, old_areas: oldAreas, new_areas: newAreas, reason })
+    .select()
+    .single()
+  if (error) throw error
+  return data as FocusAreaChangeRow
+}

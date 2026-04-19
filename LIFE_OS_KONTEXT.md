@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md — Projektgedächtnis
 # Wird nach JEDEM abgeschlossenen Schritt von Claude Code aktualisiert.
 # Nach jeder Session: diese Datei ins Claude Project hochladen (ersetzt alte Version).
-# Zuletzt aktualisiert: 2026-04-18 (Paket 9B+9C komplett — Schritte 4–6)
+# Zuletzt aktualisiert: 2026-04-19 (Paket 6 Schritt 3 komplett — Jahresstart-Analyse + Slider-Fixes)
 
 ---
 
@@ -29,6 +29,7 @@ Life OS ist eine PWA, live auf https://life-os-henna-xi.vercel.app
 - Mobil: App starr, keine Verschiebung beim Tippen
 - Abendjournal: Schritt 6 "Was planst du für morgen?" — 0–4 Tasks, gespeichert als next_day_tasks JSONB
 - Morgenjournal: lädt next_day_tasks vom Vorabend vor, grünes Info-Banner, Tasks änderbar
+- ✅ E2E-Test next_day_tasks: Abend→Morgen Flow funktioniert korrekt bestätigt (2026-04-19)
 - Ziele (alle 4 Ebenen): life_area-Picker (3×2 Farb-Grid) beim Erstellen, Limit-Prüfung, farbiger Badge nach Titel
 - Formular-Reihenfolge: Titel → übergeordnetes Ziel → Lebensbereich → "Ziel hinzufügen"-Button
 - GoalSheet (Goals-Seite): life_area-Picker + Limit-Check + Hint-Banner
@@ -215,14 +216,14 @@ Dashboard · Journal · Übersicht · Coach · Ich · Einstellungen
 | 11-2 | Lebensrad: Radar-Diagramm + aufklappbare Bereiche | 11A | ✅ ERLEDIGT 2026-04-18 |
 | 11-3 | Neue DB-Tabellen: life_area_snapshots + focus_area_changes | 11A | ✅ ERLEDIGT 2026-04-18 |
 | 11-4 | Journal → Jahr: Ist-Stand + Schwerpunkt + Jahresvergleich | 11B | ✅ ERLEDIGT 2026-04-18 |
-| 11-5 | Schwerpunktwechsel: Button + Pflichtnotiz + Speicherung | 11B | ⬜ OFFEN |
-| 11-6 | Einstellungen bereinigen | 11C | ⬜ OFFEN |
-| 6-1 | Lebensrad KI-Flow: 10/10-Vision pro Bereich erarbeiten | 6A | ⬜ OFFEN |
-| 6-2 | Identität: KI leitet Affirmationen aus Lebensrad ab | 6B | ⬜ OFFEN |
-| 6-3 | Jahresstart-Flow: Ist-Stand + Schwerpunkt mit KI-Unterstützung | 6B | ⬜ OFFEN |
-| 6-4 | Identität täglich im Morgen/Abend | 6C | ⬜ OFFEN |
-| 6-5 | Habit-KI: Bewertung + Vorschläge | 6D | ⬜ OFFEN |
-| 6-6 | Coach: vollständiger Kontext (Vision, Ziele, Habits, Journal, Schwerpunkt) | 6E | ⬜ OFFEN |
+| 11-5 | Schwerpunktwechsel: Button + Pflichtnotiz + Speicherung | 11B | ✅ ERLEDIGT 2026-04-19 |
+| 11-6 | Einstellungen bereinigen | 11C | ✅ ERLEDIGT 2026-04-19 |
+| 6-1 | Lebensrad KI-Flow: 10/10-Vision pro Bereich erarbeiten | 6A | ✅ ERLEDIGT 2026-04-19 |
+| 6-2 | Identität: KI leitet Affirmationen aus Lebensrad ab | 6B | ✅ ERLEDIGT 2026-04-19 |
+| 6-3 | Jahresstart-Flow: Ist-Stand + Schwerpunkt mit KI-Unterstützung | 6B | ✅ ERLEDIGT 2026-04-19 |
+| 6-4 | Identität täglich im Morgen/Abend | 6C | ✅ ERLEDIGT 2026-04-19 |
+| 6-5 | Habit-KI: Bewertung + Vorschläge | 6D | ✅ ERLEDIGT 2026-04-19 |
+| 6-6 | Coach: vollständiger Kontext (Vision, Ziele, Habits, Journal, Schwerpunkt) | 6E | ✅ ERLEDIGT 2026-04-19 |
 
 ---
 
@@ -242,6 +243,19 @@ Dashboard · Journal · Übersicht · Coach · Ich · Einstellungen
 ---
 
 ## Archiv
+
+**Paket 6A+6B Schritte 1–3 — April 2026 ✅**
+6-1: Lebensrad KI-Flow — "Mit KI erarbeiten"-Button pro Lebensbereich im Ich-Tab. 2-Schritt-Flow: Rohgedanken eingeben → KI generiert Vision in Lukas' Alltagssprache (claude.ts: generateVisionProposal). Übernehmen / Anpassen / Neu-generieren. Gespeichert in profiles.life_areas.
+6-2: KI-Affirmationen — "Mit KI generieren"-Button in Identität-Card. KI analysiert alle 6 Visionen → generiert 5–7 Affirmationen (claude.ts: generateIdentityAffirmations). Checkboxen pro Affirmation, "Ausgewählte übernehmen" füllt Textarea. Gespeichert in profiles.identity_statement (newline-getrennt).
+6-3: Jahresstart-Analyse — "Jahresstart-Analyse mit KI"-Panel in Journal → Jahr → Planung. KI (generateYearStartAnalysis) analysiert Visionen + Profil → schlägt Ist-Stand-Scores, Schwerpunktbereiche und Jahresziele vor. 3 Sektionen (Scores / Schwerpunkt / Ziele) je mit "Übernehmen"-Button. Slider-Fixes: custom gradient-Slider (Lebensbereichsfarbe gefüllt, var(--border) ungefüllt), Thumb mittig (margin-top: -6px), overflow: visible Wrapper, marginTop: calc(6px + 0.3rem) auf Notiz-Input für gleichmäßige Abstände.
+Bugfixes: PC-Vollbreite Ich-Tab (me-grid), KI-Prompt Alltagssprache, localStorage-Persistenz für gesamten KI-Flow-State. Einstellungen "Verbrauch"-Umbenennung.
+
+**Paket 11A + 11B + 11C (Schritte 1–5) — April 2026 ✅**
+11-1+2: Neuer Tab "Ich" — Lebensrad (Radar-Diagramm, Recharts), 6 aufklappbare Bereiche, Identität editierbar.
+11-3: DB-Migration — life_area_snapshots + focus_area_changes + profiles.life_areas Spalte.
+11-4: Journal → Jahr → Planung — Schwerpunktwechsel-Button mit Pflichtnotiz, gespeichert in focus_area_changes.
+11-5: Einstellungen bereinigt — Vision/Werte/Stopp/Ikigai ausgeblendet, Sektion "Verbrauch" mit Supabase-Link.
+
 
 **Paket 1–4 (alle Schritte) — April 2026 ✅**
 Grundaufbau, Journal-System, Habit-Tracker, Übersicht, Ziele, Review.

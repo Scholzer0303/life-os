@@ -116,6 +116,19 @@ function StepTextarea({
   )
 }
 
+// ── Affirmationen ─────────────────────────────────────────────────────────────
+function getDailyAffirmations(identityStatement: string | null, count = 2): string[] {
+  if (!identityStatement?.trim()) return []
+  const all = identityStatement.split('\n').map((s) => s.trim()).filter(Boolean)
+  if (all.length === 0) return []
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
+  const results: string[] = []
+  for (let i = 0; i < Math.min(count, all.length); i++) {
+    results.push(all[(dayOfYear + i) % all.length])
+  }
+  return results
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 interface EveningData {
   accomplished: string
@@ -124,6 +137,8 @@ interface EveningData {
   freeText: string
   gratitude: string
   nextDayTasks: string[]
+  identityCheck: 'yes' | 'partly' | 'no' | null
+  identityNote: string
 }
 
 interface EveningDraft { data: EveningData; step: number; date: string }
@@ -154,9 +169,11 @@ export default function EveningJournal() {
       return {
         ...draft,
         nextDayTasks: Array.isArray(draft.nextDayTasks) ? draft.nextDayTasks : [''],
+        identityCheck: draft.identityCheck ?? null,
+        identityNote: draft.identityNote ?? '',
       }
     }
-    return { accomplished: '', whatBlocked: '', energyLevel: null, freeText: '', gratitude: '', nextDayTasks: [''] }
+    return { accomplished: '', whatBlocked: '', energyLevel: null, freeText: '', gratitude: '', nextDayTasks: [''], identityCheck: null, identityNote: '' }
   })
   const [savedEntry, setSavedEntry] = useState<JournalEntryRow | null>(null)
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
@@ -216,9 +233,11 @@ export default function EveningJournal() {
           freeText: evening.free_text ?? '',
           gratitude: (evening as { gratitude?: string | null }).gratitude ?? '',
           nextDayTasks: loadedTasks,
+          identityCheck: (evening as { identity_check?: 'yes' | 'partly' | 'no' | null }).identity_check ?? null,
+          identityNote: (evening as { identity_note?: string | null }).identity_note ?? '',
         })
         setSavedEntry(evening)
-        setStep(7)
+        setStep(8)
       }
     }).catch(() => {})
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -283,6 +302,8 @@ export default function EveningJournal() {
         free_text: data.freeText || null,
         gratitude: data.gratitude || null,
         next_day_tasks: filledTasks.length > 0 ? filledTasks : null,
+        identity_check: data.identityCheck || null,
+        identity_note: data.identityNote || null,
       }
       const entry = editingEntryId
         ? await updateJournalEntry(editingEntryId, payload)
@@ -290,7 +311,7 @@ export default function EveningJournal() {
       localStorage.removeItem(getEveningDraftKey(todayStr))
       setEditingEntryId(null)
       setSavedEntry(entry)
-      setStep(7)
+      setStep(8)
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Fehler beim Speichern.')
       setIsSaving(false)
@@ -324,10 +345,10 @@ export default function EveningJournal() {
       <div style={{ marginBottom: '0.25rem' }}>
         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Abend-Journal</span>
       </div>
-      {step < 7 && <ProgressBar current={step} total={6} />}
+      {step < 8 && <ProgressBar current={step} total={7} />}
 
       {/* Morgen-Ziel-Referenz */}
-      {morningGoal && step < 7 && (
+      {morningGoal && step < 8 && (
         <div
           style={{
             padding: '0.55rem 0.875rem',
@@ -430,8 +451,76 @@ export default function EveningJournal() {
           </motion.div>
         )}
 
-        {step === 5 && (
-          <motion.div key="e5" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.25 }}>
+        {step === 5 && (() => {
+          const affirmations = getDailyAffirmations(profile?.identity_statement ?? null)
+          const options: { value: 'yes' | 'partly' | 'no'; label: string; color: string }[] = [
+            { value: 'yes', label: 'Ja', color: 'var(--accent-green)' },
+            { value: 'partly', label: 'Teilweise', color: 'var(--streak)' },
+            { value: 'no', label: 'Nein', color: 'var(--accent-warm)' },
+          ]
+          return (
+            <motion.div key="e5" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.25 }}>
+              <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.6rem', fontWeight: 600, margin: '0 0 0.4rem' }}>Wer warst du heute?</h2>
+              <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.25rem', lineHeight: 1.5 }}>Hast du heute deiner Identität entsprechend gehandelt?</p>
+
+              {affirmations.length > 0 && (
+                <div style={{ marginBottom: '1.25rem', padding: '0.85rem 1rem', background: 'color-mix(in srgb, var(--accent) 6%, var(--bg-card))', border: '1px solid color-mix(in srgb, var(--accent) 20%, var(--border))', borderRadius: '10px' }}>
+                  <p style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.6rem' }}>Deine Identität</p>
+                  {affirmations.map((a, i) => (
+                    <p key={i} style={{ fontSize: '0.925rem', color: 'var(--text-primary)', margin: i === affirmations.length - 1 ? 0 : '0 0 0.4rem', lineHeight: 1.5, fontStyle: 'italic' }}>„{a}"</p>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '1.25rem' }}>
+                {options.map(({ value, label, color }) => {
+                  const selected = data.identityCheck === value
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => patch({ identityCheck: value })}
+                      style={{
+                        flex: 1, padding: '0.85rem 0.5rem',
+                        background: selected ? color : 'var(--bg-card)',
+                        color: selected ? '#fff' : 'var(--text-secondary)',
+                        border: `2px solid ${selected ? color : 'var(--border)'}`,
+                        borderRadius: '10px', fontFamily: 'DM Sans, sans-serif',
+                        fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer',
+                        transition: 'all 0.12s',
+                      }}
+                    >{label}</button>
+                  )
+                })}
+              </div>
+
+              {data.identityCheck && (
+                <textarea
+                  value={data.identityNote}
+                  onChange={(e) => patch({ identityNote: e.target.value })}
+                  placeholder="Kurze Notiz (optional)…"
+                  rows={2}
+                  style={{ width: '100%', padding: '0.75rem 1rem', border: '1.5px solid var(--border)', borderRadius: '10px', fontSize: '0.9rem', fontFamily: 'DM Sans, sans-serif', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none', resize: 'none', boxSizing: 'border-box', lineHeight: 1.5, marginBottom: '1.25rem' }}
+                  onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                  onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+                />
+              )}
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: data.identityCheck ? 0 : '1.25rem' }}>
+                <button onClick={back} style={BACK_BTN}>←</button>
+                <button
+                  onClick={next}
+                  style={{ flex: 1, padding: '0.9rem', background: data.identityCheck ? 'var(--accent)' : 'var(--text-muted)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '1rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: data.identityCheck ? 'pointer' : 'default' }}
+                  disabled={!data.identityCheck}
+                >
+                  {!data.identityCheck ? 'Bitte auswählen' : 'Weiter →'}
+                </button>
+              </div>
+            </motion.div>
+          )
+        })()}
+
+        {step === 6 && (
+          <motion.div key="e6" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.25 }}>
             <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.6rem', fontWeight: 600, margin: '0 0 0.4rem' }}>Was liegt dir noch auf der Seele?</h2>
             <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.5rem', lineHeight: 1.5 }}>Optional — schreib es raus.</p>
             <textarea
@@ -465,8 +554,8 @@ export default function EveningJournal() {
           </motion.div>
         )}
 
-        {step === 6 && (
-          <motion.div key="e6" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.25 }}>
+        {step === 7 && (
+          <motion.div key="e7" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} transition={{ duration: 0.25 }}>
             <h2 style={{ fontFamily: 'Lora, serif', fontSize: '1.6rem', fontWeight: 600, margin: '0 0 0.4rem' }}>Was planst du für morgen?</h2>
             <p style={{ color: 'var(--text-secondary)', margin: '0 0 1.5rem', lineHeight: 1.5 }}>
               Optional — max. 4 Aufgaben. Erscheinen morgen früh vorausgefüllt.
@@ -536,14 +625,14 @@ export default function EveningJournal() {
           </motion.div>
         )}
 
-        {step === 7 && !savedEntry && (
-          <motion.div key="e7-loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        {step === 8 && !savedEntry && (
+          <motion.div key="e8-loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Wird geladen…</div>
           </motion.div>
         )}
 
-        {step === 7 && savedEntry && (
-          <motion.div key="e7" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+        {step === 8 && savedEntry && (
+          <motion.div key="e8" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             {/* Header */}
             <div style={{ textAlign: 'center', padding: '1rem 0 1.25rem' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🌙</div>

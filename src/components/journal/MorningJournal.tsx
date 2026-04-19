@@ -58,6 +58,18 @@ function writeMorningStep(date: string, step: number) {
   localStorage.setItem(getMorningStepKey(date), String(step))
 }
 
+function getDailyAffirmations(identityStatement: string | null, count = 2): string[] {
+  if (!identityStatement?.trim()) return []
+  const all = identityStatement.split('\n').map((s) => s.trim()).filter(Boolean)
+  if (all.length === 0) return []
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000)
+  const results: string[] = []
+  for (let i = 0; i < Math.min(count, all.length); i++) {
+    results.push(all[(dayOfYear + i) % all.length])
+  }
+  return results
+}
+
 const MORNING_EMPTY: MorningData = {
   feelingScore: null, feelingText: '', weight: null, sleepScore: null,
   mainGoal: '', linkedGoalId: null, identityAction: '',
@@ -293,6 +305,20 @@ export default function MorningJournal() {
             Du weißt was heute zählt. Starte den Tag.
           </p>
         </div>
+
+        {/* Identitäts-Affirmationen */}
+        {(() => {
+          const affirmations = getDailyAffirmations(profile?.identity_statement ?? null)
+          if (affirmations.length === 0) return null
+          return (
+            <div style={{ margin: '1.25rem 0', padding: '0.85rem 1rem', background: 'color-mix(in srgb, var(--accent) 6%, var(--bg-card))', border: '1px solid color-mix(in srgb, var(--accent) 20%, var(--border))', borderRadius: '10px' }}>
+              <p style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem' }}>Deine Identität heute</p>
+              {affirmations.map((a, i) => (
+                <p key={i} style={{ fontSize: '0.925rem', color: 'var(--text-primary)', margin: i === affirmations.length - 1 ? 0 : '0 0 0.35rem', lineHeight: 1.5, fontStyle: 'italic' }}>„{a}"</p>
+              ))}
+            </div>
+          )
+        })()}
 
         {/* Mentor-Impuls */}
         <div style={{ margin: '1.5rem 0' }}>

@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { Profile, JournalEntry, Goal, CoachMessage, PatternAnalysis } from '../types'
+import { LIFE_AREAS } from './lifeAreas'
 
 const MODEL = 'claude-sonnet-4-6'
 const MAX_TOKENS = 1024
@@ -80,6 +81,103 @@ VERBOTEN:
 ${TONE_INSTRUCTIONS[tone]}`
 }
 
+export interface CoachHabit {
+  title: string
+  frequency_type: string
+  frequency_value: number
+  completionRate: number // 0–100
+}
+
+function buildCoachSystemPrompt(
+  profile: Profile,
+  recentEntries: JournalEntry[],
+  goals: Goal[],
+  tone: CoachTone,
+  habits: CoachHabit[] = []
+): string {
+  const name = profile.name ?? 'du'
+  const lifeAreas = profile.life_areas as Record<string, string> | null
+  const aiProfile = profile.ai_profile as Record<string, unknown> | null
+  const focusAreaKeys = Array.isArray(aiProfile?.focus_areas) ? (aiProfile!.focus_areas as string[]) : []
+
+  const visionLines = lifeAreas
+    ? Object.entries(lifeAreas)
+        .filter(([, v]) => (v as string)?.trim())
+        .map(([k, v]) => `  ${LIFE_AREAS[k as keyof typeof LIFE_AREAS]?.label ?? k}: "${v}"`)
+        .join('\n')
+    : '  Noch keine Visionen eingetragen.'
+
+  const identityLines = profile.identity_statement?.trim()
+    ? profile.identity_statement.split('\n').filter(Boolean).map((l) => `  - ${l}`).join('\n')
+    : '  Noch nicht definiert.'
+
+  const focusLine = focusAreaKeys.length > 0
+    ? focusAreaKeys.map((k) => LIFE_AREAS[k as keyof typeof LIFE_AREAS]?.label ?? k).join(', ')
+    : 'Noch nicht festgelegt.'
+
+  const activeGoals = goals.filter((g) => g.status === 'active')
+  const goalLines = [
+    ...activeGoals.filter((g) => g.type === 'year').map((g) => `  [Jahr] ${g.title}`),
+    ...activeGoals.filter((g) => g.type === 'quarterly').map((g) => `  [Quartal] ${g.title}`),
+    ...activeGoals.filter((g) => g.type === 'monthly').map((g) => `  [Monat] ${g.title}`),
+    ...activeGoals.filter((g) => g.type === 'weekly').map((g) => `  [Woche] ${g.title}`),
+  ].join('\n') || '  Keine aktiven Ziele.'
+
+  const habitLines = habits.length > 0
+    ? habits.map((h) => `  - ${h.title} (${h.frequency_type === 'daily' ? 'täglich' : `${h.frequency_value}×/Wo`}) — ${h.completionRate}% Treffer diesen Monat`).join('\n')
+    : '  Keine Habits aktiv.'
+
+  const identityChecks = recentEntries
+    .filter((e) => (e as Record<string, unknown>).identity_check)
+    .slice(0, 5)
+    .map((e) => {
+      const check = (e as Record<string, unknown>).identity_check
+      const label = check === 'yes' ? '✓ Ja' : check === 'partly' ? '△ Teilweise' : '✗ Nein'
+      return `  ${e.entry_date}: ${label}`
+    })
+    .join('\n')
+
+  return `Du bist Life OS Coach — ein direkter, ehrlicher, mitfühlender Mentor für ${name}.
+
+VISIONEN von ${name} (10/10 — was ${name} für jeden Bereich anstrebt):
+${visionLines}
+
+IDENTITÄT / AFFIRMATIONEN:
+${identityLines}
+
+AKTUELLE SCHWERPUNKTBEREICHE: ${focusLine}
+
+AKTIVE ZIELE:
+${goalLines}
+
+HABITS (diesen Monat):
+${habitLines}
+
+IDENTITÄTS-CHECKS (letzte Tage):
+${identityChecks || '  Keine Einträge.'}
+
+LETZTE 7 TAGE (Journal-Zusammenfassung):
+${summarizeEntries(recentEntries)}
+
+DEINE VERHALTENSREGELN:
+1. Stelle maximal eine Frage pro Antwort
+2. Gib keine ungebetenen Ratschläge — stelle Fragen
+3. Sprich direkt und klar — kein Motivations-Bullshit
+4. Erkenne Selbstsabotage, benenne sie sanft aber direkt
+5. Beende jede Session mit einer Micro-Aktion ("Was ist der kleinste nächste Schritt?")
+6. Antworte auf Deutsch
+7. Halte Antworten unter 150 Wörtern — Qualität über Quantität
+8. Du kennst ${name} — beziehe dich auf Visionen, Schwerpunkte und Muster wenn relevant
+
+VERBOTEN:
+- Generische Motivation ("Du schaffst das!")
+- Lange Aufzählungen mit Ratschlägen
+- Mehr als eine Frage stellen
+- Beschämen oder Vorwürfe
+
+${TONE_INSTRUCTIONS[tone]}`
+}
+
 // The client is created lazily so it picks up the env var at runtime
 function getClient() {
   const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY as string
@@ -95,12 +193,13 @@ export async function sendCoachMessage(
   profile: Profile,
   recentEntries: JournalEntry[],
   goals: Goal[],
-  tone: CoachTone = 'sachlich'
+  tone: CoachTone = 'sachlich',
+  habits: CoachHabit[] = []
 ): Promise<string> {
   checkRateLimit()
 
   const client = getClient()
-  const systemPrompt = buildSystemPrompt(profile, recentEntries, goals, tone)
+  const systemPrompt = buildCoachSystemPrompt(profile, recentEntries, goals, tone, habits)
 
   const response = await client.messages.create({
     model: MODEL,
@@ -656,7 +755,220 @@ export async function getMorningImpulse(
       content: contextLines.join('\n\n'),
     }],
   })
+  const impulseBlock = response.content[0]
+  if (impulseBlock.type !== 'text') throw new Error('Unexpected response type from Claude')
+  return impulseBlock.text
+}
+
+export interface YearStartAnalysis {
+  scores: Record<string, { score: number; reason: string }>
+  focusAreas: string[]
+  goals: Record<string, string>
+}
+
+export async function generateYearStartAnalysis(
+  visions: Record<string, string>,
+  profile: Profile | null,
+  year: number
+): Promise<YearStartAnalysis> {
+  checkRateLimit()
+  const client = getClient()
+  const name = profile?.name ?? 'du'
+
+  const visionLines = Object.entries(visions)
+    .filter(([, v]) => v?.trim())
+    .map(([k, v]) => `- ${k}: "${v}"`)
+    .join('\n')
+
+  const lifeAreaKeys = ['body_mind', 'social', 'love', 'finance', 'career', 'meaning']
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 800,
+    system: `Du analysierst ${name}'s Jahresstart für ${year} und gibst strukturierte Empfehlungen. Antworte ausschließlich mit einem validen JSON-Objekt — kein Text davor oder danach, keine Markdown-Codeblöcke.`,
+    messages: [{
+      role: 'user',
+      content: `Lebens-Visionen von ${name}:
+${visionLines || 'Noch keine Visionen eingetragen.'}
+
+Erstelle eine Jahresstart-Analyse. Antworte NUR mit diesem JSON (alle 6 Schlüssel müssen enthalten sein):
+{
+  "scores": {
+    "body_mind": {"score": 1-10, "reason": "kurze Begründung in Alltagssprache"},
+    "social": {"score": 1-10, "reason": "..."},
+    "love": {"score": 1-10, "reason": "..."},
+    "finance": {"score": 1-10, "reason": "..."},
+    "career": {"score": 1-10, "reason": "..."},
+    "meaning": {"score": 1-10, "reason": "..."}
+  },
+  "focusAreas": ["key1", "key2"],
+  "goals": {
+    "key": "konkretes Jahresziel in Ich-Form, 1 Satz"
+  }
+}
+
+Regeln:
+- scores: Schätze den typischen Startpunkt realistisch, basierend auf der Vision (je ambitionierter die Vision, desto wahrscheinlicher niedriger Ist-Stand).
+- focusAreas: Wähle 2–3 Schlüssel aus: ${lifeAreaKeys.join(', ')}
+- goals: Nur für Bereiche mit eingetragener Vision. Konkret, messbar, 1 Satz.
+- Alltagssprache, keine Floskeln.`,
+    }],
+  })
+
+  const block = response.content[0]
+  if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
+
+  const text = block.text.trim().replace(/^```json?\s*/i, '').replace(/```\s*$/i, '')
+  const parsed = JSON.parse(text) as YearStartAnalysis
+  return parsed
+}
+
+export async function generateIdentityAffirmations(
+  visions: Record<string, string>,
+  profile: Profile | null
+): Promise<string[]> {
+  checkRateLimit()
+  const client = getClient()
+  const name = profile?.name ?? 'du'
+
+  const visionLines = Object.entries(visions)
+    .filter(([, v]) => v?.trim())
+    .map(([k, v]) => `- ${k}: "${v}"`)
+    .join('\n')
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 400,
+    system: `Du hilfst ${name} dabei, Identitäts-Affirmationen zu formulieren die zu seiner Lebens-Vision passen. Antworte ausschließlich auf Deutsch. Schreibe NUR die Affirmationen — eine pro Zeile, keine Nummerierung, kein Kommentar davor oder danach.
+
+Stil-Regeln:
+- Beginne jede Affirmation mit "Ich bin jemand, der/die..." oder "Ich..."
+- Kurze, klare Alltagssprache — wie ${name} selbst sprechen würde
+- Keine Floskeln, kein Motivations-Bullshit
+- Konkret und direkt`,
+    messages: [{
+      role: 'user',
+      content: `Lebens-Visionen von ${name}:
+${visionLines || 'Noch keine Visionen eingetragen.'}
+
+Generiere 5–7 Identitäts-Affirmationen die aus diesen Visionen abgeleitet sind.`,
+    }],
+  })
   const block = response.content[0]
   if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
   return block.text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .slice(0, 8)
 }
+
+export async function generateVisionProposal(
+  areaLabel: string,
+  userInput: string,
+  profile: Profile | null
+): Promise<string> {
+  checkRateLimit()
+  const client = getClient()
+  const name = profile?.name ?? 'du'
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 300,
+    system: `Du formulierst eine persönliche Vision für ${name}. Schreibe exakt so wie ${name} selbst schreiben würde — nicht wie ein Coach oder Motivationsredner. Antworte ausschließlich auf Deutsch. Schreibe NUR den Vision-Text, kein Kommentar davor oder danach.
+
+Stil-Regeln (strikt einhalten):
+- Kurze, klare Sätze. Kein Blumensprech, keine Metaphern.
+- Alltagssprache — so wie man es einem Freund erzählen würde.
+- Erste Person Singular ("Ich...").
+- Präsens, als wäre es bereits Realität.
+- Maximal 4–5 Sätze.
+- Nur das aufgreifen was der Nutzer selbst genannt hat — nichts erfinden.`,
+    messages: [{
+      role: 'user',
+      content: `Lebensbereich: "${areaLabel}"
+
+Rohgedanken:
+"${userInput}"
+
+Formuliere daraus die Vision in meinen eigenen Worten.`,
+    }],
+  })
+  const visionBlock = response.content[0]
+  if (visionBlock.type !== 'text') throw new Error('Unexpected response type from Claude')
+  return visionBlock.text.trim()
+}
+
+export interface HabitEvaluation {
+  habitTitle: string
+  rating: 'gut' | 'ok' | 'schwach'
+  reason: string
+}
+
+export interface HabitSuggestion {
+  title: string
+  description: string
+  frequency_type: 'daily' | 'weekly'
+  frequency_value: number
+  reason: string
+}
+
+export interface HabitAnalysis {
+  evaluations: HabitEvaluation[]
+  suggestions: HabitSuggestion[]
+}
+
+export async function generateHabitAnalysis(
+  habits: Array<{ title: string; description: string | null; frequency_type: string; frequency_value: number }>,
+  profile: Profile | null
+): Promise<HabitAnalysis> {
+  checkRateLimit()
+  const client = getClient()
+  const name = profile?.name ?? 'du'
+  const lifeAreas = profile?.life_areas as Record<string, string> | null
+  const visionLines = lifeAreas
+    ? Object.entries(lifeAreas).filter(([, v]) => v?.trim()).map(([k, v]) => `${k}: ${v}`).join('\n')
+    : ''
+  const identityLines = profile?.identity_statement?.trim() ?? ''
+  const habitLines = habits.length > 0
+    ? habits.map((h) => `- ${h.title}${h.description ? ` (${h.description})` : ''}, ${h.frequency_type === 'daily' ? 'täglich' : `${h.frequency_value}×/Woche`}`).join('\n')
+    : 'Noch keine Habits.'
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 800,
+    system: `Du bist ein ehrlicher Lebens-Coach für ${name}. Antworte ausschließlich auf Deutsch. Antworte NUR mit einem validen JSON-Objekt, ohne Markdown-Codeblöcke.`,
+    messages: [{
+      role: 'user',
+      content: `Visionen von ${name}:
+${visionLines || 'Noch keine Visionen.'}
+
+Identität:
+${identityLines || 'Noch nicht definiert.'}
+
+Aktuelle Habits:
+${habitLines}
+
+Analysiere die aktuellen Habits (rating: "gut"/"ok"/"schwach" — wie gut passt der Habit zur Vision und Identität) und schlage 2–3 neue Habits vor die zur Vision passen aber noch fehlen.
+
+Antworte mit exakt diesem JSON:
+{
+  "evaluations": [
+    { "habitTitle": "...", "rating": "gut|ok|schwach", "reason": "..." }
+  ],
+  "suggestions": [
+    { "title": "...", "description": "...", "frequency_type": "daily|weekly", "frequency_value": 1, "reason": "..." }
+  ]
+}`,
+    }],
+  })
+  const block = response.content[0]
+  if (block.type !== 'text') throw new Error('Unexpected response type from Claude')
+  const cleaned = block.text.replace(/```(?:json)?/g, '').replace(/```/g, '').trim()
+  try {
+    return JSON.parse(cleaned) as HabitAnalysis
+  } catch {
+    throw new Error('KI-Antwort konnte nicht verarbeitet werden.')
+  }
+}
+

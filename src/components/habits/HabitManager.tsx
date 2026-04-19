@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, X, Check } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Plus, Pencil, Trash2, X, Check, Sparkles, Loader } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { getHabitsForMonth, createHabit, updateHabit, deleteHabit, getHabitLogs } from '../../lib/db'
+import { generateHabitAnalysis, type HabitAnalysis } from '../../lib/claude'
 import type { HabitRow, HabitLogRow } from '../../types/database'
 
 interface Props {
@@ -60,7 +61,7 @@ function progressColor(actual: number, target: number): string {
 }
 
 export default function HabitManager({ month, year }: Props) {
-  const { user } = useStore()
+  const { user, profile } = useStore()
   const [habits, setHabits] = useState<HabitRow[]>([])
   const [logs, setLogs] = useState<HabitLogRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -69,6 +70,11 @@ export default function HabitManager({ month, year }: Props) {
   const [form, setForm] = useState<HabitFormData>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+
+  // KI-Analyse
+  const [kiLoading, setKiLoading] = useState(false)
+  const [kiError, setKiError] = useState<string | null>(null)
+  const [kiAnalysis, setKiAnalysis] = useState<HabitAnalysis | null>(null)
 
   // Carry-over
   const [prevHabits, setPrevHabits] = useState<HabitRow[]>([])
@@ -167,6 +173,36 @@ export default function HabitManager({ month, year }: Props) {
     } finally {
       setDeleting(null)
     }
+  }
+
+  async function handleKiAnalysis() {
+    setKiLoading(true)
+    setKiError(null)
+    setKiAnalysis(null)
+    try {
+      const result = await generateHabitAnalysis(
+        habits.map((h) => ({ title: h.title, description: h.description, frequency_type: h.frequency_type, frequency_value: h.frequency_value })),
+        profile ?? null
+      )
+      setKiAnalysis(result)
+    } catch (err) {
+      console.error('Habit-KI Fehler:', err)
+      setKiError(err instanceof Error ? err.message : 'KI momentan nicht verfügbar — bitte erneut versuchen.')
+    } finally {
+      setKiLoading(false)
+    }
+  }
+
+  function adoptSuggestion(s: HabitAnalysis['suggestions'][number]) {
+    setEditingHabit(null)
+    setForm({
+      title: s.title,
+      description: s.description,
+      frequency_type: s.frequency_type,
+      frequency_value: s.frequency_value,
+      color: '#3b82f6',
+    })
+    setShowModal(true)
   }
 
   async function handleCarryOver() {
@@ -308,6 +344,95 @@ export default function HabitManager({ month, year }: Props) {
       >
         <Plus size={15} /> Habit hinzufügen
       </button>
+
+      {/* KI-Analyse */}
+      <div style={{ marginTop: '0.75rem' }}>
+        {!kiAnalysis && !kiLoading && (
+          <button
+            onClick={handleKiAnalysis}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 0.9rem', background: 'none', border: '1.5px solid color-mix(in srgb, var(--accent) 40%, var(--border))', borderRadius: '10px', cursor: 'pointer', fontSize: '0.875rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--accent)', width: '100%', justifyContent: 'center' }}
+          >
+            <Sparkles size={15} /> Mit KI analysieren
+          </button>
+        )}
+        {kiLoading && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+            <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> KI analysiert…
+          </div>
+        )}
+        {kiError && (
+          <div style={{ padding: '0.75rem 1rem', background: '#FFF0EE', border: '1px solid var(--accent-warm)', borderRadius: '10px', color: 'var(--accent-warm)', fontSize: '0.875rem' }}>
+            {kiError}
+          </div>
+        )}
+        {kiAnalysis && (
+          <div style={{ background: 'color-mix(in srgb, var(--accent) 5%, var(--bg-card))', border: '1px solid color-mix(in srgb, var(--accent) 20%, var(--border))', borderRadius: '12px', padding: '1rem 1.1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>KI-Analyse</span>
+              <button onClick={() => setKiAnalysis(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}><X size={14} /></button>
+            </div>
+
+            {/* Bewertungen */}
+            {kiAnalysis.evaluations.length > 0 && (
+              <div style={{ marginBottom: '1rem' }}>
+                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem' }}>Deine Habits</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {kiAnalysis.evaluations.map((ev, i) => {
+                    const rColor = ev.rating === 'gut' ? '#22c55e' : ev.rating === 'ok' ? '#f59e0b' : '#ef4444'
+                    const rLabel = ev.rating === 'gut' ? 'Gut' : ev.rating === 'ok' ? 'OK' : 'Schwach'
+                    return (
+                      <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.6rem 0.85rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-primary)', flex: 1 }}>{ev.habitTitle}</span>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: rColor, background: `${rColor}18`, border: `1px solid ${rColor}40`, borderRadius: '5px', padding: '0.1rem 0.4rem' }}>{rLabel}</span>
+                        </div>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>{ev.reason}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Vorschläge */}
+            {kiAnalysis.suggestions.length > 0 && (
+              <div>
+                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem' }}>Vorschläge</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {kiAnalysis.suggestions.map((s, i) => (
+                    <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.6rem 0.85rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.15rem' }}>
+                            {s.title}
+                            <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.4rem' }}>
+                              {s.frequency_type === 'daily' ? 'täglich' : `${s.frequency_value}×/Wo`}
+                            </span>
+                          </div>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 0.3rem', lineHeight: 1.4 }}>{s.reason}</p>
+                        </div>
+                        <button
+                          onClick={() => adoptSuggestion(s)}
+                          style={{ flexShrink: 0, padding: '0.35rem 0.7rem', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: '7px', fontSize: '0.78rem', fontFamily: 'DM Sans, sans-serif', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          + Übernehmen
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleKiAnalysis}
+              style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'DM Sans, sans-serif', color: 'var(--text-muted)', padding: 0 }}
+            >
+              <Sparkles size={12} /> Neu analysieren
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Modal */}
       {showModal && (

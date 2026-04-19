@@ -1,7 +1,7 @@
 # LIFE_OS_FEATURES.md — Aktive Pakete
 # Claude Code liest diese Datei beim Session-Start automatisch.
 # Nach Abschluss eines Schritts: Status auf ✅ UMGESETZT (Datum) setzen.
-# Zuletzt aktualisiert: 2026-04-18 (Paket 9B+9C komplett — Schritt 4–6)
+# Zuletzt aktualisiert: 2026-04-19 (Paket 6 Schritt 3 komplett — Jahresstart-Analyse + Slider-Fixes)
 
 ---
 
@@ -295,6 +295,7 @@ Rechte Spalte:
 ### Schritt 2 — Morgenjournal: vorbereitete Tasks aus Abend laden ✅ UMGESETZT (2026-04-18)
 
 Technische Gegenseite zu Schritt 1 — Tasks vom Vorabend automatisch laden.
+✅ E2E-Test positiv bestätigt 2026-04-19: Abend-Tasks erscheinen korrekt im nächsten Morgenjournal.
 
 ---
 
@@ -503,7 +504,7 @@ Im Journal → Jahr → Reflexion:
 
 ---
 
-### Schritt 4 — Schwerpunktwechsel: Button + Pflichtnotiz + Speicherung ⬜ OFFEN
+### Schritt 4 — Schwerpunktwechsel: Button + Pflichtnotiz + Speicherung ✅ UMGESETZT (2026-04-19)
 
 **Was gebaut wird:**
 
@@ -523,7 +524,7 @@ KI bekommt diese Information als Kontext.
 
 ---
 
-### Schritt 5 — Einstellungen bereinigen ⬜ OFFEN
+### Schritt 5 — Einstellungen bereinigen ✅ UMGESETZT (2026-04-19)
 
 **Was bleibt:**
 - Mein Profil (Name, E-Mail)
@@ -549,7 +550,7 @@ KI bekommt diese Information als Kontext.
 
 Paket 6 wird erst angegangen wenn Pakete 7–11 vollständig abgeschlossen sind.
 
-### Schritt 1 — Lebensrad KI-Flow: 10/10-Vision erarbeiten ⬜ OFFEN
+### Schritt 1 — Lebensrad KI-Flow: 10/10-Vision erarbeiten ✅ UMGESETZT (2026-04-19)
 
 **Zugänglich über:** "Ich"-Tab → Lebensrad → "Mit KI erarbeiten"
 
@@ -562,7 +563,7 @@ Paket 6 wird erst angegangen wenn Pakete 7–11 vollständig abgeschlossen sind.
 
 ---
 
-### Schritt 2 — Identität: KI leitet Affirmationen aus Lebensrad ab ⬜ OFFEN
+### Schritt 2 — Identität: KI leitet Affirmationen aus Lebensrad ab ✅ UMGESETZT (2026-04-19)
 
 **Ablauf:**
 - KI analysiert die 6 Lebensbereiche-Visionen
@@ -572,7 +573,7 @@ Paket 6 wird erst angegangen wenn Pakete 7–11 vollständig abgeschlossen sind.
 
 ---
 
-### Schritt 3 — Jahresstart-Flow mit KI-Unterstützung ⬜ OFFEN
+### Schritt 3 — Jahresstart-Flow mit KI-Unterstützung ✅ UMGESETZT (2026-04-19)
 
 **Ablauf:**
 - KI begleitet den Jahresstart im Journal → Jahr → Planung
@@ -583,7 +584,7 @@ Paket 6 wird erst angegangen wenn Pakete 7–11 vollständig abgeschlossen sind.
 
 ---
 
-### Schritt 4 — Identität täglich im Morgen/Abend ⬜ OFFEN
+### Schritt 4 — Identität täglich im Morgen/Abend ✅ UMGESETZT (2026-04-19)
 
 - Morgens: Identitäts-Affirmationen anzeigen (readonly, 1–2 Affirmationen rotierend)
 - Abends: Identitäts-Abgleich Ja/Teilweise/Nein + kurze Notiz
@@ -592,7 +593,7 @@ Paket 6 wird erst angegangen wenn Pakete 7–11 vollständig abgeschlossen sind.
 
 ---
 
-### Schritt 5 — Habit-KI: Bewertung + Vorschläge ⬜ OFFEN
+### Schritt 5 — Habit-KI: Bewertung + Vorschläge ✅ UMGESETZT (2026-04-19)
 
 - KI bewertet aktuelle Habits gegen Vision und Identität
 - Schlägt neue Habits vor die zur Vision passen
@@ -600,7 +601,7 @@ Paket 6 wird erst angegangen wenn Pakete 7–11 vollständig abgeschlossen sind.
 
 ---
 
-### Schritt 6 — Coach: vollständiger Kontext ⬜ OFFEN
+### Schritt 6 — Coach: vollständiger Kontext ✅ UMGESETZT (2026-04-19)
 
 **Kontext den der Coach bekommt:**
 - Vision (alle 6 Lebensbereiche, 10/10-Beschreibungen)

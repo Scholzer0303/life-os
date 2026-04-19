@@ -446,8 +446,8 @@ export default function Settings() {
           </div>
         </CollapsibleSection>
 
-        {/* ── 2. Vision & Identität ── */}
-        <CollapsibleSection title="Vision & Identität" isOpen={openSections.has('vision')} onToggle={() => toggleSection('vision')}>
+        {/* ── 2. Vision & Identität — deaktiviert (jetzt im "Ich"-Tab) ── */}
+        {false && <CollapsibleSection title="Vision & Identität" isOpen={openSections.has('vision')} onToggle={() => toggleSection('vision')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
             {/* Vision */}
@@ -534,10 +534,10 @@ export default function Settings() {
               </div>
             </div>
           </div>
-        </CollapsibleSection>
+        </CollapsibleSection>}
 
-        {/* ── 3. Werte ── */}
-        <CollapsibleSection title="Werte" isOpen={openSections.has('werte')} onToggle={() => toggleSection('werte')}>
+        {/* ── 3. Werte — deaktiviert ── */}
+        {false && <CollapsibleSection title="Werte" isOpen={openSections.has('werte')} onToggle={() => toggleSection('werte')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
               {values.map((v) => (
@@ -572,10 +572,10 @@ export default function Settings() {
               <InfoTooltip text="Speichert deine Werte-Liste." />
             </div>
           </div>
-        </CollapsibleSection>
+        </CollapsibleSection>}
 
-        {/* ── 4. Stopp-Liste ── */}
-        <CollapsibleSection title="Stopp-Liste" isOpen={openSections.has('stopp')} onToggle={() => toggleSection('stopp')}>
+        {/* ── 4. Stopp-Liste — deaktiviert ── */}
+        {false && <CollapsibleSection title="Stopp-Liste" isOpen={openSections.has('stopp')} onToggle={() => toggleSection('stopp')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               {stopList.map((item, i) => (
@@ -610,10 +610,10 @@ export default function Settings() {
               <InfoTooltip text="Speichert deine Stopp-Liste." />
             </div>
           </div>
-        </CollapsibleSection>
+        </CollapsibleSection>}
 
-        {/* ── 5. Ikigai ── */}
-        <CollapsibleSection title="Ikigai" isOpen={openSections.has('ikigai')} onToggle={() => toggleSection('ikigai')}>
+        {/* ── 5. Ikigai — deaktiviert ── */}
+        {false && <CollapsibleSection title="Ikigai" isOpen={openSections.has('ikigai')} onToggle={() => toggleSection('ikigai')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
             {[
               { label: 'Was liebst du zu tun?', value: ikigaiLoves, setter: setIkigaiLoves, placeholder: 'Ich liebe es zu…' },
@@ -656,7 +656,7 @@ export default function Settings() {
               <InfoTooltip text="Speichert deine Ikigai-Antworten. Keine Daten werden gelöscht." />
             </div>
           </div>
-        </CollapsibleSection>
+        </CollapsibleSection>}
 
         {/* ── 6. KI-Profil ── */}
         <CollapsibleSection title="🧠 Dein KI-Profil" isOpen={openSections.has('kiprofil')} onToggle={() => toggleSection('kiprofil')}>
@@ -793,11 +793,33 @@ export default function Settings() {
           </div>
         </CollapsibleSection>
 
-        {/* ── 10. Datenspeicher ── */}
-        <CollapsibleSection title="Datenspeicher" isOpen={openSections.has('data')} onToggle={() => toggleSection('data')}>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            Deine Daten werden in Supabase gespeichert. Der kostenlose Plan bietet 500 MB Datenbank-Speicher. Mit normaler Nutzung reicht das für mehrere Jahre.
-          </p>
+        {/* ── 10. Verbrauch ── */}
+        <CollapsibleSection title="Verbrauch" isOpen={openSections.has('data')} onToggle={() => toggleSection('data')}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              Deine Daten werden in Supabase gespeichert. Der kostenlose Plan bietet 500 MB Datenbank-Speicher. Mit normaler Nutzung reicht das für mehrere Jahre.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <a
+                href="https://supabase.com/dashboard/org/xdocvvfkzofvmgrttulg/usage?projectRef=oqmowbctjzoiwtgpoqmo"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.875rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.875rem', textDecoration: 'none' }}
+              >
+                <span>Supabase Datenspeicher</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>↗</span>
+              </a>
+              <a
+                href="https://console.anthropic.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.875rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '0.875rem', textDecoration: 'none' }}
+              >
+                <span>Anthropic Console</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>↗</span>
+              </a>
+            </div>
+          </div>
         </CollapsibleSection>
 
         {/* ── 11. Account ── */}

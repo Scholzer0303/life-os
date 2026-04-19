@@ -4,8 +4,8 @@ import ReactMarkdown from 'react-markdown'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore } from '../store/useStore'
 import { sendCoachMessage } from '../lib/claude'
-import type { CoachTone } from '../lib/claude'
-import { createCoachSession, updateCoachSession, getCoachSessions, deleteCoachSession } from '../lib/db'
+import type { CoachTone, CoachHabit } from '../lib/claude'
+import { createCoachSession, updateCoachSession, getCoachSessions, deleteCoachSession, getHabitsForMonth, getHabitLogs } from '../lib/db'
 import type { CoachMessage, CoachMode } from '../types'
 import type { CoachSessionRow } from '../types/database'
 
@@ -87,6 +87,8 @@ export default function Coach() {
     () => (localStorage.getItem(TONE_KEY) as CoachTone) ?? 'sachlich'
   )
 
+  const [coachHabits, setCoachHabits] = useState<CoachHabit[]>([])
+
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -147,6 +149,28 @@ export default function Coach() {
   }, [user])
 
   useEffect(() => {
+    if (!user) return
+    const now = new Date()
+    const month = now.getMonth() + 1
+    const year = now.getFullYear()
+    const daysElapsed = now.getDate()
+    Promise.all([
+      getHabitsForMonth(user.id, month, year),
+      getHabitLogs(user.id, month, year),
+    ]).then(([habits, logs]) => {
+      const result: CoachHabit[] = habits.map((h) => {
+        const completed = logs.filter((l) => l.habit_id === h.id && l.completed).length
+        const target = h.frequency_type === 'daily'
+          ? daysElapsed
+          : Math.ceil(daysElapsed / 7) * h.frequency_value
+        const rate = target > 0 ? Math.min(100, Math.round((completed / target) * 100)) : 0
+        return { title: h.title, frequency_type: h.frequency_type, frequency_value: h.frequency_value, completionRate: rate }
+      })
+      setCoachHabits(result)
+    }).catch((err) => console.error('Coach Habits laden:', err))
+  }, [user])
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
@@ -171,7 +195,7 @@ export default function Coach() {
       setSession(newSession)
 
       setIsLoading(true)
-      const reply = await sendCoachMessage([starterMessage], profile, recentEntries, goals, tone)
+      const reply = await sendCoachMessage([starterMessage], profile, recentEntries, goals, tone, coachHabits)
       const assistantMsg: CoachMessage = {
         role: 'assistant',
         content: reply,
@@ -186,7 +210,7 @@ export default function Coach() {
     } finally {
       setIsLoading(false)
     }
-  }, [user, profile, recentEntries, goals, tone]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, profile, recentEntries, goals, tone, coachHabits]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSend() {
     if (!input.trim() || isLoading || !profile || !session) return
@@ -203,7 +227,7 @@ export default function Coach() {
     setIsLoading(true)
 
     try {
-      const reply = await sendCoachMessage(updatedMessages, profile, recentEntries, goals, tone)
+      const reply = await sendCoachMessage(updatedMessages, profile, recentEntries, goals, tone, coachHabits)
       const assistantMsg: CoachMessage = {
         role: 'assistant',
         content: reply,
