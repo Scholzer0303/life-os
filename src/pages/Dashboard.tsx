@@ -107,6 +107,13 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [recentEntries, setRecentEntries] = useState<import('../types/database').JournalEntryRow[]>([])
   const [motivationQuote, setMotivationQuote] = useState<string | null>(null)
+  const [showOnboardingBanner, setShowOnboardingBanner] = useState(() => {
+    if (localStorage.getItem('ob_banner_dismissed')) return false
+    const la = (profile as Record<string, unknown> | null)?.life_areas as Record<string, string> | null
+    const visionMissing = !la || Object.values(la).every((v) => !v?.trim())
+    const identityMissing = !profile?.identity_statement?.trim()
+    return visionMissing || identityMissing
+  })
 
   useEffect(() => {
     if (!user) return
@@ -273,6 +280,47 @@ export default function Dashboard() {
 
   return (
     <div>
+      {/* ── Onboarding-Schritte offen Banner ─────────────────── */}
+      <AnimatePresence>
+        {showOnboardingBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.25 }}
+            style={{
+              background: 'color-mix(in srgb, var(--accent) 8%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
+              borderRadius: '12px',
+              padding: '0.875rem 1rem 0.875rem 1.25rem',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+            }}
+          >
+            <span style={{ fontSize: '1rem', flexShrink: 0 }}>✦</span>
+            <span style={{ flex: 1, fontSize: '0.875rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
+              Noch offene Einrichtungsschritte —{' '}
+              <button
+                onClick={() => navigate('/me')}
+                style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 600, cursor: 'pointer', padding: 0, fontSize: 'inherit' }}
+              >
+                im „Ich"-Tab nachholen →
+              </button>
+            </span>
+            <button
+              onClick={() => {
+                localStorage.setItem('ob_banner_dismissed', '1')
+                setShowOnboardingBanner(false)
+              }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.1rem', flexShrink: 0, lineHeight: 1 }}
+              aria-label="Schließen"
+            >
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Pattern Interrupt Banner ──────────────────────────── */}
       <AnimatePresence>
         {showPatternInterrupt && (

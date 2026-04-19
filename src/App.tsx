@@ -6,7 +6,8 @@ import { useStore } from './store/useStore'
 import AuthGuard from './components/AuthGuard'
 import AppLayout from './components/layout/AppLayout'
 import Login from './pages/Login'
-import Onboarding from './pages/Onboarding'
+// import Onboarding from './pages/Onboarding' // Paket 12: durch OnboardingNew ersetzt
+import OnboardingNew from './pages/OnboardingNew'
 import Dashboard from './pages/Dashboard'
 import Journal from './pages/Journal'
 import Goals from './pages/Goals'
@@ -118,7 +119,7 @@ export default function App() {
           path="/onboarding"
           element={
             <AuthGuard>
-              <Onboarding />
+              <OnboardingNew />
             </AuthGuard>
           }
         />

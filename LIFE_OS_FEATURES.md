@@ -1,7 +1,7 @@
 # LIFE_OS_FEATURES.md — Aktive Pakete
 # Claude Code liest diese Datei beim Session-Start automatisch.
 # Nach Abschluss eines Schritts: Status auf ✅ UMGESETZT (Datum) setzen.
-# Zuletzt aktualisiert: 2026-04-19 (Paket 6 Schritt 3 komplett — Jahresstart-Analyse + Slider-Fixes)
+# Zuletzt aktualisiert: 2026-04-19 (Paket 12 spezifiziert — Neues Onboarding)
 
 ---
 
@@ -15,6 +15,7 @@
 | Paket 10 | Login vereinfachen | DANACH |
 | Paket 11 | "Ich"-Tab (Lebensrad), Übersicht als Tagebuch, neue DB-Tabellen | DANACH |
 | Paket 6 | Vision/Identität KI-Flows, Coach vollständiger Kontext | ZULETZT |
+| Paket 12 | Neues Onboarding (ersetzt altes) | JETZT — nach Paket 6 |
 
 **Reihenfolge ist kritisch. Niemals Paket 8 vor Paket 7. Niemals Paket 6 vor Paket 11.**
 
@@ -620,3 +621,120 @@ Paket 6 wird erst angegangen wenn Pakete 7–11 vollständig abgeschlossen sind.
 **Paket 1 + 2A + 3A + 3B + 3C + 4 (alle 15 Schritte) — April 2026 ✅**
 **Paket 5 (alle 6 Schritte) — April 2026 ✅**
 Details in Archiv-Sektion der LIFE_OS_KONTEXT.md.
+
+---
+
+## PAKET 12 — Neues Onboarding (ersetzt altes komplett)
+
+**Ziel:** Das alte Onboarding (Werte, Ikigai etc.) wird vollständig ersetzt durch einen modernen,
+Apple-inspirierten First-Run Setup Flow. Pflichtschritte sind nicht überspringbar.
+Alles weitere ist optional — KI-Unterstützung ist immer möglich aber nie erzwungen.
+
+**Trigger:** Onboarding erscheint wenn `profiles.onboarding_complete` fehlt oder `false` ist.
+Nach Abschluss oder globalem Überspringen: `onboarding_complete = true` → App normal nutzbar.
+
+---
+
+### Schritt 1 — Altes Onboarding deaktivieren + Routing + DB ✅ UMGESETZT (2026-04-19)
+
+**Was passiert:**
+- Alte Onboarding-Komponente wird deaktiviert (Code bleibt erhalten)
+- Neue Komponente `OnboardingNew.tsx` unter `/onboarding` eingehängt
+- Routing-Logik: nach Datenlöschen / erstem Login → `/onboarding`
+
+**DB-Migration (Lukas führt im Supabase SQL Editor aus):**
+```sql
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_complete BOOLEAN DEFAULT false;
+```
+
+---
+
+### Schritt 2 — Phase 1: Pflichtschritte (Willkommen + Name + PIN)
+
+**Willkommen-Screen:**
+- Großes "Life OS" / ruhiges Design, Headspace-Stil
+- Kurzer Satz: "Dein persönlicher KI-Mentor. Starten wir."
+- Button: "Einrichten →"
+
+**Schritt: Dein Name**
+- Eingabefeld: "Wie soll ich dich nennen?"
+- Pflichtfeld — Weiter-Button erst aktiv wenn ausgefüllt
+- Gespeichert in `profiles.full_name`
+
+**Schritt: PIN setzen**
+- 4-stelliger PIN (bestehende PIN-Logik aus Paket 10 wiederverwenden)
+- Zweimal eingeben zur Bestätigung
+- Pflichtfeld — nicht überspringbar
+- Gespeichert als SHA-256-Hash in localStorage
+
+---
+
+### Schritt 3 — Phase 2: Lebensrad-Vision (optional, überspringbar) ✅ UMGESETZT (2026-04-19)
+
+**Screen-Header:** "Deine Vision"
+**Subtext:** "Was wäre in jedem Lebensbereich perfekt? Du kannst das jetzt einrichten oder später im 'Ich'-Tab nachholen."
+
+**UI:** 6 Bereiche als aufklappbare Cards (Lebensbereiche-Farben aus Design-System)
+Pro Bereich:
+- Textarea: freie Eingabe
+- Button "Mit KI formulieren lassen" → `generateVisionProposal` (bereits in claude.ts vorhanden)
+  - KI-Vorschlag erscheint → "Übernehmen" / "Anpassen" / "Neu generieren"
+- Erledigte Bereiche zeigen grünen Haken
+
+**Navigation:** "Überspringen →" (überspringt gesamte Phase) | "Weiter →"
+**Gespeichert in:** `profiles.life_areas` (JSONB)
+
+---
+
+### Schritt 4 — Phase 2: Identität (optional, überspringbar) ✅ UMGESETZT (2026-04-19)
+
+**Screen-Header:** "Deine Identität"
+**Subtext:** "Wer bist du? Affirmationen helfen dir, die Person zu werden die du sein willst."
+
+**Zwei Wege (Nutzer wählt):**
+1. Selbst schreiben: Textarea mit Beispiel-Placeholder
+2. "Aus meiner Vision ableiten lassen" → `generateIdentityAffirmations` (bereits vorhanden)
+   - Nur aktiv wenn mindestens 1 Vision-Bereich ausgefüllt
+   - KI generiert 5–7 Affirmationen mit Checkboxen
+   - "Ausgewählte übernehmen" füllt Textarea
+
+**"Überspringen →"** jederzeit möglich
+**Gespeichert in:** `profiles.identity_statement`
+
+---
+
+### Schritt 5 — Phase 2: Jahresstart (optional, überspringbar) ✅ UMGESETZT (2026-04-19)
+
+**Screen-Header:** "Dein Jahr 2026"
+**Subtext:** "Wo stehst du gerade? Das ist dein Ausgangspunkt."
+
+**Ist-Stand:** Pro Lebensbereich Slider 1–10 + optionale Notiz
+- Button "KI-Einschätzung holen" → `generateYearStartAnalysis` (bereits vorhanden)
+- "Übernehmen" pro Bereich
+
+**Schwerpunkte:** 2–3 Bereiche als Jahresfokus wählen (Auswahl-Buttons)
+
+**Jahresziele (optional):** Pro Schwerpunktbereich ein Textfeld für Jahresziel
+
+**"Überspringen →"** gesamter Schritt überspringbar
+**Gespeichert in:** `life_area_snapshots` (snapshot_type: 'start') + `goals` (Jahresziele falls ausgefüllt)
+
+---
+
+### Schritt 6 — Abschluss-Screen ✅ UMGESETZT (2026-04-19)
+
+**Header:** "Alles bereit, [Name]!"
+**Zusammenfassung** was eingerichtet wurde (grüne Haken) vs. was noch offen ist (grauer Hinweis):
+- ✅ Name gesetzt
+- ✅ PIN gesetzt
+- ✅/○ Vision (Bereiche X/6 ausgefüllt)
+- ✅/○ Identität definiert
+- ✅/○ Jahresstart erfasst
+
+**Button:** "Life OS starten →"
+- Setzt `profiles.onboarding_complete = true`
+- Weiterleitung: Dashboard
+
+**Dashboard-Banner (nur wenn Schritte übersprungen wurden):**
+Einmaliger Hinweis: "Noch offene Einrichtungsschritte — im 'Ich'-Tab nachholen →"
+

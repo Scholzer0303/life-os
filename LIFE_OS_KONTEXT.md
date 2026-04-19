@@ -1,7 +1,7 @@
 # LIFE_OS_KONTEXT.md — Projektgedächtnis
 # Wird nach JEDEM abgeschlossenen Schritt von Claude Code aktualisiert.
 # Nach jeder Session: diese Datei ins Claude Project hochladen (ersetzt alte Version).
-# Zuletzt aktualisiert: 2026-04-19 (Paket 6 Schritt 3 komplett — Jahresstart-Analyse + Slider-Fixes)
+# Zuletzt aktualisiert: 2026-04-19 (Paket 12 spezifiziert — Neues Onboarding)
 
 ---
 
@@ -158,6 +158,9 @@ CREATE TABLE IF NOT EXISTS focus_area_changes (
 ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS identity_check TEXT
   CHECK (identity_check IN ('yes', 'partly', 'no'));
 ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS identity_note TEXT;
+
+-- Paket 12 (Neues Onboarding):
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_complete BOOLEAN DEFAULT false;
 ```
 
 ---
@@ -224,6 +227,12 @@ Dashboard · Journal · Übersicht · Coach · Ich · Einstellungen
 | 6-4 | Identität täglich im Morgen/Abend | 6C | ✅ ERLEDIGT 2026-04-19 |
 | 6-5 | Habit-KI: Bewertung + Vorschläge | 6D | ✅ ERLEDIGT 2026-04-19 |
 | 6-6 | Coach: vollständiger Kontext (Vision, Ziele, Habits, Journal, Schwerpunkt) | 6E | ✅ ERLEDIGT 2026-04-19 |
+| 12-1 | Altes Onboarding deaktivieren + Routing + DB-Migration | 12A | ✅ ERLEDIGT 2026-04-19 |
+| 12-2 | Phase 1: Willkommen + Name (Pflicht) + PIN setzen (Pflicht) | 12A | ⏳ OFFEN |
+| 12-3 | Phase 2: Lebensrad-Vision (optional, KI-Unterstützung) | 12B | ✅ ERLEDIGT 2026-04-19 |
+| 12-4 | Phase 2: Identität (optional, selbst oder KI) | 12B | ✅ ERLEDIGT 2026-04-19 |
+| 12-5 | Phase 2: Jahresstart Ist-Stand + Schwerpunkte + Jahresziele (optional, KI) | 12B | ✅ ERLEDIGT 2026-04-19 |
+| 12-6 | Abschluss-Screen + onboarding_complete setzen + Dashboard-Banner | 12C | ✅ ERLEDIGT 2026-04-19 |
 
 ---
 
@@ -243,6 +252,11 @@ Dashboard · Journal · Übersicht · Coach · Ich · Einstellungen
 ---
 
 ## Archiv
+
+**Paket 12 (Schritte 1–6) — April 2026 ✅**
+12-1: Routing — OnboardingNew.tsx unter /onboarding eingehängt, altes Onboarding.tsx deaktiviert (Code bleibt). DB-Feld onboarding_completed war bereits vorhanden.
+12-2+3+4+5+6: Vollständiger 7-Schritt-Flow: Welcome → Name → PIN (PINSetup-Logik wiederverwendet) → Vision (6 Bereiche, aufklappbare Cards, KI via generateVisionProposal, sofort in profiles.life_areas gespeichert) → Identität (Auswahlscreen: KI aus Vision ableiten oder selbst schreiben, Checkboxen, gespeichert in profiles.identity_statement) → Jahresstart (Slider 1–10 pro Bereich, KI-Einschätzung via generateYearStartAnalysis, Schwerpunkte 2–3, Jahresziele, gespeichert in life_area_snapshots + goals) → Abschluss (Zusammenfassung ✓/○, "Life OS starten →" setzt onboarding_completed=true).
+Dashboard-Banner: zeigt sich wenn Vision oder Identität leer — einmalig, schließbar, Link zu /me. Dismissed-Status in localStorage.
 
 **Paket 6A+6B Schritte 1–3 — April 2026 ✅**
 6-1: Lebensrad KI-Flow — "Mit KI erarbeiten"-Button pro Lebensbereich im Ich-Tab. 2-Schritt-Flow: Rohgedanken eingeben → KI generiert Vision in Lukas' Alltagssprache (claude.ts: generateVisionProposal). Übernehmen / Anpassen / Neu-generieren. Gespeichert in profiles.life_areas.
